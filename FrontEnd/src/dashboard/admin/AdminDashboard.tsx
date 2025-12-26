@@ -1,50 +1,11 @@
 import {useEffect, useState} from 'react';
 import {AdminLayout} from "./components/AdminLayout.tsx";
-import {Car} from "./types/Car.ts";
+import {Car, CarCreateRequest} from "./types/Car.ts";
 import {CarManagementPage} from "./pages/CarManagementPage.tsx";
-
-const INITIAL_CARS: Car[] = [
-    {
-        id: "1",
-        name: "Audi A8 L 2022",
-        year: 2022,
-        price: 4000,
-        category: "Sedan",
-        transmission: "Auto",
-        seats: 4,
-        fuelType: "Petrol",
-        image: "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&q=80",
-        description: "Luxury sedan with premium features",
-        available: true,
-    },
-    {
-        id: "2",
-        name: "Nissan Maxima Platinum 2022",
-        year: 2022,
-        price: 3500,
-        category: "Sedan",
-        transmission: "Auto",
-        seats: 4,
-        fuelType: "Petrol",
-        image: "https://images.unsplash.com/photo-1619767886558-efdc259cde1a?w=800&q=80",
-        description: "Comfortable and reliable sedan",
-        available: false,
-    },
-    {
-        id: "3",
-        name: "Porsche Cayenne GTS 2022",
-        year: 2022,
-        price: 5500,
-        category: "Porsche",
-        transmission: "Auto",
-        seats: 4,
-        fuelType: "Petrol",
-        image: "https://images.unsplash.com/photo-1580273916550-e323be2ae537?w=800&q=80",
-        description: "High-performance luxury SUV",
-        available: true,
-    },
-];
-
+import { carService } from "../../services/carService.ts";
+import {CarForm} from "./components/CarForm.tsx";
+import {toast} from "sonner";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "../../components/ui/dialog.tsx";
 
 interface AdminDashboardProps {
     onBack: () => void;
@@ -53,19 +14,28 @@ interface AdminDashboardProps {
 export function AdminDashboard({ onBack }: AdminDashboardProps) {
     const [currentPage, setCurrentPage] = useState("dashboard");
     const [cars, setCars] = useState<Car[]>([]);
+    const [isFormOpen, setIsFormOpen] = useState(false);
+    const openAddForm = () => setIsFormOpen(true);
+    const closeForm = () => setIsFormOpen(false);
 
 
     // Load cars from localStorage on mount
     useEffect(() => {
-        const storedCars = localStorage.getItem("garizetu_cars");
-        if (storedCars) {
-            setCars(JSON.parse(storedCars));
-        } else {
-            // Initialize with default cars
-            setCars(INITIAL_CARS);
-            localStorage.setItem("garizetu_cars", JSON.stringify(INITIAL_CARS));
-        }
+        carService.getAll()
+            .then(setCars)
+            .catch(console.error);
     }, []);
+    
+    const handleAddCar = async (carData: CarCreateRequest) => {
+        try{
+            const createdCar = await carService.createCar(carData)
+            setCars(prev => [...prev, createdCar]);
+            setIsFormOpen(false);
+            toast.success("Car added Successfully!");
+        } catch (error) {
+            console.log(error);
+        }
+    }
 
 
     const getPageTitle = () => {
@@ -93,7 +63,7 @@ export function AdminDashboard({ onBack }: AdminDashboardProps) {
         switch (currentPage){
             case "cars":
                 return (
-                    <CarManagementPage cars={cars}/>
+                    <CarManagementPage cars={cars} onAdd={openAddForm}/>
                 )
         }
     }
@@ -109,6 +79,25 @@ export function AdminDashboard({ onBack }: AdminDashboardProps) {
             >
                 {renderPage()}
             </AdminLayout>
+
+            {/* Add Car Form*/}
+            <Dialog open={isFormOpen} onOpenChange={closeForm}>
+                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#1a1a1a] border-gray-800 text-white">
+                    <DialogHeader>
+                        <DialogTitle className="text-white">
+                            Add New Car
+                        </DialogTitle>
+                        <DialogDescription className="text-gray-400">
+                            Enter the car details
+                        </DialogDescription>
+                    </DialogHeader>
+                    <CarForm
+                        car={undefined}
+                        onSubmit={handleAddCar}
+                        onCancel={closeForm}
+                    />
+                </DialogContent>
+            </Dialog>
         </>
     )
 

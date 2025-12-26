@@ -12,21 +12,23 @@ import {
 
 interface CarManagementPageProps {
     cars: Car[];
+    onAdd: () => void;
+
 }
-export function CarManagementPage({ cars }: CarManagementPageProps) {
+export function CarManagementPage({ cars, onAdd }: CarManagementPageProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const filteredCars = cars.filter((car) => {
-        const matchesSearch = car.name.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesSearch = car.make.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus =
             statusFilter === "all" ||
-            (statusFilter === "available" && car.available) ||
-            (statusFilter === "unavailable" && !car.available);
+            (statusFilter === "available" && car.carStatus) ||
+            (statusFilter === "unavailable" && !car.carStatus);
         return matchesSearch && matchesStatus;
     });
 
     const getCarStatusBadge = (car: Car) => {
-        if (car.available) {
+        if (car.carStatus == "AVAILABLE") {
             return (
                 <Badge className="absolute top-3 right-3 bg-green-500/20 text-green-400 border-green-500/30">
                     Available
@@ -67,7 +69,7 @@ export function CarManagementPage({ cars }: CarManagementPageProps) {
                     </div>
 
                     {/* Add Car Button */}
-                    <Button /*onClick={onAdd}*/
+                    <Button onClick={onAdd}
                         className="bg-white text-black hover:bg-gray-200 gap-2 w-full sm:w-auto">
                         <Plus className="w-4 h-4"/>
                         Add Car
@@ -78,14 +80,14 @@ export function CarManagementPage({ cars }: CarManagementPageProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredCars.map((car) => (
                         <div
-                            key={car.id}
+                            key={car.carId}
                             className="bg-[#141414] border border-gray-800 rounded-lg overflow-hidden hover:border-gray-700 transition-colors group"
                         >
                             {/* Car Image */}
                             <div className="relative h-48">
                                 <img
-                                    src={car.image}
-                                    alt={car.name}
+                                    /*src={car.image}*/
+                                    alt={car.make}
                                     className="w-full h-full object-cover"
                                 />
                                 {getCarStatusBadge(car)}
@@ -117,10 +119,10 @@ export function CarManagementPage({ cars }: CarManagementPageProps) {
 
                             {/* Car Details */}
                             <div className="p-4">
-                                <p className="text-xs text-gray-500 mb-1">{car.category}</p>
-                                <h3 className="text-white mb-2">{car.name}</h3>
+                                <p className="text-xs text-gray-500 mb-1">{car.vehicleModel}</p>
+                                <h3 className="text-white mb-2">{car.make}</h3>
                                 <p className="text-white text-lg mb-4">
-                                    Ksh {car.price.toLocaleString()}
+                                    Ksh {car.dailyPrice.toLocaleString()}
                                     <span className="text-gray-400 text-sm">/day</span>
                                 </p>
 
@@ -138,14 +140,14 @@ export function CarManagementPage({ cars }: CarManagementPageProps) {
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                                   d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
                                         </svg>
-                                        <span>{car.transmission}</span>
+                                        <span>{car.transmissionType}</span>
                                     </div>
                                     <div className="flex items-center gap-1">
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
                                                   d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
                                         </svg>
-                                        <span>{car.seats} Person</span>
+                                        <span>{car.seatingCapacity} Person</span>
                                     </div>
                                 </div>
                             </div>
