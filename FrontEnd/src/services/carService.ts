@@ -13,4 +13,9 @@ export const carService = {
         const res = await api.post("/cars/admin/create-car", payload);
         return res.data;
     }
+
+    //updating an existing car
+    updateCar: async (): Promise<Car> => {
+        const res = await api.patch("/cars/admin")
+    }
 }

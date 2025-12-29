@@ -14,12 +14,23 @@ interface AdminDashboardProps {
 export function AdminDashboard({ onBack }: AdminDashboardProps) {
     const [currentPage, setCurrentPage] = useState("dashboard");
     const [cars, setCars] = useState<Car[]>([]);
+    const [editingCars, setEditingCars] = useState<Car | null>(null);
     const [isFormOpen, setIsFormOpen] = useState(false);
-    const openAddForm = () => setIsFormOpen(true);
     const closeForm = () => setIsFormOpen(false);
 
+    // Add car form
+    const openAddForm = () => {
+        setIsFormOpen(true);
+        setEditingCars(null);
+    }
 
-    // Load cars from localStorage on mount
+    // Editing car Form
+    const openEditForm = (car: Car) => {
+        setEditingCars(car)
+        setIsFormOpen(true);
+    }
+
+    // Load cars from API on mount
     useEffect(() => {
         carService.getAll()
             .then(setCars)
@@ -36,6 +47,8 @@ export function AdminDashboard({ onBack }: AdminDashboardProps) {
             console.log(error);
         }
     }
+
+
 
 
     const getPageTitle = () => {
@@ -80,7 +93,7 @@ export function AdminDashboard({ onBack }: AdminDashboardProps) {
                 {renderPage()}
             </AdminLayout>
 
-            {/* Add Car Form*/}
+            {/* Add/Edit Car Form*/}
             <Dialog open={isFormOpen} onOpenChange={closeForm}>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#1a1a1a] border-gray-800 text-white">
                     <DialogHeader>
@@ -92,8 +105,8 @@ export function AdminDashboard({ onBack }: AdminDashboardProps) {
                         </DialogDescription>
                     </DialogHeader>
                     <CarForm
-                        car={undefined}
-                        onSubmit={handleAddCar}
+                        car={editingCars || undefined}
+                        onSubmit={editingCars ? null : handleAddCar}
                         onCancel={closeForm}
                     />
                 </DialogContent>
