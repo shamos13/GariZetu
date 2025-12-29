@@ -52,7 +52,7 @@ public class CarController {
         return ResponseEntity.ok(cars);
     }
 
-    // Updating specific fields only
+    // Updating car in patches
     @PatchMapping("/{id}")
     public ResponseEntity<CarResponseDTO> updateCar(@PathVariable Long id, @RequestBody CarUpdateDTO updateDTO) {
         CarResponseDTO updatedCar = carService.updateStatus(id, updateDTO);

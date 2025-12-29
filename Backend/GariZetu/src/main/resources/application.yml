@@ -16,3 +16,9 @@ spring:
       hibernate:
         format_sql: true
     database: postgresql
+
+
+cloudinary:
+  cloud-name: "dicnb9x6z"
+  api-key: "633256643316292"
+  api-secret: "17vAylBr1gjWcUDK6JMVn67f1gQ"
