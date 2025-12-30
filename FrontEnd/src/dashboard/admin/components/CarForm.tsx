@@ -4,6 +4,7 @@ import {Input} from "../../../components/ui/input";
 import {Label} from "../../../components/ui/label";
 import {CarStatus, FuelType, TransmissionType} from "../types/Car.ts";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "../../../components/ui/select.tsx";
+import {Upload, X} from "lucide-react";
 
 export type CarFormData = {
     make: string;
@@ -22,7 +23,7 @@ export type CarFormData = {
 
 interface CarFormProps {
     car?: CarFormData;
-    onSubmit: (car: CarFormData) => void;
+    onSubmit: (car: CarFormData, image: File | null) => void | Promise<void>;
     onCancel: () => void;
 }
 
@@ -42,18 +43,110 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         fuelType: car?.fuelType || "PETROL",
 
     });
+    const [selectedImage, setSelectedImage] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSubmit(formData);
+
+        // Validate if   image is selected
+        if(!selectedImage){
+            alert("please select a car image")
+            return;
+        }
+        onSubmit(formData, selectedImage);
+
     };
 
     const handleChange = (field: keyof CarFormData, value: string | number) => {
         setFormData({ ...formData, [field]: value });
     };
 
+    //Handle image selection
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+
+        if (file) {
+
+            //Validate file type
+            if (!file.type.startsWith('image')){
+                alert("Please select an image file")
+                return;
+            }
+
+            // Validate file size (10mb)
+            const maxSize = 10*1024*1024;
+            if (file.size > maxSize){
+                alert("Image sie must be less than 10mb");
+                return;
+            }
+
+            setSelectedImage(file);
+
+            // Create a preview URL
+            const previewUrl = URL.createObjectURL(file);
+            setImagePreview(previewUrl);
+        }
+    };
+
+    // Clear Selected image
+    const handleClearImage = () => {
+        setSelectedImage(null);
+        setImagePreview(null);
+
+        //Reset file input
+        const fileInput = document.getElementById('image') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+    }
+
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
+            {/* NEW: Image Upload Section */}
+            <div className="space-y-3">
+                <Label htmlFor="image" className="text-gray-300">Car Image *</Label>
+
+                {/* Image Preview or Upload Button */}
+                {imagePreview ? (
+                    <div className="relative">
+                        <img
+                            src={imagePreview}
+                            alt="Car preview"
+                            className="w-full h-48 object-cover rounded-lg border border-gray-700"
+                        />
+                        <button
+                            type="button"
+                            onClick={handleClearImage}
+                            className="absolute top-2 right-2 p-2 bg-red-500 hover:bg-red-600 rounded-full transition-colors"
+                        >
+                            <X className="w-4 h-4 text-white" />
+                        </button>
+                        <div className="mt-2 text-sm text-gray-400">
+                            {selectedImage?.name} ({(selectedImage!.size / 1024 / 1024).toFixed(2)} MB)
+                        </div>
+                    </div>
+                ) : (
+                    <label
+                        htmlFor="image"
+                        className="flex flex-col items-center justify-center w-full h-48 border-2 border-gray-700 border-dashed rounded-lg cursor-pointer bg-[#0a0a0a] hover:bg-[#141414] transition-colors"
+                    >
+                        <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            <Upload className="w-10 h-10 text-gray-500 mb-3" />
+                            <p className="mb-2 text-sm text-gray-400">
+                                <span className="font-semibold">Click to upload</span> or drag and drop
+                            </p>
+                            <p className="text-xs text-gray-500">PNG, JPG or WEBP (MAX. 10MB)</p>
+                        </div>
+                        <input
+                            id="image"
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp"
+                            onChange={handleImageChange}
+                            className="hidden"
+                            required
+                        />
+                    </label>
+                )}
+            </div>
             <div className="grid grid-cols-2 gap-4">
                 {/* Make */}
                 <div>
