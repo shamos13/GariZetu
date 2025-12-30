@@ -33,6 +33,7 @@ public class CarController {
      * Creates a new car with image upload
      */
 
+
     @PostMapping(value="/admin/create-car", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CarResponseDTO> createCar(
             @Valid @ModelAttribute CarCreateRequest carCreateRequest) {
