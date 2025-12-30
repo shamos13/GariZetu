@@ -4,10 +4,14 @@ import com.amos.garizetu.DTO.Request.CarCreateRequest;
 import com.amos.garizetu.DTO.Request.CarUpdateDTO;
 import com.amos.garizetu.DTO.Response.CarResponseDTO;
 import com.amos.garizetu.Service.CarService;
+import com.amos.garizetu.Service.FileStorageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,14 +25,47 @@ import java.util.List;
 public class CarController {
 
     private final CarService carService;
+    private final FileStorageService fileStorageService;
 
-    // Adding Cars to the Database
-    @PostMapping("/admin/create-car")
+
+    /**
+     * ENDPOINT 1: Upload (Admin)
+     * Creates a new car with image upload
+     */
+
+    @PostMapping(value="/admin/create-car", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CarResponseDTO> createCar(
-            @Valid @RequestBody CarCreateRequest carCreateRequest) {
-        log.info("Admin creating a new car");
+            @Valid @ModelAttribute CarCreateRequest carCreateRequest) {
+        log.info("Admin creating a new car with image upload");
         CarResponseDTO createdCar = carService.createCar(carCreateRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdCar);
+    }
+
+    /**
+     * ENDPOINT 2: Retrieve Image
+     * Serves the car image file to clients
+     *
+     * This is the "bridge" endpoint you identified - it retrieves files
+     * from local storage and sends them over the internet
+     *
+     * Example: GET /api/v1/cars/images/550e8400-e29b-41d4-a801-1a2b3c4d5e6f.jpg
+     *
+     * Returns the raw image bytes with appropriate Content-Type header
+     */
+    @GetMapping("images/{fileName:.+}")
+    public ResponseEntity<Resource> getImage(@PathVariable String fileName) {
+        log.info("Getting image for file {}", fileName);
+
+        // Load the file as a resource
+        Resource resource = fileStorageService.loadFileAsResource(fileName);
+
+        // Determine the content type based on file extension
+        String contentType = determineContentType(fileName);
+        //Return the image with appropriate headers
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentType))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" +fileName + "\"")
+                .body(resource);
     }
 
     //Get all Cars
@@ -62,5 +99,19 @@ public class CarController {
     public ResponseEntity<Void> deleteCarById(@PathVariable("id") Long carId) {
         carService.deleteCar(carId);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Helper method to determine content type from file extension
+     * This ensures browsers render images correctly
+     */
+    private String determineContentType(String fileName) {
+        if (fileName.endsWith(".png")) {
+            return "image/png";
+        } else if (fileName.endsWith(".webp")) {
+            return "image/webp";
+        } else {
+            return "image/jpeg"; // Default to JPEG
+        }
     }
 }

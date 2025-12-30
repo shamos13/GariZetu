@@ -24,8 +24,9 @@ public class CarService {
 
     private final CarRepository carRepository;
     private final CarMapper carMapper;
+    private final FileStorageService fileStorageService;
 
-    //Create a new car
+    //Create a new car with image upload
     public CarResponseDTO createCar(CarCreateRequest carCreateRequest) {
         log.info("Create a new car with registration: {}", carCreateRequest.getRegistrationNumber());
 
@@ -34,10 +35,19 @@ public class CarService {
             throw  new RuntimeException("Car with registration number " + carCreateRequest.getRegistrationNumber() + " already exists");
         }
 
+        //Store the image first and get the file name
+        String storedFileName = fileStorageService.storeFile(carCreateRequest.getImage());
+        log.info("Storing image for file {}", storedFileName);
+
+        //Build image Url that will be stored in the db
+        String imageUrl = "/api/v1/cars/images/" + storedFileName;
+
+        Car car = carMapper.toEntity(carCreateRequest);
+        car.setMainImageUrl(imageUrl);
+
         //Business rule 2: Validate car year
         validateCarYear(carCreateRequest.getYear());
 
-        Car car = carMapper.toEntity(carCreateRequest);
 
         //Business rule 3: New cars should default to available if not Specified
         if (car.getCarStatus()==null){
@@ -113,4 +123,5 @@ public class CarService {
             throw new RuntimeException("We do not take cars over 30 years old");
         }
     }
+
 }
