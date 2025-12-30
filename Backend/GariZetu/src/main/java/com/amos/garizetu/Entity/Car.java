@@ -31,6 +31,8 @@ public class Car {
     private int mileage;
     private double dailyPrice;
     private int seatingCapacity;
+    private String mainImageUrl; //Added a url to upload images
+
 
     @Enumerated(EnumType.STRING)
     @Column(name = "car_status", nullable = false)

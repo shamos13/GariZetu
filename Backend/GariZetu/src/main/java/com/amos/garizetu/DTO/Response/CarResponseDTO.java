@@ -19,6 +19,7 @@ public class CarResponseDTO {
     private int mileage;
     private double dailyPrice;
     private int seatingCapacity;
+    private String mainImageUrl;
     private CarStatus carStatus;
     private TransmissionType transmissionType;
     private FuelType fuelType;

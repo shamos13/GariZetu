@@ -5,6 +5,7 @@ import com.amos.garizetu.Enums.FuelType;
 import com.amos.garizetu.Enums.TransmissionType;
 import jakarta.validation.constraints.*;
 import lombok.Data;
+import org.springframework.web.multipart.MultipartFile;
 
 @Data
 public class CarCreateRequest {
@@ -48,6 +49,9 @@ public class CarCreateRequest {
 
     @NotNull(message = "Car Status is required")
     private CarStatus carStatus;
+
+    @NotNull(message = "Car image is required")
+    private MultipartFile image;
 
 
 }
