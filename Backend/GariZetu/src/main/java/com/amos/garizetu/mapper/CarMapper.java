@@ -19,6 +19,7 @@ public class CarMapper {
         car.setRegistrationNumber(dto.getRegistrationNumber());
         car.setVehicleModel(dto.getVehicleModel());
         car.setYear(dto.getYear());
+        car.setEngineCapacity(dto.getEngineCapacity());
         car.setColour(dto.getColour());
         car.setMileage(dto.getMileage());
         car.setDailyPrice(dto.getDailyPrice());
@@ -42,10 +43,12 @@ public class CarMapper {
         carResponseDTO.setRegistrationNumber(car.getRegistrationNumber());
         carResponseDTO.setVehicleModel(car.getVehicleModel());
         carResponseDTO.setYear(car.getYear());
+        carResponseDTO.setEngineCapacity(car.getEngineCapacity());
         carResponseDTO.setColour(car.getColour());
         carResponseDTO.setMileage(car.getMileage());
         carResponseDTO.setDailyPrice(car.getDailyPrice());
         carResponseDTO.setSeatingCapacity(car.getSeatingCapacity());
+        carResponseDTO.setMainImageUrl(car.getMainImageUrl());
         carResponseDTO.setCarStatus(car.getCarStatus());
         carResponseDTO.setTransmissionType(car.getTransmissionType());
         carResponseDTO.setFuelType(car.getFuelType());
