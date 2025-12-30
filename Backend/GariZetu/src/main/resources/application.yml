@@ -17,6 +17,16 @@ spring:
         format_sql: true
     database: postgresql
 
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+file:
+  upload:
+    directory: /home/cfreak97/Desktop/GariZetu_Project/uploads
+
 
 cloudinary:
   cloud-name: "dicnb9x6z"
