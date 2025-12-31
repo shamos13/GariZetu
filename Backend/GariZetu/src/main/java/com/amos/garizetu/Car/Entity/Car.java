@@ -1,8 +1,8 @@
-package com.amos.garizetu.Entity;
+package com.amos.garizetu.Car.Entity;
 
-import com.amos.garizetu.Enums.CarStatus;
-import com.amos.garizetu.Enums.FuelType;
-import com.amos.garizetu.Enums.TransmissionType;
+import com.amos.garizetu.Car.Enums.CarStatus;
+import com.amos.garizetu.Car.Enums.FuelType;
+import com.amos.garizetu.Car.Enums.TransmissionType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;

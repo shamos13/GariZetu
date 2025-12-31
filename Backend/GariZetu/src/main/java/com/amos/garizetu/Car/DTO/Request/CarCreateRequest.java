@@ -1,8 +1,8 @@
-package com.amos.garizetu.DTO.Request;
+package com.amos.garizetu.Car.DTO.Request;
 
-import com.amos.garizetu.Enums.CarStatus;
-import com.amos.garizetu.Enums.FuelType;
-import com.amos.garizetu.Enums.TransmissionType;
+import com.amos.garizetu.Car.Enums.CarStatus;
+import com.amos.garizetu.Car.Enums.FuelType;
+import com.amos.garizetu.Car.Enums.TransmissionType;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 import org.springframework.web.multipart.MultipartFile;

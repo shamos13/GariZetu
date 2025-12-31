@@ -1,8 +1,8 @@
-package com.amos.garizetu.DTO.Response;
+package com.amos.garizetu.Car.DTO.Response;
 
-import com.amos.garizetu.Enums.CarStatus;
-import com.amos.garizetu.Enums.FuelType;
-import com.amos.garizetu.Enums.TransmissionType;
+import com.amos.garizetu.Car.Enums.CarStatus;
+import com.amos.garizetu.Car.Enums.FuelType;
+import com.amos.garizetu.Car.Enums.TransmissionType;
 import lombok.Data;
 
 import java.time.LocalDateTime;
