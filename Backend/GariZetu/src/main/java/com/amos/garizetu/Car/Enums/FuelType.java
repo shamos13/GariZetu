@@ -1,4 +1,4 @@
-package com.amos.garizetu.Enums;
+package com.amos.garizetu.Car.Enums;
 
 public enum FuelType {
     PETROL,

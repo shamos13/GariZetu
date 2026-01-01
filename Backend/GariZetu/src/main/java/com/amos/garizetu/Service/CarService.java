@@ -1,12 +1,12 @@
 package com.amos.garizetu.Service;
 
-import com.amos.garizetu.DTO.Request.CarCreateRequest;
-import com.amos.garizetu.DTO.Request.CarUpdateDTO;
-import com.amos.garizetu.DTO.Response.CarResponseDTO;
-import com.amos.garizetu.Entity.Car;
-import com.amos.garizetu.Enums.CarStatus;
+import com.amos.garizetu.Car.DTO.Request.CarCreateRequest;
+import com.amos.garizetu.Car.DTO.Request.CarUpdateDTO;
+import com.amos.garizetu.Car.DTO.Response.CarResponseDTO;
+import com.amos.garizetu.Car.Entity.Car;
+import com.amos.garizetu.Car.Enums.CarStatus;
 import com.amos.garizetu.Repository.CarRepository;
-import com.amos.garizetu.mapper.CarMapper;
+import com.amos.garizetu.Car.mapper.CarMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

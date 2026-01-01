@@ -1,6 +1,6 @@
-package com.amos.garizetu.DTO.Request;
+package com.amos.garizetu.Car.DTO.Request;
 
-import com.amos.garizetu.Enums.CarStatus;
+import com.amos.garizetu.Car.Enums.CarStatus;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 

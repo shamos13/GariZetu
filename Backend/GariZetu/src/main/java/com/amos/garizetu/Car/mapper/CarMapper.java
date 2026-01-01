@@ -1,8 +1,8 @@
-package com.amos.garizetu.mapper;
+package com.amos.garizetu.Car.mapper;
 
-import com.amos.garizetu.DTO.Request.CarCreateRequest;
-import com.amos.garizetu.DTO.Response.CarResponseDTO;
-import com.amos.garizetu.Entity.Car;
+import com.amos.garizetu.Car.DTO.Request.CarCreateRequest;
+import com.amos.garizetu.Car.DTO.Response.CarResponseDTO;
+import com.amos.garizetu.Car.Entity.Car;
 import org.springframework.stereotype.Component;
 
 @Component
