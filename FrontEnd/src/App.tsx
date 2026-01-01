@@ -1,13 +1,12 @@
-import {useState} from "react";
-import {AdminDashboard} from "./dashboard/admin/AdminDashboard.tsx";
+import HomePage from "./pages/HomePage";
 
 
 function App() {
-    const [isAdminView, setIsAdminView] = useState<boolean>(false);
+
 
   return (
     <>
-        <AdminDashboard onBack={() => setIsAdminView(true)}/>
+        <HomePage/>
     </>
   )
 }
