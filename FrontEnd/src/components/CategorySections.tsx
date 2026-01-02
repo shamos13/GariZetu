@@ -5,7 +5,7 @@ const brands = [
     { name: "Mercedes-Benz", icon: "/logos/mercedes-benz-8.svg" },
     { name: "BMW", icon: "/logos/bmw-7.svg" },
     { name: "Volkswagen", icon: "/logos/volkswagen-10.svg" },
-    { name: "Audi", icon: "/logos/audi.svg" },
+    { name: "Audi", icon: "/logos/audi (1).svg" },
     { name: "Nissan", icon: "/logos/nissan.svg" },
 ];
 
@@ -41,7 +41,7 @@ export function CategorySections() {
                 </div>
             </div>
 
-            
+
         </section>
     );
 }

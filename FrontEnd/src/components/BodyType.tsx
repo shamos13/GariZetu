@@ -11,7 +11,7 @@ const bodyTypes = [
 
 export function BodyType() {
     return (
-        <section className="py-20 px-4 md:px-12 bg-white max-w-7xl mx-auto">
+        <section className="py-5 px-4 md:px-12 bg-white max-w-7xl mx-auto">
             <div className="max-w-7xl mx-auto">
                 <div className="flex items-center justify-between mb-10">
                     <h2 className="text-xl md:text-xl font-semibold tracking-tight">Rent by Body Type</h2>
