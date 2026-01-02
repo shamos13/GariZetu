@@ -1,7 +1,7 @@
 import {HeroSection} from "../components/HeroSection.tsx";
 import {Navbar} from "../components/Navbar.tsx";
-import {BookingForm} from "../components/BookingForm.tsx";
 import {CategorySections} from "../components/CategorySection.tsx";
+import {BookingForm} from "../components/BookingForm.tsx";
 
 export default function HomePage() {
     return (
