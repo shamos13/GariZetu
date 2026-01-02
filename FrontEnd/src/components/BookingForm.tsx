@@ -1,13 +1,14 @@
-import { MapPin } from "lucide-react"
+import { MapPin, ArrowRight } from "lucide-react"
 
 export function BookingForm() {
     return (
         <div className="relative z-20 -mt-16 md:-mt-20 px-4 md:px-12 max-w-7xl mx-auto">
-            <div className="bg-white/95 backdrop-blur-sm rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.15)] p-6 md:p-8 flex flex-col md:flex-row items-end gap-4 border border-white/40">
+            <div
+                className="bg-white/95 backdrop-blur-sm rounded-[32px] shadow-[0_20px_50px_rgba(0,0,0,0.15)] p-6 md:p-8 flex flex-col md:flex-row items-end gap-4 border border-white/40">
                 <div className="flex-1 w-full space-y-3">
                     <label className="text-[13px] font-semibold text-[#555] ml-1">Pick-up Location</label>
                     <div className="relative">
-
+                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18}/>
                         <input
                             type="text"
                             placeholder="Search a location"
@@ -30,7 +31,7 @@ export function BookingForm() {
                 <div className="flex-1 w-full space-y-3">
                     <label className="text-[13px] font-semibold text-[#555] ml-1">Drop-off Location</label>
                     <div className="relative">
-
+                        <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18}/>
                         <input
                             type="text"
                             placeholder="Search a location"
@@ -50,8 +51,10 @@ export function BookingForm() {
                     </div>
                 </div>
 
-                <button className="w-full md:w-auto bg-[#111] text-white px-10 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-black transition-all group">
+                <button
+                    className="w-full md:w-auto bg-[#111] text-white px-10 py-4 rounded-2xl font-bold flex items-center justify-center gap-2 hover:bg-black transition-all group">
                     Find a Vehicle
+                    <ArrowRight size={20} className="group-hover:translate-x-1 transition-transform"/>
                 </button>
             </div>
         </div>
