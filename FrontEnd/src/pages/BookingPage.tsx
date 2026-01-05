@@ -17,6 +17,7 @@ import {
     Lock
 } from "lucide-react";
 import { Navbar } from "../components/Navbar";
+import { Footer } from "../components/Footer";
 import { getCarById, Car as CarType } from "../data/cars";
 
 // Simulated auth state - replace with actual auth context
@@ -718,6 +719,8 @@ export default function BookingPage() {
                     </div>
                 </div>
             </div>
+
+            <Footer />
         </div>
     );
 }
