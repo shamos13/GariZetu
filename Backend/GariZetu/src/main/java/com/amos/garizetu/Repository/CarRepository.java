@@ -1,6 +1,6 @@
 package com.amos.garizetu.Repository;
 
-import com.amos.garizetu.Entity.Car;
+import com.amos.garizetu.Car.Entity.Car;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

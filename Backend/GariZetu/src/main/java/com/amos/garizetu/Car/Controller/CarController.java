@@ -1,8 +1,8 @@
-package com.amos.garizetu.Controller;
+package com.amos.garizetu.Car.Controller;
 
-import com.amos.garizetu.DTO.Request.CarCreateRequest;
-import com.amos.garizetu.DTO.Request.CarUpdateDTO;
-import com.amos.garizetu.DTO.Response.CarResponseDTO;
+import com.amos.garizetu.Car.DTO.Request.CarCreateRequest;
+import com.amos.garizetu.Car.DTO.Request.CarUpdateDTO;
+import com.amos.garizetu.Car.DTO.Response.CarResponseDTO;
 import com.amos.garizetu.Service.CarService;
 import com.amos.garizetu.Service.FileStorageService;
 import jakarta.validation.Valid;
@@ -32,6 +32,7 @@ public class CarController {
      * ENDPOINT 1: Upload (Admin)
      * Creates a new car with image upload
      */
+
 
     @PostMapping(value="/admin/create-car", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CarResponseDTO> createCar(

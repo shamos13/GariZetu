@@ -9,6 +9,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "../../../components/ui/dropdown-menu.tsx";
+import {getImageUrl} from "../../../lib/ImageUtils.ts";
 
 interface CarManagementPageProps {
     cars: Car[];
@@ -86,7 +87,7 @@ export function CarManagementPage({ cars, onAdd }: CarManagementPageProps) {
                             {/* Car Image */}
                             <div className="relative h-48">
                                 <img
-                                    /*src={car.image}*/
+                                    src={getImageUrl(car.mainImageUrl)}
                                     alt={car.make}
                                     className="w-full h-full object-cover"
                                 />
