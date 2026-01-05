@@ -11,7 +11,7 @@ interface AdminDashboardProps {
     onBack: () => void;
 }
 
-export function AdminDashboard({ onBack }: AdminDashboardProps) {
+export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     const [currentPage, setCurrentPage] = useState("dashboard");
     const [cars, setCars] = useState<Car[]>([]);
     const [editingCars, setEditingCars] = useState<Car | null>(null);
