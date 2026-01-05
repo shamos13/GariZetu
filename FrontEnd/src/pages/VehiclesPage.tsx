@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { useState, useMemo, useEffect } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { 
     Search, 
     SlidersHorizontal, 
@@ -19,6 +19,8 @@ import { CARS_DATA, Car, FuelType, TransmissionType, BodyType } from "../data/ca
 type SortOption = "price-asc" | "price-desc" | "rating" | "newest";
 
 export default function VehiclesPage() {
+    const [searchParams, setSearchParams] = useSearchParams();
+    
     const [searchQuery, setSearchQuery] = useState("");
     const [showFilters, setShowFilters] = useState(false);
     const [sortBy, setSortBy] = useState<SortOption>("rating");
@@ -29,6 +31,47 @@ export default function VehiclesPage() {
     const [selectedTransmission, setSelectedTransmission] = useState<TransmissionType | "all">("all");
     const [selectedSeats, setSelectedSeats] = useState<number | "all">("all");
     const [selectedBodyType, setSelectedBodyType] = useState<BodyType | "all">("all");
+
+    // Read URL params on mount and when they change
+    useEffect(() => {
+        const bodyTypeParam = searchParams.get("bodyType");
+        const sortParam = searchParams.get("sort");
+        const fuelParam = searchParams.get("fuel");
+        const transmissionParam = searchParams.get("transmission");
+        const seatsParam = searchParams.get("seats");
+        const searchParam = searchParams.get("search");
+
+        if (bodyTypeParam && ["Sedan", "SUV", "Hatchback", "Coupe", "Convertible", "Van", "Truck"].includes(bodyTypeParam)) {
+            setSelectedBodyType(bodyTypeParam as BodyType);
+            setShowFilters(true);
+        }
+        
+        if (sortParam && ["price-asc", "price-desc", "rating", "newest"].includes(sortParam)) {
+            setSortBy(sortParam as SortOption);
+        }
+        
+        if (fuelParam && ["Petrol", "Diesel", "Electric", "Hybrid"].includes(fuelParam)) {
+            setSelectedFuel(fuelParam as FuelType);
+            setShowFilters(true);
+        }
+        
+        if (transmissionParam && ["Manual", "Automatic"].includes(transmissionParam)) {
+            setSelectedTransmission(transmissionParam as TransmissionType);
+            setShowFilters(true);
+        }
+        
+        if (seatsParam) {
+            const seats = parseInt(seatsParam);
+            if ([4, 5, 7].includes(seats)) {
+                setSelectedSeats(seats);
+                setShowFilters(true);
+            }
+        }
+        
+        if (searchParam) {
+            setSearchQuery(searchParam);
+        }
+    }, [searchParams]);
 
     // Filter and sort cars
     const filteredCars = useMemo(() => {
@@ -97,6 +140,8 @@ export default function VehiclesPage() {
         setSelectedSeats("all");
         setSelectedBodyType("all");
         setSearchQuery("");
+        // Clear URL params
+        setSearchParams({});
     };
 
     const activeFiltersCount = [
@@ -109,16 +154,17 @@ export default function VehiclesPage() {
 
     return (
         <div className="min-h-screen bg-gray-50">
+            {/* Sticky Navbar */}
+            <Navbar />
+            
             {/* Hero Header */}
-            <div className="relative bg-gray-900 pt-20 pb-32">
+            <div className="relative bg-black pt-28 pb-32">
                 <div className="absolute inset-0 overflow-hidden">
-                    <div className="absolute inset-0 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900" />
-                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-gray-700/20 via-transparent to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-br from-black via-zinc-900 to-black" />
+                    <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-zinc-800/30 via-transparent to-transparent" />
                 </div>
                 
-                <Navbar />
-                
-                <div className="relative max-w-7xl mx-auto px-5 md:px-8 pt-16">
+                <div className="relative max-w-7xl mx-auto px-5 md:px-8 pt-8">
                     <div className="max-w-2xl">
                         <p className="text-gray-400 text-sm font-medium tracking-wider uppercase mb-3">
                             Premium Collection
@@ -145,7 +191,7 @@ export default function VehiclesPage() {
                                 placeholder="Search by make, model, or name..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border-0 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-gray-900"
+                                className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border-0 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-black"
                             />
                         </div>
                         
@@ -154,7 +200,7 @@ export default function VehiclesPage() {
                             <select
                                 value={sortBy}
                                 onChange={(e) => setSortBy(e.target.value as SortOption)}
-                                className="appearance-none pl-4 pr-10 py-3.5 bg-gray-50 border-0 rounded-xl text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-gray-900 cursor-pointer"
+                                className="appearance-none pl-4 pr-10 py-3.5 bg-gray-50 border-0 rounded-xl text-gray-700 font-medium focus:outline-none focus:ring-2 focus:ring-black cursor-pointer"
                             >
                                 <option value="rating">Top Rated</option>
                                 <option value="price-asc">Price: Low to High</option>
@@ -169,7 +215,7 @@ export default function VehiclesPage() {
                             onClick={() => setShowFilters(!showFilters)}
                             className={`flex items-center gap-2 px-6 py-3.5 rounded-xl font-medium transition-all ${
                                 showFilters || activeFiltersCount > 0
-                                    ? "bg-gray-900 text-white"
+                                    ? "bg-black text-white"
                                     : "bg-gray-50 text-gray-700 hover:bg-gray-100"
                             }`}
                         >
@@ -195,7 +241,7 @@ export default function VehiclesPage() {
                                     <select
                                         value={priceRange[1]}
                                         onChange={(e) => setPriceRange([0, Number(e.target.value)])}
-                                        className="w-full px-3 py-2.5 bg-gray-50 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                                        className="w-full px-3 py-2.5 bg-gray-50 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black"
                                     >
                                         <option value={10000}>Any Price</option>
                                         <option value={3000}>Under 3,000</option>
@@ -214,7 +260,7 @@ export default function VehiclesPage() {
                                     <select
                                         value={selectedFuel}
                                         onChange={(e) => setSelectedFuel(e.target.value as FuelType | "all")}
-                                        className="w-full px-3 py-2.5 bg-gray-50 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                                        className="w-full px-3 py-2.5 bg-gray-50 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black"
                                     >
                                         <option value="all">All Types</option>
                                         <option value="Petrol">Petrol</option>
@@ -232,7 +278,7 @@ export default function VehiclesPage() {
                                     <select
                                         value={selectedTransmission}
                                         onChange={(e) => setSelectedTransmission(e.target.value as TransmissionType | "all")}
-                                        className="w-full px-3 py-2.5 bg-gray-50 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                                        className="w-full px-3 py-2.5 bg-gray-50 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black"
                                     >
                                         <option value="all">Any</option>
                                         <option value="Automatic">Automatic</option>
@@ -248,7 +294,7 @@ export default function VehiclesPage() {
                                     <select
                                         value={selectedSeats}
                                         onChange={(e) => setSelectedSeats(e.target.value === "all" ? "all" : Number(e.target.value))}
-                                        className="w-full px-3 py-2.5 bg-gray-50 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                                        className="w-full px-3 py-2.5 bg-gray-50 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black"
                                     >
                                         <option value="all">Any</option>
                                         <option value={4}>4 Seats</option>
@@ -265,7 +311,7 @@ export default function VehiclesPage() {
                                     <select
                                         value={selectedBodyType}
                                         onChange={(e) => setSelectedBodyType(e.target.value as BodyType | "all")}
-                                        className="w-full px-3 py-2.5 bg-gray-50 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-gray-900"
+                                        className="w-full px-3 py-2.5 bg-gray-50 border-0 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-black"
                                     >
                                         <option value="all">All Types</option>
                                         <option value="Sedan">Sedan</option>
@@ -315,7 +361,7 @@ export default function VehiclesPage() {
                         <p className="text-gray-500 mb-6">Try adjusting your filters or search query</p>
                         <button
                             onClick={clearFilters}
-                            className="px-6 py-3 bg-gray-900 text-white rounded-xl font-medium hover:bg-gray-800 transition-colors"
+                            className="px-6 py-3 bg-black text-white rounded-xl font-medium hover:bg-zinc-800 transition-colors"
                         >
                             Clear Filters
                         </button>
@@ -346,7 +392,7 @@ function VehicleCard({ car }: { car: Car }) {
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                         car.status === "available" 
                             ? "bg-emerald-500 text-white" 
-                            : "bg-gray-900 text-white"
+                            : "bg-black text-white"
                     }`}>
                         {car.status === "available" ? "Available" : "Rented"}
                     </span>
@@ -401,7 +447,7 @@ function VehicleCard({ car }: { car: Car }) {
                         <span className="text-2xl font-bold text-gray-900">Ksh {car.dailyPrice.toLocaleString()}</span>
                         <span className="text-sm text-gray-500">/day</span>
                     </div>
-                    <span className="px-4 py-2 bg-gray-900 text-white text-sm font-medium rounded-lg group-hover:bg-gray-800 transition-colors">
+                    <span className="px-4 py-2 bg-black text-white text-sm font-medium rounded-lg group-hover:bg-zinc-800 transition-colors">
                         View Details
                     </span>
                 </div>
