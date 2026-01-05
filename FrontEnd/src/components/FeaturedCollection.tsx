@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Gauge, Milestone, Users, Fuel, ArrowRight } from "lucide-react";
 import { CarDetailsModal } from "./CarDetailsModal";
 
@@ -122,9 +123,12 @@ export function FeaturedCollection() {
             </div>
 
             <div className="mt-16 flex justify-center">
-                <button className="bg-black text-white px-8 py-3.5 rounded-xl font-bold flex items-center gap-2 hover:bg-zinc-800 transition-colors">
+                <Link 
+                    to="/vehicles"
+                    className="bg-black text-white px-8 py-3.5 rounded-xl font-bold flex items-center gap-2 hover:bg-zinc-800 transition-colors"
+                >
                     See all Cars <ArrowRight size={18} />
-                </button>
+                </Link>
             </div>
 
             {/* Car Details Modal */}

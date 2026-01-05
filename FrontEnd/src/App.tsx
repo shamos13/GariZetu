@@ -1,15 +1,19 @@
+import { Routes, Route } from "react-router-dom";
 import HomePage from "./pages/HomePage";
-import {Layout} from "./components/Layout.tsx";
-
+import VehiclesPage from "./pages/VehiclesPage";
+import VehicleDetailsPage from "./pages/VehicleDetailsPage";
+import { Layout } from "./components/Layout.tsx";
 
 function App() {
-
-
-  return (
-    <Layout>
-        <HomePage/>
-    </Layout>
-  )
+    return (
+        <Layout>
+            <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/vehicles" element={<VehiclesPage />} />
+                <Route path="/vehicles/:id" element={<VehicleDetailsPage />} />
+            </Routes>
+        </Layout>
+    );
 }
 
-export default App
+export default App;
