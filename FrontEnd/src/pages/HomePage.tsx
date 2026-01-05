@@ -6,6 +6,8 @@ import {BodyType} from "../components/BodyType.tsx";
 import {FeaturedCollection} from "../components/FeaturedCollection.tsx";
 import {HowItWorks} from "../components/HowItWorks.tsx";
 import {Services} from "../components/Services.tsx";
+import {Testimonials} from "../components/Testimonials.tsx";
+import {Footer} from "../components/Footer.tsx";
 
 export default function HomePage() {
     return (
@@ -17,7 +19,9 @@ export default function HomePage() {
             <BodyType/>
             <FeaturedCollection/>
             <HowItWorks/>
+            <Testimonials/>
             <Services/>
+            <Footer/>
         </div>
     )
 }
