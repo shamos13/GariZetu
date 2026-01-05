@@ -1,11 +1,13 @@
-import { Routes, Route } from "react-router-dom";
+import {Route, Routes} from "react-router-dom";
 import HomePage from "./pages/HomePage";
 import VehiclesPage from "./pages/VehiclesPage";
 import VehicleDetailsPage from "./pages/VehicleDetailsPage";
 import BookingPage from "./pages/BookingPage";
 import AboutPage from "./pages/AboutPage";
 import ContactPage from "./pages/ContactPage";
-import { Layout } from "./components/Layout.tsx";
+import {Layout} from "./components/Layout.tsx";
+import AdminDashboardRoute from "./dashboard/admin/routes/AdminDashboardRoute.tsx";
+
 
 function App() {
     return (
@@ -17,6 +19,7 @@ function App() {
                 <Route path="/booking" element={<BookingPage />} />
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="/contact" element={<ContactPage />} />
+                <Route path="/adashboard" element={<AdminDashboardRoute />} />
             </Routes>
         </Layout>
     );

@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { ChevronDown, Menu, X, Phone } from "lucide-react";
-import { AuthModal } from "./AuthModal";
+import {useEffect, useState} from "react";
+import {Link, useLocation} from "react-router-dom";
+import {ChevronDown, Phone} from "lucide-react";
+import {AuthModal} from "./AuthModal";
 
 export function Navbar() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -70,7 +70,7 @@ export function Navbar() {
                     </p>
                     <div className="flex items-center gap-4">
                         <a 
-                            href="tel:+254712345678" 
+                            href="tel:+254759064318"
                             className="flex items-center gap-2 text-xs text-gray-400 hover:text-white transition-colors"
                         >
                             <Phone className="w-3 h-3" />
@@ -105,6 +105,22 @@ export function Navbar() {
 
                 {/* Desktop Navigation */}
                 <div className="hidden md:flex items-center gap-6 lg:gap-8">
+
+                    {/* Temporary Link to Admin Dashboard */}
+                    <Link
+                        to="/adashboard"
+                        className={`relative transition-colors text-sm lg:text-base font-medium ${
+                            isActive("/about")
+                                ? "text-white"
+                                : "text-white/70 hover:text-white"
+                        }`}
+                    >
+                        Admin Dashboard
+                        {isActive("/adashboard") && (
+                            <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-white rounded-full"/>
+                        )}
+                    </Link>
+
                     {/* Home Link */}
                     <Link 
                         to="/" 
