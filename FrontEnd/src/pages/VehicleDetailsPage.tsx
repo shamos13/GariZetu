@@ -75,11 +75,11 @@ export default function VehicleDetailsPage() {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            {/* Header */}
-            <div className="bg-gray-900">
-                <Navbar />
-                <div className="h-16" />
-            </div>
+            {/* Sticky Navbar */}
+            <Navbar />
+            
+            {/* Spacer for fixed navbar */}
+            <div className="h-16 bg-black" />
 
             {/* Breadcrumb */}
             <div className="bg-white border-b border-gray-100">
@@ -143,7 +143,7 @@ export default function VehicleDetailsPage() {
                                             onClick={() => setCurrentImageIndex(index)}
                                             className={`flex-shrink-0 w-20 h-16 rounded-lg overflow-hidden border-2 transition-all ${
                                                 index === currentImageIndex
-                                                    ? "border-gray-900"
+                                                    ? "border-black"
                                                     : "border-transparent hover:border-gray-300"
                                             }`}
                                         >
@@ -290,7 +290,7 @@ export default function VehicleDetailsPage() {
 
                     {/* Sidebar - Booking Panel */}
                     <div className="lg:col-span-1">
-                        <div className="sticky top-24 space-y-6">
+                        <div className="sticky top-20 space-y-6">
                             {/* Price Card */}
                             <div className="bg-white rounded-2xl p-6 shadow-sm">
                                 <div className="flex items-baseline gap-2 mb-6">
@@ -379,7 +379,7 @@ export default function VehicleDetailsPage() {
                                     disabled={rentalDays === 0}
                                     className={`w-full py-4 rounded-xl font-semibold transition-all ${
                                         rentalDays > 0
-                                            ? "bg-gray-900 text-white hover:bg-gray-800"
+                                            ? "bg-black text-white hover:bg-zinc-800"
                                             : "bg-gray-100 text-gray-400 cursor-not-allowed"
                                     }`}
                                 >
@@ -567,7 +567,7 @@ function MiniCalendar({ currentMonth, setCurrentMonth, selectedDates, setSelecte
                                 past
                                     ? "text-gray-300 cursor-not-allowed"
                                     : selected
-                                    ? "bg-gray-900 text-white font-medium"
+                                    ? "bg-black text-white font-medium"
                                     : inRange
                                     ? "bg-gray-100 text-gray-900"
                                     : "hover:bg-gray-100 text-gray-700"

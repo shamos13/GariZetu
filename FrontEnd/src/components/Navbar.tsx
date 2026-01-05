@@ -17,9 +17,9 @@ export function Navbar() {
     };
 
     return (
-        <nav className="absolute top-0 left-0 right-0 z-50">
+        <nav className="fixed top-0 left-0 right-0 z-50 bg-black">
             {/* Main Navbar */}
-            <div className="flex items-center justify-between px-5 py-4 md:px-8 lg:px-12">
+            <div className="flex items-center justify-between px-5 py-4 md:px-8 lg:px-12 max-w-[1920px] mx-auto">
                 {/* Logo */}
                 <Link to="/" className="relative z-50 flex items-center">
                     <img 
@@ -33,33 +33,36 @@ export function Navbar() {
                 <div className="hidden md:flex items-center gap-6 lg:gap-8">
                     {/* Vehicles Dropdown */}
                     <div className="relative group">
-                        <button className="flex items-center gap-1 text-white/90 hover:text-white transition-colors text-sm lg:text-base font-medium">
+                        <Link 
+                            to="/vehicles"
+                            className="flex items-center gap-1 text-white/90 hover:text-white transition-colors text-sm lg:text-base font-medium"
+                        >
                             Vehicles
                             <ChevronDown size={14} className="group-hover:rotate-180 transition-transform duration-200" />
-                        </button>
+                        </Link>
                         {/* Dropdown Menu */}
                         <div className="absolute top-full left-0 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                             <div className="bg-white rounded-xl shadow-xl py-2 min-w-[180px] border border-gray-100">
                                 <Link 
-                                    to="/vehicles/sedan" 
+                                    to="/vehicles?bodyType=Sedan" 
                                     className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
                                 >
                                     Sedans
                                 </Link>
                                 <Link 
-                                    to="/vehicles/suv" 
+                                    to="/vehicles?bodyType=SUV" 
                                     className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
                                 >
                                     SUVs
                                 </Link>
                                 <Link 
-                                    to="/vehicles/luxury" 
+                                    to="/vehicles?sort=price-desc" 
                                     className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors"
                                 >
                                     Luxury
                                 </Link>
                                 <Link 
-                                    to="/vehicles/all" 
+                                    to="/vehicles" 
                                     className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors border-t border-gray-100 mt-1"
                                 >
                                     View All
@@ -114,7 +117,7 @@ export function Navbar() {
 
             {/* Mobile Menu Panel */}
             <div
-                className={`md:hidden fixed top-0 right-0 h-full w-[280px] bg-gray-900 z-40 transform transition-transform duration-300 ease-out ${
+                className={`md:hidden fixed top-0 right-0 h-full w-[280px] bg-black z-40 transform transition-transform duration-300 ease-out ${
                     isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
                 }`}
             >
@@ -140,28 +143,28 @@ export function Navbar() {
                             >
                                 <div className="pl-4 pb-2 space-y-1">
                                     <Link
-                                        to="/vehicles/sedan"
+                                        to="/vehicles?bodyType=Sedan"
                                         onClick={closeMobileMenu}
                                         className="block py-2 text-sm text-white/70 hover:text-white transition-colors"
                                     >
                                         Sedans
                                     </Link>
                                     <Link
-                                        to="/vehicles/suv"
+                                        to="/vehicles?bodyType=SUV"
                                         onClick={closeMobileMenu}
                                         className="block py-2 text-sm text-white/70 hover:text-white transition-colors"
                                     >
                                         SUVs
                                     </Link>
                                     <Link
-                                        to="/vehicles/luxury"
+                                        to="/vehicles?sort=price-desc"
                                         onClick={closeMobileMenu}
                                         className="block py-2 text-sm text-white/70 hover:text-white transition-colors"
                                     >
                                         Luxury
                                     </Link>
                                     <Link
-                                        to="/vehicles/all"
+                                        to="/vehicles"
                                         onClick={closeMobileMenu}
                                         className="block py-2 text-sm text-white/70 hover:text-white transition-colors"
                                     >
