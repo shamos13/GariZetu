@@ -1,12 +1,21 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { ChevronDown, Menu, X, Phone } from "lucide-react";
+import { AuthModal } from "./AuthModal";
 
 export function Navbar() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isVehiclesOpen, setIsVehiclesOpen] = useState(false);
     const [isScrolled, setIsScrolled] = useState(false);
+    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+    const [authMode, setAuthMode] = useState<"login" | "signup">("login");
     const location = useLocation();
+    
+    const openAuthModal = (mode: "login" | "signup") => {
+        setAuthMode(mode);
+        setIsAuthModalOpen(true);
+        closeMobileMenu();
+    };
 
     // Handle scroll effect
     useEffect(() => {
@@ -96,6 +105,21 @@ export function Navbar() {
 
                 {/* Desktop Navigation */}
                 <div className="hidden md:flex items-center gap-6 lg:gap-8">
+                    {/* Home Link */}
+                    <Link 
+                        to="/" 
+                        className={`relative transition-colors text-sm lg:text-base font-medium ${
+                            isActive("/") && location.pathname === "/"
+                                ? "text-white"
+                                : "text-white/70 hover:text-white"
+                        }`}
+                    >
+                        Home
+                        {location.pathname === "/" && (
+                            <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-white rounded-full" />
+                        )}
+                    </Link>
+
                     {/* Vehicles Dropdown */}
                     <div className="relative group">
                         <Link 
@@ -188,12 +212,12 @@ export function Navbar() {
                         )}
                     </Link>
 
-                    <Link
-                        to="/login"
+                    <button
+                        onClick={() => openAuthModal("login")}
                         className="ml-2 px-5 py-2.5 bg-white text-black rounded-full text-sm lg:text-base font-semibold hover:bg-gray-100 transition-all duration-200 hover:scale-105 hover:shadow-lg"
                     >
                         Login / Register
-                    </Link>
+                    </button>
                 </div>
 
                 {/* Mobile Menu Button */}
@@ -243,6 +267,20 @@ export function Navbar() {
                 <div className="flex flex-col h-full pt-20 pb-6 px-6">
                     {/* Mobile Nav Links */}
                     <div className="flex flex-col space-y-1">
+                        {/* Home Link */}
+                        <Link
+                            to="/"
+                            onClick={closeMobileMenu}
+                            className={`py-3 transition-colors font-medium flex items-center gap-2 ${
+                                location.pathname === "/" ? "text-white" : "text-white/70"
+                            }`}
+                        >
+                            🏠 Home
+                            {location.pathname === "/" && (
+                                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
+                            )}
+                        </Link>
+
                         {/* Vehicles Accordion */}
                         <div>
                             <button
@@ -338,13 +376,12 @@ export function Navbar() {
 
                     {/* Mobile CTA Button */}
                     <div className="mt-auto pt-6 border-t border-white/10">
-                        <Link
-                            to="/login"
-                            onClick={closeMobileMenu}
+                        <button
+                            onClick={() => openAuthModal("login")}
                             className="block w-full py-3.5 px-4 bg-white text-black text-center rounded-xl font-semibold hover:bg-gray-100 transition-all active:scale-95"
                         >
                             Login / Register
-                        </Link>
+                        </button>
                     </div>
 
                     {/* Brand Footer */}
@@ -355,6 +392,13 @@ export function Navbar() {
                     </div>
                 </div>
             </div>
+
+            {/* Auth Modal */}
+            <AuthModal 
+                isOpen={isAuthModalOpen}
+                onClose={() => setIsAuthModalOpen(false)}
+                initialMode={authMode}
+            />
         </nav>
     );
 }
