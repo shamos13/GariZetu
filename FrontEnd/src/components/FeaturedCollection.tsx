@@ -1,33 +1,107 @@
 
+import { useState } from "react";
 import { Gauge, Milestone, Users, Fuel, ArrowRight } from "lucide-react"
+import { CarModal } from "./CarModal";
 
-const CARS = [
+interface CarSpecs {
+    mileage: string;
+    transmission: string;
+    capacity: string;
+    fuel: string;
+}
+
+interface Car {
+    id: number;
+    name: string;
+    price: number;
+    image: string;
+    specs: CarSpecs;
+    category?: string;
+    year?: number;
+    description?: string;
+    features?: string[];
+}
+
+const CARS: Car[] = [
     {
         id: 1,
         name: "Audi A8 L 2022",
         price: 4000,
         image: "/audi-a8-gray.jpg",
+        category: "Luxury Car",
+        year: 2022,
         specs: { mileage: "4,000", transmission: "Auto", capacity: "4 Person", fuel: "Electric" },
+        description: "The Audi A8 L offers a perfect blend of luxury, comfort, and performance. Experience premium driving with cutting-edge technology.",
+        features: [
+            "Premium Cloth Seats",
+            "Apple CarPlay & Android Auto",
+            "Dual-Zone Climate Control",
+            "Blind Spot Monitoring",
+            "Panoramic Sunroof",
+            "Advanced Safety Features",
+        ],
     },
     {
         id: 2,
         name: "Nissan Maxima Platinum 2022",
         price: 3500,
         image: "/nissan-maxima-white.jpg",
-        specs: { mileage: "4,000", transmission: "Auto", capacity: "4 Person", fuel: "Electric" },
+        category: "Sedan",
+        year: 2022,
+        specs: { mileage: "4,000", transmission: "Auto", capacity: "4 Person", fuel: "Petrol" },
+        description: "The Nissan Maxima Platinum offers a perfect blend of style, comfort, and performance. Ideal for both city driving and long journeys.",
+        features: [
+            "Premium Cloth Seats",
+            "Apple CarPlay & Android Auto",
+            "Dual-Zone Climate Control",
+            "Blind Spot Monitoring",
+            "Rearview Camera",
+            "Keyless Entry",
+        ],
     },
     {
         id: 3,
         name: "Porsche Cayenne GTS 2022",
         price: 5500,
         image: "/porsche-cayenne-black.jpg",
-        specs: { mileage: "4,000", transmission: "Auto", capacity: "4 Person", fuel: "Electric" },
+        category: "SUV",
+        year: 2022,
+        specs: { mileage: "4,000", transmission: "Auto", capacity: "5 Person", fuel: "Petrol" },
+        description: "The Porsche Cayenne GTS delivers exceptional power and luxury. Perfect for those who demand the best in performance and style.",
+        features: [
+            "Leather Seats",
+            "Apple CarPlay & Android Auto",
+            "Tri-Zone Climate Control",
+            "360-Degree Camera",
+            "Premium Sound System",
+            "Adaptive Cruise Control",
+        ],
     },
 ]
 
 const CATEGORIES = ["Popular Car", "Luxury Car", "Vintage Car", "Family Car", "Off-Road Car"]
 
 export function FeaturedCollection() {
+    const [selectedCar, setSelectedCar] = useState<Car | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    const handleRentNow = (car: Car) => {
+        setSelectedCar(car);
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setSelectedCar(null);
+    };
+
+    const handleBookNow = (car: Car) => {
+        // Handle booking logic here
+        console.log("Booking car:", car);
+        // You can navigate to booking page or open booking form
+        handleCloseModal();
+    };
+
     return (
         <section className="py-20 px-4 md:px-12 bg-white max-w-7xl mx-auto">
             <div className="text-center space-y-4 mb-12">
@@ -88,6 +162,7 @@ export function FeaturedCollection() {
                             </div>
 
                             <button
+                                onClick={() => handleRentNow(car)}
                                 className={`w-full py-3 rounded-full text-sm font-bold transition-all border mt-4 ${
                                     car.id === 2 ? "bg-black text-white" : "bg-white border-gray-200 hover:border-black"
                                 }`}
@@ -104,6 +179,14 @@ export function FeaturedCollection() {
                     See all Cars <ArrowRight size={18} />
                 </button>
             </div>
+
+            {/* Car Modal */}
+            <CarModal
+                car={selectedCar}
+                open={isModalOpen}
+                onClose={handleCloseModal}
+                onBookNow={handleBookNow}
+            />
         </section>
     )
 }

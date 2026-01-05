@@ -1,4 +1,5 @@
 import {Link} from "react-router-dom";
+import {ChevronDown} from "lucide-react";
 
 export function Navbar() {
     return (
@@ -9,7 +10,7 @@ export function Navbar() {
 
             <div className="hidden md:flex items-center space-x-8 text-white">
                 <button className="flex items-center gap-1 hover:text-gray-300 transition-colors">
-                    Vehicles
+                    Vehicles <ChevronDown size={16}/>
                 </button>
                 <Link to="/rent" className="hover:text-gray-300 transition-colors">
                     Rent
