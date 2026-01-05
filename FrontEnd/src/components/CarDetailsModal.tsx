@@ -20,6 +20,8 @@ interface CarData {
     category?: string;
     description?: string;
     features?: string[];
+    rating?: number;
+    reviewCount?: number;
 }
 
 interface CarDetailsModalProps {

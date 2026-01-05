@@ -17,6 +17,7 @@ import {
     ArrowLeft
 } from "lucide-react";
 import { Navbar } from "../components/Navbar";
+import { Footer } from "../components/Footer";
 import { getCarById, CARS_DATA } from "../data/cars";
 
 export default function VehicleDetailsPage() {
@@ -376,6 +377,17 @@ export default function VehicleDetailsPage() {
 
                                 {/* Book Button */}
                                 <button
+                                    onClick={() => {
+                                        const params = new URLSearchParams();
+                                        params.set("carId", car.id.toString());
+                                        if (selectedDates.start) {
+                                            params.set("pickupDate", selectedDates.start.toISOString());
+                                        }
+                                        if (selectedDates.end) {
+                                            params.set("dropoffDate", selectedDates.end.toISOString());
+                                        }
+                                        navigate(`/booking?${params.toString()}`);
+                                    }}
                                     disabled={rentalDays === 0}
                                     className={`w-full py-4 rounded-xl font-semibold transition-all ${
                                         rentalDays > 0
@@ -444,6 +456,8 @@ export default function VehicleDetailsPage() {
                     </div>
                 )}
             </div>
+
+            <Footer />
         </div>
     );
 }

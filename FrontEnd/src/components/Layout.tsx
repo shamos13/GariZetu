@@ -1,4 +1,6 @@
 import { ReactNode } from 'react';
+import { ScrollToTop, FloatingScrollButton } from './ScrollToTop';
+import { WhatsAppButton } from './WhatsAppButton';
 
 // Import fonts
 import '@fontsource/figtree/300.css';
@@ -16,8 +18,11 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
     return (
-        <div className="font-sans antialiased">
+        <div className="font-sans antialiased min-h-screen">
+            <ScrollToTop />
             {children}
+            <WhatsAppButton />
+            <FloatingScrollButton />
         </div>
     );
 }
