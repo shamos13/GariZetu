@@ -14,6 +14,7 @@ import {
     ArrowUpDown
 } from "lucide-react";
 import { Navbar } from "../components/Navbar";
+import { Footer } from "../components/Footer";
 import { CARS_DATA, Car, FuelType, TransmissionType, BodyType } from "../data/cars";
 
 type SortOption = "price-asc" | "price-desc" | "rating" | "newest";
@@ -368,6 +369,8 @@ export default function VehiclesPage() {
                     </div>
                 )}
             </div>
+
+            <Footer />
         </div>
     );
 }
