@@ -1,91 +1,39 @@
-
 import { useState } from "react";
-import { Gauge, Milestone, Users, Fuel, ArrowRight } from "lucide-react"
-import { CarModal } from "./CarModal";
+import { Link } from "react-router-dom";
+import { Gauge, Milestone, Users, Fuel, ArrowRight } from "lucide-react";
+import { CarDetailsModal } from "./CarDetailsModal";
 
-interface CarSpecs {
-    mileage: string;
-    transmission: string;
-    capacity: string;
-    fuel: string;
-}
-
-interface Car {
-    id: number;
-    name: string;
-    price: number;
-    image: string;
-    specs: CarSpecs;
-    category?: string;
-    year?: number;
-    description?: string;
-    features?: string[];
-}
-
-const CARS: Car[] = [
+const CARS = [
     {
         id: 1,
         name: "Audi A8 L 2022",
         price: 4000,
         image: "/audi-a8-gray.jpg",
-        category: "Luxury Car",
-        year: 2022,
         specs: { mileage: "4,000", transmission: "Auto", capacity: "4 Person", fuel: "Electric" },
-        description: "The Audi A8 L offers a perfect blend of luxury, comfort, and performance. Experience premium driving with cutting-edge technology.",
-        features: [
-            "Premium Cloth Seats",
-            "Apple CarPlay & Android Auto",
-            "Dual-Zone Climate Control",
-            "Blind Spot Monitoring",
-            "Panoramic Sunroof",
-            "Advanced Safety Features",
-        ],
     },
     {
         id: 2,
         name: "Nissan Maxima Platinum 2022",
         price: 3500,
         image: "/nissan-maxima-white.jpg",
-        category: "Sedan",
-        year: 2022,
-        specs: { mileage: "4,000", transmission: "Auto", capacity: "4 Person", fuel: "Petrol" },
-        description: "The Nissan Maxima Platinum offers a perfect blend of style, comfort, and performance. Ideal for both city driving and long journeys.",
-        features: [
-            "Premium Cloth Seats",
-            "Apple CarPlay & Android Auto",
-            "Dual-Zone Climate Control",
-            "Blind Spot Monitoring",
-            "Rearview Camera",
-            "Keyless Entry",
-        ],
+        specs: { mileage: "4,000", transmission: "Auto", capacity: "4 Person", fuel: "Electric" },
     },
     {
         id: 3,
         name: "Porsche Cayenne GTS 2022",
         price: 5500,
         image: "/porsche-cayenne-black.jpg",
-        category: "SUV",
-        year: 2022,
-        specs: { mileage: "4,000", transmission: "Auto", capacity: "5 Person", fuel: "Petrol" },
-        description: "The Porsche Cayenne GTS delivers exceptional power and luxury. Perfect for those who demand the best in performance and style.",
-        features: [
-            "Leather Seats",
-            "Apple CarPlay & Android Auto",
-            "Tri-Zone Climate Control",
-            "360-Degree Camera",
-            "Premium Sound System",
-            "Adaptive Cruise Control",
-        ],
+        specs: { mileage: "4,000", transmission: "Auto", capacity: "4 Person", fuel: "Electric" },
     },
 ]
 
 const CATEGORIES = ["Popular Car", "Luxury Car", "Vintage Car", "Family Car", "Off-Road Car"]
 
 export function FeaturedCollection() {
-    const [selectedCar, setSelectedCar] = useState<Car | null>(null);
+    const [selectedCar, setSelectedCar] = useState<typeof CARS[0] | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
-    const handleRentNow = (car: Car) => {
+    const handleRentNow = (car: typeof CARS[0]) => {
         setSelectedCar(car);
         setIsModalOpen(true);
     };
@@ -95,10 +43,10 @@ export function FeaturedCollection() {
         setSelectedCar(null);
     };
 
-    const handleBookNow = (car: Car) => {
+    const handleBookNow = (car: typeof CARS[0]) => {
         // Handle booking logic here
-        console.log("Booking car:", car);
-        // You can navigate to booking page or open booking form
+        console.log("Booking:", car);
+        // You can navigate to booking page or show booking form
         handleCloseModal();
     };
 
@@ -175,18 +123,23 @@ export function FeaturedCollection() {
             </div>
 
             <div className="mt-16 flex justify-center">
-                <button className="bg-black text-white px-8 py-3.5 rounded-xl font-bold flex items-center gap-2 hover:bg-zinc-800 transition-colors">
+                <Link 
+                    to="/vehicles"
+                    className="bg-black text-white px-8 py-3.5 rounded-xl font-bold flex items-center gap-2 hover:bg-zinc-800 transition-colors"
+                >
                     See all Cars <ArrowRight size={18} />
-                </button>
+                </Link>
             </div>
 
-            {/* Car Modal */}
-            <CarModal
-                car={selectedCar}
-                open={isModalOpen}
-                onClose={handleCloseModal}
-                onBookNow={handleBookNow}
-            />
+            {/* Car Details Modal */}
+            {selectedCar && (
+                <CarDetailsModal
+                    car={selectedCar}
+                    isOpen={isModalOpen}
+                    onClose={handleCloseModal}
+                    onBookNow={handleBookNow}
+                />
+            )}
         </section>
     )
 }
