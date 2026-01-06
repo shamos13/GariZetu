@@ -74,7 +74,7 @@ export function Navbar() {
                             className="flex items-center gap-2 text-xs text-gray-400 hover:text-white transition-colors"
                         >
                             <Phone className="w-3 h-3" />
-                            +254 712 345 678
+                            +254 727 805 351
                         </a>
                         <span className="text-xs text-emerald-400 font-medium animate-pulse">
                             • Open Now
@@ -163,7 +163,6 @@ export function Navbar() {
                                     className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors group/item"
                                 >
                                     <span className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center group-hover/item:bg-black group-hover/item:text-white transition-colors">
-                                        🚗
                                     </span>
                                     Sedans
                                 </Link>
@@ -172,7 +171,6 @@ export function Navbar() {
                                     className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors group/item"
                                 >
                                     <span className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center group-hover/item:bg-black group-hover/item:text-white transition-colors">
-                                        🚙
                                     </span>
                                     SUVs
                                 </Link>

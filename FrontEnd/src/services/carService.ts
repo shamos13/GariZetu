@@ -1,38 +1,45 @@
-import {api, BASE_URL} from "../lib/api";
-import {Car} from "../dashboard/admin/types/Car.ts";
-import axios from "axios";
+import { api } from "../lib/api";
+import type { Car as BackendCar } from "../dashboard/admin/types/Car";
+import type { Car as CustomerCar } from "../data/cars";
+import { transformBackendCarsToCustomer, transformBackendCarToCustomer } from "../utils/CarTransformer.ts";
 
+/**
+ * Customer-facing car service
+ * Fetches cars from backend and transforms them for display on website
+ */
 export const carService = {
-    // get all cars
-    // this uses regular Api because its just fetching JSON
-    getAll: async (): Promise<Car[]> => {
-        const res = await api.get("/cars/getcars");
-        return res.data;
+    /**
+     * Get all cars for customer browsing
+     *
+     * Flow:
+     * 1. Fetch from backend (returns BackendCar[])
+     * 2. Transform to customer format (CustomerCar[])
+     * 3. Return transformed data
+     */
+    getAll: async (): Promise<CustomerCar[]> => {
+        try {
+            const res = await api.get<BackendCar[]>("/cars/getcars");
+
+            // Transform backend cars to customer format
+            return transformBackendCarsToCustomer(res.data);
+        } catch (error) {
+            console.error("Failed to fetch cars:", error);
+            throw error;  // Let component handle the error
+        }
     },
 
-
     /**
-     * Create a new car with image upload
-     *
-     * IMPORTANT: This does NOT use the `api` instance!
-     *
-     * Why? Because:
-     * 1. The `api` instance has "Content-Type: application/json" as default header
-     * 2. For multipart/form-data, we need a DIFFERENT Content-Type
-     * 3. Axios automatically sets the correct multipart Content-Type when we pass FormData
-     *
-     * @param formData - FormData object containing car fields + image file
-     * @returns The created car with mainImageUrl populated
+     * Get a single car by ID for detail page
      */
-    createCar: async (formData: FormData): Promise<Car> => {
-        const res = await axios.post(`${BASE_URL}/api/v1/cars/admin/create-car`,
-            formData,
-        {
-            headers: {'Content-Type': 'multipart/form-data'
-            }
-        }
-        );
-        return res.data;
-    }
+    getById: async (id: number): Promise<CustomerCar> => {
+        try {
+            const res = await api.get<BackendCar>(`/cars/${id}`);
 
-}
+            // Transform single backend car to customer format
+            return transformBackendCarToCustomer(res.data);
+        } catch (error) {
+            console.error(`Failed to fetch car ${id}:`, error);
+            throw error;
+        }
+    },
+};
