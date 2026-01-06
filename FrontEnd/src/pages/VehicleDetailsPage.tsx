@@ -1,30 +1,35 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { 
-    ChevronLeft, 
-    ChevronRight, 
-    Star, 
-    MapPin, 
-    Users, 
-    Settings, 
-    Fuel, 
+import {
+    ChevronLeft,
+    ChevronRight,
+    Star,
+    MapPin,
+    Users,
+    Settings,
+    Fuel,
     Gauge,
     CheckCircle2,
     Calendar,
     Shield,
     Clock,
-    Car,
+    Car as CarIcon,
     ArrowLeft
 } from "lucide-react";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
-import { getCarById, CARS_DATA } from "../data/cars";
+import { Car, CARS_DATA } from "../data/cars";
+import { getImageUrl } from "../lib/ImageUtils";
+import { carService } from "../services/carService";
 
 export default function VehicleDetailsPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const car = getCarById(Number(id));
-    
+
+    // ✅ ALL STATE DECLARED FIRST - BEFORE ANY CONDITIONAL RETURNS
+    const [car, setCar] = useState<Car | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [selectedDates, setSelectedDates] = useState<{ start: Date | null; end: Date | null }>({
         start: null,
@@ -32,24 +37,43 @@ export default function VehicleDetailsPage() {
     });
     const [currentMonth, setCurrentMonth] = useState(new Date());
 
-    if (!car) {
-        return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="text-center">
-                    <h1 className="text-2xl font-bold text-gray-900 mb-4">Vehicle not found</h1>
-                    <Link 
-                        to="/vehicles" 
-                        className="text-gray-600 hover:text-gray-900 underline"
-                    >
-                        Back to vehicles
-                    </Link>
-                </div>
-            </div>
-        );
-    }
+    // Fetch car data on mount
+    useEffect(() => {
+        const fetchCar = async () => {
+            try {
+                setIsLoading(true);
+                setError(null);
 
-    const images = car.gallery.length > 0 ? car.gallery : [{ id: 1, url: car.mainImage, alt: car.name }];
+                const fetchedCar = await carService.getById(Number(id));
+                setCar(fetchedCar);
+            } catch (error) {
+                console.error("Failed to fetch car:", error);
+                setError("Failed to load vehicle details");
 
+                // Fallback to CARS_DATA
+                const fallbackCar = CARS_DATA.find(c => c.id === Number(id));
+                if (fallbackCar) {
+                    setCar(fallbackCar);
+                }
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        if (id) {
+            fetchCar();
+        }
+    }, [id]);
+
+    // Prepare images for gallery (useMemo to avoid recalculating)
+    const images = useMemo(() => {
+        if (!car) return [];
+        return car.gallery.length > 0
+            ? car.gallery
+            : [{ id: 1, url: car.mainImageUrl, alt: car.name }];
+    }, [car]);
+
+    // Image navigation handlers
     const handlePrevImage = () => {
         setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
     };
@@ -67,25 +91,79 @@ export default function VehicleDetailsPage() {
         return 0;
     }, [selectedDates]);
 
-    const totalPrice = rentalDays * car.dailyPrice;
+    const totalPrice = car ? rentalDays * car.dailyPrice : 0;
     const serviceFee = Math.round(totalPrice * 0.1);
     const insuranceFee = rentalDays * 500;
 
     // Related cars (same body type, excluding current)
-    const relatedCars = CARS_DATA.filter(c => c.bodyType === car.bodyType && c.id !== car.id).slice(0, 3);
+    const relatedCars = useMemo(() => {
+        if (!car) return [];
+        return CARS_DATA.filter(c => c.bodyType === car.bodyType && c.id !== car.id).slice(0, 3);
+    }, [car]);
+
+    // ✅ NOW CONDITIONAL RETURNS ARE SAFE - ALL HOOKS CALLED
+    // Loading state
+    if (isLoading) {
+        return (
+            <div className="min-h-screen bg-gray-50">
+                <Navbar />
+                <div className="h-16 bg-black" />
+                <div className="flex items-center justify-center py-20">
+                    <div className="text-center">
+                        <div className="w-16 h-16 border-4 border-gray-200 border-t-black rounded-full animate-spin mx-auto mb-4" />
+                        <p className="text-gray-600">Loading vehicle details...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Not found state
+    if (!car) {
+        return (
+            <div className="min-h-screen bg-gray-50">
+                <Navbar />
+                <div className="h-16 bg-black" />
+                <div className="flex items-center justify-center py-20">
+                    <div className="text-center">
+                        <h1 className="text-2xl font-bold text-gray-900 mb-4">Vehicle not found</h1>
+                        <p className="text-gray-600 mb-6">
+                            The vehicle you're looking for doesn't exist or has been removed.
+                        </p>
+                        <Link
+                            to="/vehicles"
+                            className="inline-flex items-center gap-2 px-6 py-3 bg-black text-white rounded-xl font-medium hover:bg-zinc-800 transition-colors"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            Back to vehicles
+                        </Link>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50">
             {/* Sticky Navbar */}
             <Navbar />
-            
+
             {/* Spacer for fixed navbar */}
             <div className="h-16 bg-black" />
+
+            {/* Error message (if any) */}
+            {error && (
+                <div className="bg-yellow-50 border-b border-yellow-200">
+                    <div className="max-w-7xl mx-auto px-5 md:px-8 py-3">
+                        <p className="text-yellow-800 text-sm">{error} - Showing cached data</p>
+                    </div>
+                </div>
+            )}
 
             {/* Breadcrumb */}
             <div className="bg-white border-b border-gray-100">
                 <div className="max-w-7xl mx-auto px-5 md:px-8 py-4">
-                    <button 
+                    <button
                         onClick={() => navigate(-1)}
                         className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
                     >
@@ -104,11 +182,14 @@ export default function VehicleDetailsPage() {
                             {/* Main Image */}
                             <div className="relative aspect-[16/10] bg-gray-100">
                                 <img
-                                    src={images[currentImageIndex].url || "/placeholder.svg"}
+                                    src={getImageUrl(images[currentImageIndex].url)}
                                     alt={images[currentImageIndex].alt}
                                     className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                        e.currentTarget.src = "/placeholder-car.jpg";
+                                    }}
                                 />
-                                
+
                                 {/* Navigation */}
                                 {images.length > 1 && (
                                     <>
@@ -126,7 +207,7 @@ export default function VehicleDetailsPage() {
                                         </button>
                                     </>
                                 )}
-                                
+
                                 {/* Image Counter */}
                                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/60 backdrop-blur-sm px-3 py-1.5 rounded-full">
                                     <span className="text-white text-sm font-medium">
@@ -134,7 +215,7 @@ export default function VehicleDetailsPage() {
                                     </span>
                                 </div>
                             </div>
-                            
+
                             {/* Thumbnails */}
                             {images.length > 1 && (
                                 <div className="p-4 flex gap-3 overflow-x-auto">
@@ -149,9 +230,12 @@ export default function VehicleDetailsPage() {
                                             }`}
                                         >
                                             <img
-                                                src={img.url}
+                                                src={getImageUrl(img.url)}
                                                 alt={img.alt}
                                                 className="w-full h-full object-cover"
+                                                onError={(e) => {
+                                                    e.currentTarget.src = "/placeholder-car.jpg";
+                                                }}
                                             />
                                         </button>
                                     ))}
@@ -163,22 +247,24 @@ export default function VehicleDetailsPage() {
                         <div className="bg-white rounded-2xl p-6 shadow-sm">
                             <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
                                 <div>
-                                    <p className="text-sm text-gray-500 uppercase tracking-wider mb-1">{car.bodyType} • {car.year}</p>
+                                    <p className="text-sm text-gray-500 uppercase tracking-wider mb-1">
+                                        {car.bodyType} • {car.year}
+                                    </p>
                                     <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{car.name}</h1>
                                 </div>
                                 <div className="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-xl">
                                     <Star className="w-5 h-5 text-amber-400 fill-amber-400" />
-                                    <span className="font-bold text-gray-900">{car.rating}</span>
+                                    <span className="font-bold text-gray-900">{car.rating.toFixed(1)}</span>
                                     <span className="text-gray-500">({car.reviewCount} reviews)</span>
                                 </div>
                             </div>
-                            
+
                             {/* Location */}
                             <div className="flex items-center gap-2 text-gray-600 mb-6">
                                 <MapPin className="w-4 h-4" />
                                 <span>{car.location}</span>
                             </div>
-                            
+
                             {/* Specs Grid */}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-gray-50 rounded-xl mb-6">
                                 <div className="flex items-center gap-3">
@@ -218,13 +304,13 @@ export default function VehicleDetailsPage() {
                                     </div>
                                 </div>
                             </div>
-                            
+
                             {/* Description */}
                             <div className="mb-6">
                                 <h2 className="text-lg font-semibold text-gray-900 mb-3">About this car</h2>
                                 <p className="text-gray-600 leading-relaxed">{car.description}</p>
                             </div>
-                            
+
                             {/* Additional Info */}
                             <div className="grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-xl">
                                 <div>
@@ -243,8 +329,8 @@ export default function VehicleDetailsPage() {
                             <h2 className="text-lg font-semibold text-gray-900 mb-4">Features & Amenities</h2>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                 {car.features.map((feature, index) => (
-                                    <div 
-                                        key={index} 
+                                    <div
+                                        key={index}
                                         className={`flex items-center gap-3 p-3 rounded-lg ${
                                             feature.available ? "bg-emerald-50" : "bg-gray-50"
                                         }`}
@@ -279,7 +365,7 @@ export default function VehicleDetailsPage() {
                                     </div>
                                 </div>
                                 <div className="flex items-start gap-3 p-4 bg-gray-50 rounded-xl">
-                                    <Car className="w-5 h-5 text-gray-600 mt-0.5" />
+                                    <CarIcon className="w-5 h-5 text-gray-600 mt-0.5" />
                                     <div>
                                         <p className="font-medium text-gray-900">Unlimited Mileage</p>
                                         <p className="text-sm text-gray-500">Drive without limits</p>
@@ -307,7 +393,7 @@ export default function VehicleDetailsPage() {
                                         <Calendar className="w-4 h-4" />
                                         Select Dates
                                     </h3>
-                                    <MiniCalendar 
+                                    <MiniCalendar
                                         currentMonth={currentMonth}
                                         setCurrentMonth={setCurrentMonth}
                                         selectedDates={selectedDates}
@@ -321,10 +407,10 @@ export default function VehicleDetailsPage() {
                                         <div className="flex justify-between text-sm mb-2">
                                             <span className="text-gray-500">Pick-up</span>
                                             <span className="font-medium text-gray-900">
-                                                {selectedDates.start.toLocaleDateString('en-US', { 
-                                                    weekday: 'short', 
-                                                    month: 'short', 
-                                                    day: 'numeric' 
+                                                {selectedDates.start.toLocaleDateString('en-US', {
+                                                    weekday: 'short',
+                                                    month: 'short',
+                                                    day: 'numeric'
                                                 })}
                                             </span>
                                         </div>
@@ -332,10 +418,10 @@ export default function VehicleDetailsPage() {
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-gray-500">Return</span>
                                                 <span className="font-medium text-gray-900">
-                                                    {selectedDates.end.toLocaleDateString('en-US', { 
-                                                        weekday: 'short', 
-                                                        month: 'short', 
-                                                        day: 'numeric' 
+                                                    {selectedDates.end.toLocaleDateString('en-US', {
+                                                        weekday: 'short',
+                                                        month: 'short',
+                                                        day: 'numeric'
                                                     })}
                                                 </span>
                                             </div>
@@ -432,9 +518,12 @@ export default function VehicleDetailsPage() {
                                 >
                                     <div className="aspect-[4/3] bg-gray-100 overflow-hidden">
                                         <img
-                                            src={relatedCar.mainImage || "/placeholder.svg"}
+                                            src={getImageUrl(relatedCar.mainImageUrl)}
                                             alt={relatedCar.name}
                                             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                            onError={(e) => {
+                                                e.currentTarget.src = "/placeholder-car.jpg";
+                                            }}
                                         />
                                     </div>
                                     <div className="p-4">
@@ -446,7 +535,7 @@ export default function VehicleDetailsPage() {
                                             </span>
                                             <div className="flex items-center gap-1">
                                                 <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
-                                                <span className="text-sm font-medium">{relatedCar.rating}</span>
+                                                <span className="text-sm font-medium">{relatedCar.rating.toFixed(1)}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -498,7 +587,7 @@ function MiniCalendar({ currentMonth, setCurrentMonth, selectedDates, setSelecte
 
     const handleDateClick = (day: number) => {
         const clickedDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
-        
+
         if (clickedDate < today) return;
 
         if (!selectedDates.start || (selectedDates.start && selectedDates.end)) {
@@ -564,7 +653,7 @@ function MiniCalendar({ currentMonth, setCurrentMonth, selectedDates, setSelecte
                 {Array.from({ length: firstDayOfMonth }).map((_, index) => (
                     <div key={`empty-${index}`} className="h-8" />
                 ))}
-                
+
                 {/* Days of the month */}
                 {Array.from({ length: daysInMonth }).map((_, index) => {
                     const day = index + 1;
@@ -581,10 +670,10 @@ function MiniCalendar({ currentMonth, setCurrentMonth, selectedDates, setSelecte
                                 past
                                     ? "text-gray-300 cursor-not-allowed"
                                     : selected
-                                    ? "bg-black text-white font-medium"
-                                    : inRange
-                                    ? "bg-gray-100 text-gray-900"
-                                    : "hover:bg-gray-100 text-gray-700"
+                                        ? "bg-black text-white font-medium"
+                                        : inRange
+                                            ? "bg-gray-100 text-gray-900"
+                                            : "hover:bg-gray-100 text-gray-700"
                             }`}
                         >
                             {day}
@@ -595,4 +684,3 @@ function MiniCalendar({ currentMonth, setCurrentMonth, selectedDates, setSelecte
         </div>
     );
 }
-
