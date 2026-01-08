@@ -1,24 +1,26 @@
-import { useState, useMemo, useEffect } from "react";
-import { useSearchParams, useNavigate, Link } from "react-router-dom";
-import { 
-    Calendar, 
-    MapPin, 
-    Clock, 
-    Car, 
-    Shield, 
-    CreditCard,
+import {useEffect, useMemo, useState} from "react";
+import {Link, useNavigate, useSearchParams} from "react-router-dom";
+import {
+    AlertCircle,
+    Calendar,
+    Car,
+    Check,
     ChevronLeft,
     ChevronRight,
-    Check,
-    AlertCircle,
-    User,
-    Phone,
+    Clock,
+    CreditCard,
+    Lock,
     Mail,
-    Lock
+    MapPin,
+    Phone,
+    Shield,
+    User
 } from "lucide-react";
-import { Navbar } from "../components/Navbar";
-import { Footer } from "../components/Footer";
-import { getCarById, Car as CarType } from "../data/cars";
+import {Navbar} from "../components/Navbar";
+import {Footer} from "../components/Footer";
+import {Car as CarType, CARS_DATA} from "../data/cars";
+import {carService} from "../services/carService";
+import {getImageUrl} from "../lib/ImageUtils";
 
 // Simulated auth state - replace with actual auth context
 const useAuth = () => {
@@ -41,17 +43,21 @@ export default function BookingPage() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
     const { isAuthenticated } = useAuth();
-    
+
     const carId = searchParams.get("carId");
-    const car = carId ? getCarById(Number(carId)) : null;
-    
+
+    // ✅ STATE FOR CAR DATA - MUST BE AT TOP
+    const [car, setCar] = useState<CarType | null>(null);
+    const [isLoadingCar, setIsLoadingCar] = useState(true);
+    const [carError, setCarError] = useState<string | null>(null);
+
     // Parse dates from URL if provided
     const urlPickupDate = searchParams.get("pickupDate");
     const urlDropoffDate = searchParams.get("dropoffDate");
     const hasPreselectedDates = Boolean(urlPickupDate && urlDropoffDate);
 
     // Booking states - initialize with URL dates if available
-    const [step, setStep] = useState(hasPreselectedDates ? 1 : 1); // Stay on step 1 but dates pre-filled
+    const [step, setStep] = useState(hasPreselectedDates ? 1 : 1);
     const [pickupDate, setPickupDate] = useState<Date | null>(
         urlPickupDate ? new Date(urlPickupDate) : null
     );
@@ -66,7 +72,7 @@ export default function BookingPage() {
     const [currentMonth, setCurrentMonth] = useState(
         urlPickupDate ? new Date(urlPickupDate) : new Date()
     );
-    
+
     // Guest info (for non-authenticated users)
     const [guestInfo, setGuestInfo] = useState({
         fullName: "",
@@ -83,6 +89,38 @@ export default function BookingPage() {
         additionalDriver: false
     });
 
+    // ✅ FETCH CAR DATA ON MOUNT
+    useEffect(() => {
+        const fetchCar = async () => {
+            if (!carId) {
+                setIsLoadingCar(false);
+                return;
+            }
+
+            try {
+                setIsLoadingCar(true);
+                setCarError(null);
+
+                // Fetch from backend
+                const fetchedCar = await carService.getById(Number(carId));
+                setCar(fetchedCar);
+            } catch (error) {
+                console.error("Failed to fetch car:", error);
+                setCarError("Failed to load vehicle details");
+
+                // Fallback to CARS_DATA
+                const fallbackCar = CARS_DATA.find(c => c.id === Number(carId));
+                if (fallbackCar) {
+                    setCar(fallbackCar);
+                }
+            } finally {
+                setIsLoadingCar(false);
+            }
+        };
+
+        fetchCar();
+    }, [carId]);
+
     // Calculate rental days and pricing
     const rentalDays = useMemo(() => {
         if (pickupDate && dropoffDate) {
@@ -96,7 +134,7 @@ export default function BookingPage() {
         if (!car || rentalDays === 0) {
             return { subtotal: 0, insurance: 0, gps: 0, childSeat: 0, additionalDriver: 0, serviceFee: 0, total: 0 };
         }
-        
+
         const subtotal = car.dailyPrice * rentalDays;
         const insurance = extras.insurance ? rentalDays * 500 : 0;
         const gps = extras.gps ? rentalDays * 200 : 0;
@@ -104,7 +142,7 @@ export default function BookingPage() {
         const additionalDriver = extras.additionalDriver ? rentalDays * 400 : 0;
         const serviceFee = Math.round(subtotal * 0.05);
         const total = subtotal + insurance + gps + childSeat + additionalDriver + serviceFee;
-        
+
         return { subtotal, insurance, gps, childSeat, additionalDriver, serviceFee, total };
     }, [car, rentalDays, extras]);
 
@@ -127,6 +165,22 @@ export default function BookingPage() {
     const canProceedStep2 = isAuthenticated || (guestInfo.fullName && guestInfo.email && guestInfo.phone && guestInfo.idNumber);
     const canProceedStep3 = true;
 
+    // ✅ LOADING STATE
+    if (isLoadingCar) {
+        return (
+            <div className="min-h-screen bg-gray-50">
+                <Navbar />
+                <div className="pt-24 pb-12 flex items-center justify-center">
+                    <div className="text-center">
+                        <div className="w-16 h-16 border-4 border-gray-200 border-t-black rounded-full animate-spin mx-auto mb-4" />
+                        <p className="text-gray-600">Loading vehicle details...</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // ✅ NO CAR FOUND
     if (!car) {
         return (
             <div className="min-h-screen bg-gray-50">
@@ -134,8 +188,12 @@ export default function BookingPage() {
                 <div className="pt-24 pb-12 flex items-center justify-center">
                     <div className="text-center bg-white rounded-2xl p-8 shadow-sm max-w-md mx-4">
                         <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                        <h1 className="text-2xl font-bold text-gray-900 mb-2">No Vehicle Selected</h1>
-                        <p className="text-gray-600 mb-6">Please select a vehicle from our collection to proceed with booking.</p>
+                        <h1 className="text-2xl font-bold text-gray-900 mb-2">
+                            {carError || "No Vehicle Selected"}
+                        </h1>
+                        <p className="text-gray-600 mb-6">
+                            Please select a vehicle from our collection to proceed with booking.
+                        </p>
                         <Link
                             to="/vehicles"
                             className="inline-block px-6 py-3 bg-black text-white rounded-xl font-semibold hover:bg-zinc-800 transition-colors"
@@ -151,7 +209,7 @@ export default function BookingPage() {
     return (
         <div className="min-h-screen bg-gray-50">
             <Navbar />
-            
+
             {/* Header */}
             <div className="bg-black pt-20 pb-8">
                 <div className="max-w-6xl mx-auto px-5 md:px-8">
@@ -159,6 +217,15 @@ export default function BookingPage() {
                     <p className="text-gray-400">You're booking: {car.name}</p>
                 </div>
             </div>
+
+            {/* Error message if any */}
+            {carError && (
+                <div className="bg-yellow-50 border-b border-yellow-200">
+                    <div className="max-w-6xl mx-auto px-5 md:px-8 py-3">
+                        <p className="text-yellow-800 text-sm">{carError} - Showing cached data</p>
+                    </div>
+                </div>
+            )}
 
             {/* Progress Steps */}
             <div className="bg-white border-b border-gray-100 sticky top-16 z-40">
@@ -172,11 +239,11 @@ export default function BookingPage() {
                             <div key={s.num} className="flex items-center">
                                 <div className={`flex items-center gap-2 ${step >= s.num ? "text-black" : "text-gray-400"}`}>
                                     <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                                        step > s.num 
-                                            ? "bg-emerald-500 text-white" 
-                                            : step === s.num 
-                                            ? "bg-black text-white" 
-                                            : "bg-gray-200 text-gray-500"
+                                        step > s.num
+                                            ? "bg-emerald-500 text-white"
+                                            : step === s.num
+                                                ? "bg-black text-white"
+                                                : "bg-gray-200 text-gray-500"
                                     }`}>
                                         {step > s.num ? <Check className="w-4 h-4" /> : s.num}
                                     </div>
@@ -206,7 +273,7 @@ export default function BookingPage() {
                                             <div className="flex-1">
                                                 <p className="font-medium text-emerald-900">Dates Pre-selected</p>
                                                 <p className="text-sm text-emerald-700 mt-1">
-                                                    {pickupDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} 
+                                                    {pickupDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                                                     {' → '}
                                                     {dropoffDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}
                                                     {' '}({rentalDays} day{rentalDays > 1 ? 's' : ''})
@@ -229,11 +296,11 @@ export default function BookingPage() {
                                             </span>
                                         )}
                                     </div>
-                                    
+
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                         {/* Calendar */}
                                         <div>
-                                            <BookingCalendar 
+                                            <BookingCalendar
                                                 currentMonth={currentMonth}
                                                 setCurrentMonth={setCurrentMonth}
                                                 pickupDate={pickupDate}
@@ -241,7 +308,7 @@ export default function BookingPage() {
                                                 onDateSelect={handleDateSelect}
                                             />
                                         </div>
-                                        
+
                                         {/* Time Selection */}
                                         <div className="space-y-4">
                                             <div>
@@ -251,7 +318,7 @@ export default function BookingPage() {
                                                 <div className={`flex items-center gap-2 p-3 rounded-xl ${pickupDate ? "bg-emerald-50 border border-emerald-200" : "bg-gray-50"}`}>
                                                     <Calendar className={`w-4 h-4 ${pickupDate ? "text-emerald-600" : "text-gray-500"}`} />
                                                     <span className={`text-sm ${pickupDate ? "text-emerald-900 font-medium" : "text-gray-500"}`}>
-                                                        {pickupDate 
+                                                        {pickupDate
                                                             ? pickupDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
                                                             : "Select date"
                                                         }
@@ -270,7 +337,7 @@ export default function BookingPage() {
                                                     })}
                                                 </select>
                                             </div>
-                                            
+
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                                     Drop-off Date & Time
@@ -278,7 +345,7 @@ export default function BookingPage() {
                                                 <div className={`flex items-center gap-2 p-3 rounded-xl ${dropoffDate ? "bg-emerald-50 border border-emerald-200" : "bg-gray-50"}`}>
                                                     <Calendar className={`w-4 h-4 ${dropoffDate ? "text-emerald-600" : "text-gray-500"}`} />
                                                     <span className={`text-sm ${dropoffDate ? "text-emerald-900 font-medium" : "text-gray-500"}`}>
-                                                        {dropoffDate 
+                                                        {dropoffDate
                                                             ? dropoffDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
                                                             : "Select date"
                                                         }
@@ -316,7 +383,7 @@ export default function BookingPage() {
                                         <MapPin className="w-5 h-5" />
                                         Pick-up & Drop-off Location
                                     </h2>
-                                    
+
                                     <div className="space-y-4">
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -338,7 +405,7 @@ export default function BookingPage() {
                                                 ))}
                                             </select>
                                         </div>
-                                        
+
                                         <label className="flex items-center gap-3 cursor-pointer">
                                             <input
                                                 type="checkbox"
@@ -351,7 +418,7 @@ export default function BookingPage() {
                                             />
                                             <span className="text-sm text-gray-700">Return to same location</span>
                                         </label>
-                                        
+
                                         {!sameLocation && (
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -380,7 +447,7 @@ export default function BookingPage() {
                                         <Shield className="w-5 h-5" />
                                         Add-ons & Extras
                                     </h2>
-                                    
+
                                     <div className="space-y-3">
                                         {[
                                             { key: "insurance", label: "Full Insurance Coverage", price: 500, desc: "Comprehensive protection against damage" },
@@ -388,11 +455,11 @@ export default function BookingPage() {
                                             { key: "childSeat", label: "Child Seat", price: 300, desc: "Safe seating for children" },
                                             { key: "additionalDriver", label: "Additional Driver", price: 400, desc: "Add another authorized driver" },
                                         ].map(extra => (
-                                            <label 
+                                            <label
                                                 key={extra.key}
                                                 className={`flex items-start gap-4 p-4 rounded-xl cursor-pointer transition-all ${
-                                                    extras[extra.key as keyof typeof extras] 
-                                                        ? "bg-black text-white" 
+                                                    extras[extra.key as keyof typeof extras]
+                                                        ? "bg-black text-white"
                                                         : "bg-gray-50 hover:bg-gray-100"
                                                 }`}
                                             >
@@ -458,7 +525,7 @@ export default function BookingPage() {
                                             />
                                         </div>
                                     </div>
-                                    
+
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
                                             Email Address
@@ -474,7 +541,7 @@ export default function BookingPage() {
                                             />
                                         </div>
                                     </div>
-                                    
+
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
                                             Phone Number
@@ -490,7 +557,7 @@ export default function BookingPage() {
                                             />
                                         </div>
                                     </div>
-                                    
+
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
                                             ID/Passport Number
@@ -510,7 +577,7 @@ export default function BookingPage() {
 
                                 <div className="mt-6 p-4 bg-gray-50 rounded-xl">
                                     <p className="text-xs text-gray-500">
-                                        By proceeding, you agree to our <a href="#" className="underline">Terms of Service</a> and <a href="#" className="underline">Privacy Policy</a>. 
+                                        By proceeding, you agree to our <a href="#" className="underline">Terms of Service</a> and <a href="#" className="underline">Privacy Policy</a>.
                                         A valid driving license is required at pick-up.
                                     </p>
                                 </div>
@@ -539,7 +606,7 @@ export default function BookingPage() {
                                                 </div>
                                             </div>
                                         </button>
-                                        
+
                                         <button className="p-4 border-2 border-gray-200 hover:border-gray-300 rounded-xl text-left transition-colors">
                                             <div className="flex items-center gap-3">
                                                 <CreditCard className="w-8 h-8 text-gray-600" />
@@ -602,7 +669,7 @@ export default function BookingPage() {
                             ) : (
                                 <div />
                             )}
-                            
+
                             {step < 3 ? (
                                 <button
                                     onClick={() => setStep(step + 1)}
@@ -632,9 +699,12 @@ export default function BookingPage() {
                             <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
                                 <div className="aspect-[16/10] bg-gray-100">
                                     <img
-                                        src={car.mainImage || "/placeholder.svg"}
+                                        src={getImageUrl(car.mainImageUrl)}
                                         alt={car.name}
                                         className="w-full h-full object-cover"
+                                        onError={(e) => {
+                                            e.currentTarget.src = "/placeholder-car.jpg";
+                                        }}
                                     />
                                 </div>
                                 <div className="p-4">
@@ -647,47 +717,47 @@ export default function BookingPage() {
                             {/* Price Breakdown */}
                             <div className="bg-white rounded-2xl p-6 shadow-sm">
                                 <h3 className="font-semibold text-gray-900 mb-4">Price Breakdown</h3>
-                                
+
                                 {rentalDays > 0 ? (
                                     <div className="space-y-3">
                                         <div className="flex justify-between text-sm">
                                             <span className="text-gray-600">Ksh {car.dailyPrice.toLocaleString()} × {rentalDays} days</span>
                                             <span className="font-medium text-gray-900">Ksh {pricing.subtotal.toLocaleString()}</span>
                                         </div>
-                                        
+
                                         {pricing.insurance > 0 && (
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-gray-600">Insurance</span>
                                                 <span className="font-medium text-gray-900">Ksh {pricing.insurance.toLocaleString()}</span>
                                             </div>
                                         )}
-                                        
+
                                         {pricing.gps > 0 && (
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-gray-600">GPS Navigation</span>
                                                 <span className="font-medium text-gray-900">Ksh {pricing.gps.toLocaleString()}</span>
                                             </div>
                                         )}
-                                        
+
                                         {pricing.childSeat > 0 && (
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-gray-600">Child Seat</span>
                                                 <span className="font-medium text-gray-900">Ksh {pricing.childSeat.toLocaleString()}</span>
                                             </div>
                                         )}
-                                        
+
                                         {pricing.additionalDriver > 0 && (
                                             <div className="flex justify-between text-sm">
                                                 <span className="text-gray-600">Additional Driver</span>
                                                 <span className="font-medium text-gray-900">Ksh {pricing.additionalDriver.toLocaleString()}</span>
                                             </div>
                                         )}
-                                        
+
                                         <div className="flex justify-between text-sm">
                                             <span className="text-gray-600">Service fee</span>
                                             <span className="font-medium text-gray-900">Ksh {pricing.serviceFee.toLocaleString()}</span>
                                         </div>
-                                        
+
                                         <div className="flex justify-between pt-3 border-t border-gray-100">
                                             <span className="font-semibold text-gray-900">Total</span>
                                             <span className="font-bold text-gray-900 text-lg">Ksh {pricing.total.toLocaleString()}</span>
@@ -790,7 +860,7 @@ function BookingCalendar({ currentMonth, setCurrentMonth, pickupDate, dropoffDat
                 {Array.from({ length: firstDayOfMonth }).map((_, index) => (
                     <div key={`empty-${index}`} className="h-9" />
                 ))}
-                
+
                 {Array.from({ length: daysInMonth }).map((_, index) => {
                     const day = index + 1;
                     const past = isPast(day);
@@ -806,12 +876,12 @@ function BookingCalendar({ currentMonth, setCurrentMonth, pickupDate, dropoffDat
                                 past
                                     ? "text-gray-300 cursor-not-allowed"
                                     : selected === "start"
-                                    ? "bg-black text-white font-medium rounded-r-none"
-                                    : selected === "end"
-                                    ? "bg-black text-white font-medium rounded-l-none"
-                                    : inRange
-                                    ? "bg-gray-100 text-gray-900"
-                                    : "hover:bg-gray-100 text-gray-700"
+                                        ? "bg-black text-white font-medium rounded-r-none"
+                                        : selected === "end"
+                                            ? "bg-black text-white font-medium rounded-l-none"
+                                            : inRange
+                                                ? "bg-gray-100 text-gray-900"
+                                                : "hover:bg-gray-100 text-gray-700"
                             }`}
                         >
                             {day}
@@ -822,4 +892,3 @@ function BookingCalendar({ currentMonth, setCurrentMonth, pickupDate, dropoffDat
         </div>
     );
 }
-
