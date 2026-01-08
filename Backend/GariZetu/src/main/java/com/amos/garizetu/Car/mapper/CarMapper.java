@@ -2,8 +2,12 @@ package com.amos.garizetu.Car.mapper;
 
 import com.amos.garizetu.Car.DTO.Request.CarCreateRequest;
 import com.amos.garizetu.Car.DTO.Response.CarResponseDTO;
+import com.amos.garizetu.Car.DTO.Response.FeatureResponseDTO;
 import com.amos.garizetu.Car.Entity.Car;
 import org.springframework.stereotype.Component;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Component
 public class CarMapper {
@@ -24,9 +28,11 @@ public class CarMapper {
         car.setMileage(dto.getMileage());
         car.setDailyPrice(dto.getDailyPrice());
         car.setSeatingCapacity(dto.getSeatingCapacity());
+        car.setDescription(dto.getDescription());
         car.setCarStatus(dto.getCarStatus());
         car.setTransmissionType(dto.getTransmissionType());
         car.setFuelType(dto.getFuelType());
+        car.setBodyType(dto.getBodyType());
 
         return car;
     }
@@ -49,9 +55,29 @@ public class CarMapper {
         carResponseDTO.setDailyPrice(car.getDailyPrice());
         carResponseDTO.setSeatingCapacity(car.getSeatingCapacity());
         carResponseDTO.setMainImageUrl(car.getMainImageUrl());
+        carResponseDTO.setDescription(car.getDescription());
         carResponseDTO.setCarStatus(car.getCarStatus());
         carResponseDTO.setTransmissionType(car.getTransmissionType());
         carResponseDTO.setFuelType(car.getFuelType());
+        carResponseDTO.setBodyType(car.getBodyType());
+
+
+        //Map FEATURES to DTO
+        if (car.getFeatures() != null) {
+            List<FeatureResponseDTO> features = car.getFeatures().stream()
+                    .map(feature -> {
+                        FeatureResponseDTO featureResponseDTO = new FeatureResponseDTO();
+                        featureResponseDTO.setFeatureId(feature.getFeatureId());
+                        featureResponseDTO.setFeatureName(feature.getFeatureName());
+                        featureResponseDTO.setFeatureDescription(feature.getFeatureDescription());
+                        featureResponseDTO.setFeatureCategory(feature.getFeatureCategory());
+                        featureResponseDTO.setAvailable(true);
+                        return featureResponseDTO;
+                    })
+                    .collect(Collectors.toList());
+            carResponseDTO.setFeatures(features);
+        }
+
         carResponseDTO.setCreatedAt(car.getCreatedAt());
         carResponseDTO.setUpdatedAt(car.getUpdatedAt());
 

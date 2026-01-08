@@ -1,5 +1,6 @@
 package com.amos.garizetu.Car.Entity;
 
+import com.amos.garizetu.Car.Enums.BodyType;
 import com.amos.garizetu.Car.Enums.CarStatus;
 import com.amos.garizetu.Car.Enums.FuelType;
 import com.amos.garizetu.Car.Enums.TransmissionType;
@@ -9,6 +10,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.HashSet;
+import java.util.Set;
 
 @Data
 @NoArgsConstructor
@@ -31,7 +34,8 @@ public class Car {
     private int mileage;
     private double dailyPrice;
     private int seatingCapacity;
-    private String mainImageUrl; //Added a url to upload images
+    private String mainImageUrl;//Added a url to upload images
+    private String description; // To store the description of the car
 
 
     @Enumerated(EnumType.STRING)
@@ -45,6 +49,32 @@ public class Car {
     @Enumerated(EnumType.STRING)
     @Column(name = "fuel_type", nullable = false)
     private FuelType fuelType;
+
+    //New fields
+    @Enumerated(EnumType.STRING)
+    @Column(name = "body_type")
+    private BodyType bodyType;
+
+    // Implementing the many to many relationship
+    @ManyToMany(cascade = {CascadeType.PERSIST ,CascadeType.MERGE})
+    @JoinTable(
+            name = "car_features",
+            joinColumns = @JoinColumn(name = "car_id"),
+            inverseJoinColumns = @JoinColumn(name = "feature_id")
+    )
+    private Set<Feature> features = new HashSet<>();
+
+
+    // Helper methods for managing features
+    public void addFeature(Feature feature) {
+        features.add(feature);
+        feature.getCars().add(this);
+    }
+
+    public void removeFeature(Feature feature) {
+        features.remove(feature);
+        feature.getCars().remove(this);
+    }
 
     @Column(updatable = false)
     private LocalDateTime createdAt;
@@ -60,6 +90,10 @@ public class Car {
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
+
+
+
+
 
 
 }
