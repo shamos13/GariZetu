@@ -63,6 +63,17 @@ public class Car {
     )
     private Set<Feature> features = new HashSet<>();
 
+    // Helper methods for managing features
+    public void addFeature(Feature feature) {
+        features.add(feature);
+        feature.getCars().add(this);
+    }
+
+    public void removeFeature(Feature feature) {
+        features.remove(feature);
+        feature.getCars().remove(this);
+    }
+
     @Column(updatable = false)
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
