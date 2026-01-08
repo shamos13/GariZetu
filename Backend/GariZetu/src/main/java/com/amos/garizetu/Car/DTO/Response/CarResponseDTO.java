@@ -6,6 +6,7 @@ import com.amos.garizetu.Car.Enums.TransmissionType;
 import lombok.Data;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 public class CarResponseDTO {
@@ -25,5 +26,8 @@ public class CarResponseDTO {
     private FuelType fuelType;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+
+    // Features is being returned as a list of objects  not array of strings
+    private List<FeatureResponseDTO> features;
 
 }
