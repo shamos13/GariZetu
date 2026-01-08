@@ -35,6 +35,7 @@ public class Car {
     private double dailyPrice;
     private int seatingCapacity;
     private String mainImageUrl;//Added a url to upload images
+    private String description; // To store the description of the car
 
 
     @Enumerated(EnumType.STRING)
@@ -57,11 +58,12 @@ public class Car {
     // Implementing the many to many relationship
     @ManyToMany(cascade = {CascadeType.PERSIST ,CascadeType.MERGE})
     @JoinTable(
-            name = "features",
+            name = "car_features",
             joinColumns = @JoinColumn(name = "car_id"),
             inverseJoinColumns = @JoinColumn(name = "feature_id")
     )
     private Set<Feature> features = new HashSet<>();
+
 
     // Helper methods for managing features
     public void addFeature(Feature feature) {

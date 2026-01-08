@@ -1,5 +1,6 @@
 package com.amos.garizetu.Car.DTO.Response;
 
+import com.amos.garizetu.Car.Enums.BodyType;
 import com.amos.garizetu.Car.Enums.CarStatus;
 import com.amos.garizetu.Car.Enums.FuelType;
 import com.amos.garizetu.Car.Enums.TransmissionType;
@@ -21,9 +22,11 @@ public class CarResponseDTO {
     private double dailyPrice;
     private int seatingCapacity;
     private String mainImageUrl;
+    private String description;
     private CarStatus carStatus;
     private TransmissionType transmissionType;
     private FuelType fuelType;
+    private BodyType bodyType;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 

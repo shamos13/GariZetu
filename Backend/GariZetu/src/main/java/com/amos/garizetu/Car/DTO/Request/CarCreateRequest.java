@@ -1,5 +1,6 @@
 package com.amos.garizetu.Car.DTO.Request;
 
+import com.amos.garizetu.Car.Enums.BodyType;
 import com.amos.garizetu.Car.Enums.CarStatus;
 import com.amos.garizetu.Car.Enums.FuelType;
 import com.amos.garizetu.Car.Enums.TransmissionType;
@@ -53,6 +54,9 @@ public class CarCreateRequest {
     @NotNull(message = "Fuel type is required")
     private FuelType fuelType;
 
+    @NotNull(message = "Body type can not be blank")
+    private BodyType bodyType;
+
     @NotNull(message = "Car Status is required")
     private CarStatus carStatus;
 
@@ -63,7 +67,7 @@ public class CarCreateRequest {
     @Size(min =10, max = 1000, message = "Description must be between 10 and 1000 characters")
     private String description;
 
-    private List<String> featureNames;
+    private List<String> featureName;
 
 
 }

@@ -59,10 +59,12 @@ public class CarService {
         }
 
         //Processing Features
-        if (carCreateRequest.getFeatureNames() != null) {
+        if (carCreateRequest.getFeatureName() != null && !carCreateRequest.getFeatureName().isEmpty()) {
+            log.info("Processing {} features", carCreateRequest.getFeatureName().size());
             Set<Feature> features = featureService.processFeatureNames(
-                    carCreateRequest.getFeatureNames());
+                    carCreateRequest.getFeatureName());
             car.setFeatures(features);
+            log.info("Features assigned: {}", features.size());
         }
 
         //Save to database
