@@ -16,6 +16,7 @@ import java.util.Set;
 public class Feature {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name="feature_id")
     private Long featureId;
 
     @Column(name = "feature_name", unique = true, nullable = false)
