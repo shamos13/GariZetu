@@ -5,6 +5,8 @@ package com.amos.garizetu.Service;
 
 import com.amos.garizetu.Car.Entity.Feature;
 import com.amos.garizetu.Repository.FeatureRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,13 +15,12 @@ import java.util.List;
 import java.util.Set;
 
 @Service
+@RequiredArgsConstructor
+@Slf4j
 public class FeatureService {
 
     private final FeatureRepository featureRepository;
 
-    public FeatureService(FeatureRepository featureRepository) {
-        this.featureRepository = featureRepository;
-    }
 
     @Transactional
     public Feature findOrCreateFeature(String featureName) {
@@ -44,5 +45,15 @@ public class FeatureService {
             }
         }
         return features;
+    }
+
+    // Get all available features for frontend dropdown
+    public List<Feature> getAllFeatures() {
+        return featureRepository.findAll();
+    }
+
+    //Get features by Category
+    public Set<Feature> getFeaturesByCategory(String featureCategory) {
+        return featureRepository.findByFeatureCategory(featureCategory);
     }
 }

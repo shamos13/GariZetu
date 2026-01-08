@@ -4,6 +4,7 @@ import com.amos.garizetu.Car.DTO.Request.CarCreateRequest;
 import com.amos.garizetu.Car.DTO.Request.CarUpdateDTO;
 import com.amos.garizetu.Car.DTO.Response.CarResponseDTO;
 import com.amos.garizetu.Car.Entity.Car;
+import com.amos.garizetu.Car.Entity.Feature;
 import com.amos.garizetu.Car.Enums.CarStatus;
 import com.amos.garizetu.Repository.CarRepository;
 import com.amos.garizetu.Car.mapper.CarMapper;
@@ -14,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -25,6 +27,8 @@ public class CarService {
     private final CarRepository carRepository;
     private final CarMapper carMapper;
     private final FileStorageService fileStorageService;
+    private final FeatureService featureService;
+
 
     //Create a new car with image upload
     public CarResponseDTO createCar(CarCreateRequest carCreateRequest) {
@@ -54,14 +58,29 @@ public class CarService {
             car.setCarStatus(CarStatus.AVAILABLE);
         }
 
+        //Processing Features
+        if (carCreateRequest.getFeatureNames() != null) {
+            Set<Feature> features = featureService.processFeatureNames(
+                    carCreateRequest.getFeatureNames());
+            car.setFeatures(features);
+        }
+
         //Save to database
         Car savedCar = carRepository.save(car);
         log.info("Car created successfully with ID: {}",savedCar.getCarId());
 
         return carMapper.toResponseDTO(savedCar);
 
+
     }
 
+    /*
+    *
+    *
+    * This is the Response section
+    *
+    *
+    * */
     // Reading the Response
 
     //Reading a single response
