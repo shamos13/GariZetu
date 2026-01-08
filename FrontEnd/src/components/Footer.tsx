@@ -74,18 +74,18 @@ export function Footer() {
                         {/* Contact Info */}
                         <div className="space-y-3">
                             <a 
-                                href="tel:+254712345678" 
+                                href="tel:+254759064318"
                                 className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors group"
                             >
                                 <Phone className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                                <span className="text-sm">+254 712 345 678</span>
+                                <span className="text-sm">+254 727 805 351</span>
                             </a>
                             <a 
-                                href="mailto:info@garizetu.co.ke" 
+                                href="mailto:akwatuha04@gmail.com"
                                 className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors group"
                             >
                                 <Mail className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                                <span className="text-sm">info@garizetu.co.ke</span>
+                                <span className="text-sm">akwatuha04@gmail.com</span>
                             </a>
                             <div className="flex items-center gap-3 text-gray-400">
                                 <MapPin className="w-4 h-4" />

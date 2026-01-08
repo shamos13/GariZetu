@@ -1,21 +1,11 @@
-import { useState, useMemo, useEffect } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import { 
-    Search, 
-    SlidersHorizontal, 
-    X, 
-    ChevronDown,
-    Gauge,
-    Users,
-    Fuel,
-    Settings,
-    Star,
-    MapPin,
-    ArrowUpDown
-} from "lucide-react";
-import { Navbar } from "../components/Navbar";
-import { Footer } from "../components/Footer";
-import { CARS_DATA, Car, FuelType, TransmissionType, BodyType } from "../data/cars";
+import {useEffect, useMemo, useState} from "react";
+import {Link, useSearchParams} from "react-router-dom";
+import {ArrowUpDown, Fuel, Gauge, MapPin, Search, Settings, SlidersHorizontal, Star, Users, X} from "lucide-react";
+import {Navbar} from "../components/Navbar";
+import {Footer} from "../components/Footer";
+import { carService } from "../services/carService";  // Add this
+import { getImageUrl } from "../../src/lib/ImageUtils.ts";      // Add this
+import {BodyType, Car, CARS_DATA, FuelType, TransmissionType} from "../data/cars";
 
 type SortOption = "price-asc" | "price-desc" | "rating" | "newest";
 
@@ -25,7 +15,13 @@ export default function VehiclesPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [showFilters, setShowFilters] = useState(false);
     const [sortBy, setSortBy] = useState<SortOption>("rating");
-    
+
+    // ADD THESE THREE LINES:
+    const [cars, setCars] = useState<Car[]>(CARS_DATA);  // Start with fallback
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+
+
     // Filter states
     const [priceRange, setPriceRange] = useState<[number, number]>([0, 10000]);
     const [selectedFuel, setSelectedFuel] = useState<FuelType | "all">("all");
@@ -35,48 +31,33 @@ export default function VehiclesPage() {
 
     // Read URL params on mount and when they change
     useEffect(() => {
-        const bodyTypeParam = searchParams.get("bodyType");
-        const sortParam = searchParams.get("sort");
-        const fuelParam = searchParams.get("fuel");
-        const transmissionParam = searchParams.get("transmission");
-        const seatsParam = searchParams.get("seats");
-        const searchParam = searchParams.get("search");
+        const fetchCars = async () => {
+            try {
+                setIsLoading(true);
+                setError(null);
 
-        if (bodyTypeParam && ["Sedan", "SUV", "Hatchback", "Coupe", "Convertible", "Van", "Truck"].includes(bodyTypeParam)) {
-            setSelectedBodyType(bodyTypeParam as BodyType);
-            setShowFilters(true);
-        }
-        
-        if (sortParam && ["price-asc", "price-desc", "rating", "newest"].includes(sortParam)) {
-            setSortBy(sortParam as SortOption);
-        }
-        
-        if (fuelParam && ["Petrol", "Diesel", "Electric", "Hybrid"].includes(fuelParam)) {
-            setSelectedFuel(fuelParam as FuelType);
-            setShowFilters(true);
-        }
-        
-        if (transmissionParam && ["Manual", "Automatic"].includes(transmissionParam)) {
-            setSelectedTransmission(transmissionParam as TransmissionType);
-            setShowFilters(true);
-        }
-        
-        if (seatsParam) {
-            const seats = parseInt(seatsParam);
-            if ([4, 5, 7].includes(seats)) {
-                setSelectedSeats(seats);
-                setShowFilters(true);
+                const fetchedCars = await carService.getAll();
+
+                if (fetchedCars.length > 0) {
+                    setCars(fetchedCars);  // Use backend data
+                } else {
+                    setCars(CARS_DATA);  // Keep fallback if no cars
+                }
+            } catch (err) {
+                console.error("Error fetching cars:", err);
+                setError("Failed to load vehicles. Showing sample data.");
+                setCars(CARS_DATA);  // Use fallback on error
+            } finally {
+                setIsLoading(false);
             }
-        }
-        
-        if (searchParam) {
-            setSearchQuery(searchParam);
-        }
-    }, [searchParams]);
+        };
+
+        fetchCars();
+    }, []);
 
     // Filter and sort cars
     const filteredCars = useMemo(() => {
-        let result = CARS_DATA.filter(car => {
+        let result = cars.filter(car => {
             // Search filter
             if (searchQuery) {
                 const query = searchQuery.toLowerCase();
@@ -132,7 +113,7 @@ export default function VehiclesPage() {
         }
         
         return result;
-    }, [searchQuery, priceRange, selectedFuel, selectedTransmission, selectedSeats, selectedBodyType, sortBy]);
+    }, [cars, searchQuery, priceRange, selectedFuel, selectedTransmission, selectedSeats, selectedBodyType, sortBy]);
 
     const clearFilters = () => {
         setPriceRange([0, 10000]);
@@ -193,6 +174,7 @@ export default function VehiclesPage() {
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 className="w-full pl-12 pr-4 py-3.5 bg-gray-50 border-0 rounded-xl text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-black"
+                                disabled={isLoading}
                             />
                         </div>
                         
@@ -385,9 +367,12 @@ function VehicleCard({ car }: { car: Car }) {
             {/* Image */}
             <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
                 <img
-                    src={car.mainImage || "/placeholder.svg"}
+                    src={getImageUrl(car.mainImageUrl)}
                     alt={car.name}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    onError={(e) => {
+                        e.currentTarget.src="/placeholder-car.jpg"
+                    }}
                 />
                 
                 {/* Status Badge */}
