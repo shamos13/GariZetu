@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -111,19 +112,107 @@ public class CarService {
         return cars.stream().map(carMapper::toResponseDTO).collect(Collectors.toList());
     }
 
-    //Updating the car
+    // Updating the car (partial update)
     public CarResponseDTO updateStatus(Long id, CarUpdateDTO updateDTO){
-        Car car = carRepository.findById(id).orElseThrow(() -> new RuntimeException("Car with ID " + id + " not found"));
-        car.setCarStatus(updateDTO.getCarStatus());
+        Car car = carRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Car with ID " + id + " not found"));
 
-        if (updateDTO.getDailyPrice()==0){
-            car.setDailyPrice(car.getDailyPrice());
+        // Update only fields that are provided
+        if (updateDTO.getMake() != null) {
+            car.setMake(updateDTO.getMake());
         }
-        else {
+
+        if (updateDTO.getRegistrationNumber() != null &&
+                !updateDTO.getRegistrationNumber().equalsIgnoreCase(car.getRegistrationNumber())) {
+            // Business rule: prevent duplicate registration numbers
+            if (carRepository.existsByRegistrationNumber(updateDTO.getRegistrationNumber())) {
+                throw new RuntimeException("Car with registration number " + updateDTO.getRegistrationNumber() + " already exists");
+            }
+            car.setRegistrationNumber(updateDTO.getRegistrationNumber());
+        }
+
+        if (updateDTO.getVehicleModel() != null) {
+            car.setVehicleModel(updateDTO.getVehicleModel());
+        }
+
+        if (updateDTO.getYear() != null) {
+            validateCarYear(updateDTO.getYear());
+            car.setYear(updateDTO.getYear());
+        }
+
+        if (updateDTO.getEngineCapacity() != null) {
+            if (updateDTO.getEngineCapacity() <= 0) {
+                throw new RuntimeException("Engine capacity must be positive");
+            }
+            car.setEngineCapacity(updateDTO.getEngineCapacity());
+        }
+
+        if (updateDTO.getColour() != null) {
+            car.setColour(updateDTO.getColour());
+        }
+
+        if (updateDTO.getMileage() != null) {
+            if (updateDTO.getMileage() < 0) {
+                throw new RuntimeException("Mileage cannot be negative");
+            }
+            car.setMileage(updateDTO.getMileage());
+        }
+
+        if (updateDTO.getDailyPrice() != null) {
+            if (updateDTO.getDailyPrice() < 1000.0) {
+                throw new RuntimeException("Daily price must be at least 1000/= ksh");
+            }
             car.setDailyPrice(updateDTO.getDailyPrice());
         }
-        return carMapper.toResponseDTO(carRepository.save(car));
 
+        if (updateDTO.getSeatingCapacity() != null) {
+            car.setSeatingCapacity(updateDTO.getSeatingCapacity());
+        }
+
+        if (updateDTO.getCarStatus() != null) {
+            car.setCarStatus(updateDTO.getCarStatus());
+        }
+
+        if (updateDTO.getTransmissionType() != null) {
+            car.setTransmissionType(updateDTO.getTransmissionType());
+        }
+
+        if (updateDTO.getFuelType() != null) {
+            car.setFuelType(updateDTO.getFuelType());
+        }
+
+        if (updateDTO.getBodyType() != null) {
+            car.setBodyType(updateDTO.getBodyType());
+        }
+
+        if (updateDTO.getDescription() != null) {
+            car.setDescription(updateDTO.getDescription());
+        }
+
+        // Process feature names if provided
+        if (updateDTO.getFeatureName() != null) {
+            Set<Feature> features = featureService.processFeatureNames(updateDTO.getFeatureName());
+            car.setFeatures(features);
+        }
+
+        Car savedCar = carRepository.save(car);
+        return carMapper.toResponseDTO(savedCar);
+    }
+
+    // Update car image/photo
+    public CarResponseDTO updateCarImage(Long id, MultipartFile image) {
+        Car car = carRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Car with ID " + id + " not found"));
+
+        // Store the new image and update the URL
+        String storedFileName = fileStorageService.storeFile(image);
+        log.info("Updating image for car {} with file {}", id, storedFileName);
+
+        String imageUrl = "/api/v1/cars/images/" + storedFileName;
+        car.setMainImageUrl(imageUrl);
+
+        Car savedCar = carRepository.save(car);
+        return carMapper.toResponseDTO(savedCar);
     }
 
     public void deleteCar(Long id){
