@@ -5,7 +5,6 @@ public enum BodyType{
     SEDAN,
     HATCHBACK,
     COUPE,
-    CONVERTIBLE,
     VAN,
     MINIVAN,
     TRUCK

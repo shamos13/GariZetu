@@ -3,6 +3,7 @@ import {AdminLayout} from "./components/AdminLayout.tsx";
 import {Car, CarCreateRequest} from "./types/Car.ts";
 import {CarManagementPage} from "./pages/CarManagementPage.tsx";
 import {carService} from "../../services/carService.ts";
+import {adminCarService} from "../admin/service/AdminCarService.ts";
 import {CarForm} from "./components/CarForm.tsx";
 import {toast} from "sonner";
 import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "../../components/ui/dialog.tsx";
@@ -24,32 +25,29 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         setEditingCars(null);
     }
 
-    // Editing car Form
-
     // Load cars from API on mount
     useEffect(() => {
         carService.getAll()
             .then(setCars)
             .catch(console.error);
     }, []);
-    
-    const handleAddCar = async (carData: CarCreateRequest, image: File | null) => {
-        try{
 
-            //Step 1 validate we have an image
+    const handleAddCar = async (carData: CarCreateRequest, image: File | null) => {
+        try {
+            // Step 1: Validate we have an image
             if (!image) {
-                toast.error("Please Select an image file");
+                toast.error("Please select an image file");
                 return;
             }
 
-            // create a formData object that packages data for multipart
+            // Step 2: Create FormData object for multipart/form-data
             const formData = new FormData();
 
-            //append the image first
+            // Append the image first
             formData.append("image", image);
 
-            //Append all other fields
-            // Form Data only Accepts Blobs/Files/ so we convert no's to Strings using to String
+            // Append all required fields
+            // FormData only accepts Blobs/Files/strings, so convert numbers to strings
             formData.append("make", carData.make);
             formData.append("registrationNumber", carData.registrationNumber);
             formData.append("vehicleModel", carData.vehicleModel);
@@ -62,23 +60,36 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
             formData.append("transmissionType", carData.transmissionType);
             formData.append("fuelType", carData.fuelType);
             formData.append("carStatus", carData.carStatus);
+            formData.append("bodyType", carData.bodyType);
 
-            // We send it to the Backend
-            const createdCar = await carService.createCar(formData);
+            // ✅ FIXED: Append description only if it exists
+            if (carData.description) {
+                formData.append("description", carData.description);
+            }
 
-            // Update local state with the new car
+            // ✅ FIXED: Loop through features array and append each one separately
+            // This creates multiple "featureName" entries, which Spring Boot handles correctly
+            if (carData.featureName && carData.featureName.length > 0) {
+                carData.featureName.forEach(name => {
+                    formData.append("featureName", name);
+                });
+            }
+
+            // Step 3: Send to backend
+            const createdCar = await adminCarService.createCar(formData);
+
+            // Step 4: Update local state with the new car
             setCars(prev => [...prev, createdCar]);
 
-            //close form and show success
+            // Step 5: Close form and show success message
             setIsFormOpen(false);
-            toast.success("Car Added Successfully");
+            toast.success("Car added successfully!");
+
         } catch (error) {
-            console.log(error);
+            console.error("Failed to create car:", error);
+            toast.error("Failed to add car. Please try again.");
         }
     }
-
-
-
 
     const getPageTitle = () => {
         switch (currentPage) {
@@ -102,16 +113,17 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     };
 
     const renderPage = () => {
-        switch (currentPage){
+        switch (currentPage) {
             case "cars":
                 return (
                     <CarManagementPage cars={cars} onAdd={openAddForm}/>
-                )
+                );
+            default:
+                return <div className="text-white">Select a page from the sidebar</div>;
         }
     }
 
-
-    return(
+    return (
         <>
             <AdminLayout
                 title={getPageTitle()}
@@ -122,25 +134,24 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                 {renderPage()}
             </AdminLayout>
 
-            {/* Add/Edit Car Form*/}
+            {/* Add/Edit Car Form Dialog */}
             <Dialog open={isFormOpen} onOpenChange={closeForm}>
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#1a1a1a] border-gray-800 text-white">
                     <DialogHeader>
                         <DialogTitle className="text-white">
-                            Add New Car
+                            {editingCars ? "Edit Car" : "Add New Car"}
                         </DialogTitle>
                         <DialogDescription className="text-gray-400">
-                            Enter the car details
+                            {editingCars ? "Update the car details below" : "Enter the car details below"}
                         </DialogDescription>
                     </DialogHeader>
                     <CarForm
                         car={editingCars || undefined}
-                        onSubmit={editingCars ? () =>{console.log("Implement later")} : handleAddCar}
+                        onSubmit={editingCars ? () => {console.log("Update feature coming soon")} : handleAddCar}
                         onCancel={closeForm}
                     />
                 </DialogContent>
             </Dialog>
         </>
-    )
-
+    );
 }

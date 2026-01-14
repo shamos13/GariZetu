@@ -1,25 +1,29 @@
 /**
  * Transformation utility to convert backend Car data to customer-facing Car format
  *
+ * UPDATED: Now uses real backend fields (description, bodyType, features) instead of generating them
+ *
  * This file bridges the gap between:
  * - Backend types (from dashboard/admin/types/Car.ts)
  * - Customer types (from data/cars.ts)
  */
 
 import type { Car as BackendCar } from "../dashboard/admin/types/Car";
-import type { Car as CustomerCar, BodyType, CarStatus, FuelType, TransmissionType } from "../data/cars";
+import type { Car as CustomerCar, BodyType, CarStatus, FuelType, TransmissionType, CarFeature } from "../data/cars";
 
 /**
  * Transform a backend Car to customer Car format
  *
- * Adds display fields that don't exist in backend yet:
+ * Now uses real backend data for:
+ * ✅ description (from backend)
+ * ✅ bodyType (from backend)
+ * ✅ features (from backend featureName array)
+ *
+ * Still computed/defaulted:
  * - name (computed from make + model + year)
- * - bodyType (inferred from model)
- * - rating (default 4.5)
- * - reviewCount (default 0)
- * - description (generated)
- * - features (empty array for now)
- * - location (default)
+ * - rating (default 4.5 until reviews implemented)
+ * - reviewCount (default 0 until reviews implemented)
+ * - location (default "Nairobi, Kenya")
  * - gallery (single image from mainImageUrl)
  */
 export function transformBackendCarToCustomer(backendCar: BackendCar): CustomerCar {
@@ -35,7 +39,7 @@ export function transformBackendCarToCustomer(backendCar: BackendCar): CustomerC
 
         dailyPrice: backendCar.dailyPrice,
 
-        // Direct mapping - both use mainImageUrl now!
+        // Direct mapping - both use mainImageUrl
         mainImageUrl: backendCar.mainImageUrl,
 
         // Create gallery from main image
@@ -64,15 +68,23 @@ export function transformBackendCarToCustomer(backendCar: BackendCar): CustomerC
         // Normalize status (AVAILABLE → available)
         status: normalizeStatus(backendCar.carStatus),
 
-        // Infer body type from model name (default until backend has it)
-        bodyType: inferBodyType(backendCar.vehicleModel),
+        // ✅ UPDATED: Use real bodyType from backend (with fallback)
+        bodyType: backendCar.bodyType
+            ? normalizeBodyType(backendCar.bodyType)
+            : inferBodyType(backendCar.vehicleModel),
+
+        // ✅ UPDATED: Use real description from backend (with fallback)
+        description: backendCar.description && backendCar.description.trim() !== ""
+            ? backendCar.description
+            : generateDescription(backendCar),
+
+        // ✅ UPDATED: Transform backend featureName array to CarFeature objects
+        features: transformFeatures(backendCar.featureName),
 
         // Default values for fields not in backend yet
-        rating: 4.5,
-        reviewCount: 0,
-        description: generateDescription(backendCar),
-        features: [],  // Empty for now, will add when backend supports
-        location: "Nairobi, Kenya",  // Default location
+        rating: 4.5,  // TODO: Will come from reviews table later
+        reviewCount: 0,  // TODO: Will come from reviews table later
+        location: "Nairobi, Kenya",  // TODO: Will use backend location field later
     };
 }
 
@@ -81,6 +93,34 @@ export function transformBackendCarToCustomer(backendCar: BackendCar): CustomerC
  */
 export function transformBackendCarsToCustomer(backendCars: BackendCar[]): CustomerCar[] {
     return backendCars.map(transformBackendCarToCustomer);
+}
+
+/**
+ * ✅ NEW: Transform backend feature names to CarFeature objects
+ *
+ * Backend gives: ["GPS Navigation", "Bluetooth", "Leather Seats"]
+ * Customer needs: [{ name: "GPS Navigation", available: true }, ...]
+ */
+function transformFeatures(featureNames?: string[]): CarFeature[] {
+    if (!featureNames || featureNames.length === 0) {
+        return [];
+    }
+
+    return featureNames.map(name => ({
+        name: name,
+        available: true  // All features from backend are available
+    }));
+}
+
+/**
+ * ✅ NEW: Normalize backend BodyType to customer format
+ * Backend: "SUV" or "SEDAN"
+ * Customer: "SUV" or "Sedan"
+ */
+function normalizeBodyType(backendBodyType: string): BodyType {
+    // Convert SEDAN → Sedan, SUV → SUV, HATCHBACK → Hatchback
+    return backendBodyType.charAt(0).toUpperCase() +
+    backendBodyType.slice(1).toLowerCase() as BodyType;
 }
 
 /**
@@ -116,8 +156,10 @@ function normalizeFuelType(backendFuel: string): FuelType {
 }
 
 /**
- * Infer body type from vehicle model name
- * This is a temporary solution until backend has bodyType field
+ * ⚠️ FALLBACK ONLY: Infer body type from vehicle model name
+ * This is now only used as a fallback if backend bodyType is missing
+ *
+ * @deprecated Will be removed once all cars have bodyType in backend
  */
 function inferBodyType(model: string): BodyType {
     const modelLower = model.toLowerCase();
@@ -170,12 +212,17 @@ function inferBodyType(model: string): BodyType {
 }
 
 /**
- * Generate a basic description from car details
- * This is temporary until backend has descriptions
+ * ⚠️ FALLBACK ONLY: Generate a basic description from car details
+ * This is now only used as a fallback if backend description is missing/empty
+ *
+ * @deprecated Will be removed once all cars have descriptions in backend
  */
 function generateDescription(car: BackendCar): string {
     const transmission = normalizeTransmission(car.transmissionType).toLowerCase();
     const fuel = normalizeFuelType(car.fuelType).toLowerCase();
+    const bodyType = car.bodyType
+        ? normalizeBodyType(car.bodyType).toLowerCase()
+        : inferBodyType(car.vehicleModel).toLowerCase();
 
-    return `Experience the ${car.year} ${car.make} ${car.vehicleModel}, featuring a ${transmission} transmission and ${fuel} engine. This ${car.colour} ${car.vehicleModel} seats ${car.seatingCapacity} passengers comfortably and is perfect for your next adventure in Nairobi.`;
+    return `Experience the ${car.year} ${car.make} ${car.vehicleModel}, a ${bodyType} featuring a ${transmission} transmission and ${fuel} engine. This ${car.colour} vehicle seats ${car.seatingCapacity} passengers comfortably and is perfect for your next adventure in Nairobi.`;
 }
