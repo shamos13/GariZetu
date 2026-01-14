@@ -1,6 +1,7 @@
 export type CarStatus = "AVAILABLE" | "RENTED" | "MAINTENANCE";
 export type FuelType = "PETROL" | "DIESEL" | "ELECTRIC" | "HYBRID";
 export type TransmissionType = "MANUAL" | "AUTOMATIC";
+export type BodyType = "SUV" | "SEDAN" | "HATCHBACK" | "COUPE" | "VAN" | "MINIVAN" | "TRUCK";
 
 export interface Car {
     carId: number;
@@ -17,6 +18,9 @@ export interface Car {
     carStatus: CarStatus;
     transmissionType: TransmissionType;
     fuelType: FuelType;
+    bodyType: BodyType;
+    description: string;
+    featureName: string[];
     createdAt: string;
     updatedAt: string;
 }
@@ -34,4 +38,7 @@ export interface CarCreateRequest {
     transmissionType: TransmissionType;
     fuelType: FuelType;
     carStatus: CarStatus;
+    bodyType: BodyType;
+    description?: string;
+    featureName?: string[];
 }
