@@ -1,12 +1,11 @@
-import {useEffect, useState} from 'react';
-import {AdminLayout} from "./components/AdminLayout.tsx";
-import {Car, CarCreateRequest} from "./types/Car.ts";
-import {CarManagementPage} from "./pages/CarManagementPage.tsx";
-import {carService} from "../../services/carService.ts";
-import {adminCarService} from "../admin/service/AdminCarService.ts";
-import {CarForm} from "./components/CarForm.tsx";
-import {toast} from "sonner";
-import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from "../../components/ui/dialog.tsx";
+import { useEffect, useState } from 'react';
+import { AdminLayout } from "./components/AdminLayout.tsx";
+import { Car, CarCreateRequest } from "./types/Car.ts";
+import { CarManagementPage } from "./pages/CarManagementPage.tsx";
+import { adminCarService } from "../admin/service/AdminCarService.ts";
+import { CarForm } from "./components/CarForm.tsx";
+import { toast } from "sonner";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog.tsx";
 
 interface AdminDashboardProps {
     onBack: () => void;
@@ -15,19 +14,19 @@ interface AdminDashboardProps {
 export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     const [currentPage, setCurrentPage] = useState("dashboard");
     const [cars, setCars] = useState<Car[]>([]);
-    const [editingCars, setEditingCars] = useState<Car | null>(null);
+    const [editingCar, setEditingCar] = useState<Car | null>(null);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const closeForm = () => setIsFormOpen(false);
 
     // Add car form
     const openAddForm = () => {
         setIsFormOpen(true);
-        setEditingCars(null);
+        setEditingCar(null);
     }
 
-    // Load cars from API on mount
+    // Load cars from backend (admin/raw format) on mount
     useEffect(() => {
-        carService.getAll()
+        adminCarService.getAll()
             .then(setCars)
             .catch(console.error);
     }, []);
@@ -89,7 +88,86 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
             console.error("Failed to create car:", error);
             toast.error("Failed to add car. Please try again.");
         }
-    }
+    };
+
+    const handleEditClick = (car: Car) => {
+        setEditingCar(car);
+        setIsFormOpen(true);
+    };
+
+    const handleDeleteCar = async (car: Car) => {
+        const confirmed = window.confirm(`Are you sure you want to delete ${car.make} (${car.registrationNumber})?`);
+        if (!confirmed) return;
+
+        try {
+            await adminCarService.deleteCar(car.carId);
+            setCars(prev => prev.filter(c => c.carId !== car.carId));
+            toast.success("Car deleted successfully");
+        } catch (error) {
+            console.error("Failed to delete car:", error);
+            toast.error("Failed to delete car. Please try again.");
+        }
+    };
+
+    const handleUpdateCar = async (carData: CarCreateRequest, image: File | null) => {
+        if (!editingCar) return;
+
+        try {
+            // Send all fields so any of them can be updated
+            const payload = {
+                make: carData.make,
+                registrationNumber: carData.registrationNumber,
+                vehicleModel: carData.vehicleModel,
+                year: carData.year,
+                engineCapacity: carData.engineCapacity,
+                colour: carData.colour,
+                mileage: carData.mileage,
+                dailyPrice: carData.dailyPrice,
+                seatingCapacity: carData.seatingCapacity,
+                carStatus: carData.carStatus,
+                transmissionType: carData.transmissionType,
+                fuelType: carData.fuelType,
+                bodyType: carData.bodyType,
+                description: carData.description,
+                featureName: carData.featureName,
+            };
+
+            const updatedCar = await adminCarService.updateCar(
+                editingCar.carId,
+                payload,
+                image ?? undefined
+            );
+
+            setCars(prev =>
+                prev.map(c => (c.carId === updatedCar.carId ? updatedCar : c))
+            );
+
+            setIsFormOpen(false);
+            setEditingCar(null);
+            toast.success("Car updated successfully!");
+        } catch (error) {
+            console.error("Failed to update car:", error);
+            toast.error("Failed to update car. Please try again.");
+        }
+    };
+
+    const handleQuickStatusChange = async (car: Car, newStatus: Car["carStatus"]) => {
+        try {
+            const updatedCar = await adminCarService.updateCar(
+                car.carId,
+                { carStatus: newStatus }
+            );
+
+            setCars(prev =>
+                prev.map(c => (c.carId === updatedCar.carId ? updatedCar : c))
+            );
+
+            toast.success(`Car status updated to ${newStatus}`);
+        } catch (error) {
+            console.error("Failed to update car status:", error);
+            toast.error("Failed to update car status. Please try again.");
+        }
+    };
 
     const getPageTitle = () => {
         switch (currentPage) {
@@ -116,7 +194,13 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         switch (currentPage) {
             case "cars":
                 return (
-                    <CarManagementPage cars={cars} onAdd={openAddForm}/>
+                    <CarManagementPage
+                        cars={cars}
+                        onAdd={openAddForm}
+                        onEdit={handleEditClick}
+                        onDelete={handleDeleteCar}
+                        onStatusChange={handleQuickStatusChange}
+                    />
                 );
             default:
                 return <div className="text-white">Select a page from the sidebar</div>;
@@ -139,15 +223,15 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                 <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-[#1a1a1a] border-gray-800 text-white">
                     <DialogHeader>
                         <DialogTitle className="text-white">
-                            {editingCars ? "Edit Car" : "Add New Car"}
+                            {editingCar ? "Edit Car" : "Add New Car"}
                         </DialogTitle>
                         <DialogDescription className="text-gray-400">
-                            {editingCars ? "Update the car details below" : "Enter the car details below"}
+                            {editingCar ? "Update the car details below" : "Enter the car details below"}
                         </DialogDescription>
                     </DialogHeader>
                     <CarForm
-                        car={editingCars || undefined}
-                        onSubmit={editingCars ? () => {console.log("Update feature coming soon")} : handleAddCar}
+                        car={editingCar || undefined}
+                        onSubmit={editingCar ? handleUpdateCar : handleAddCar}
                         onCancel={closeForm}
                     />
                 </DialogContent>

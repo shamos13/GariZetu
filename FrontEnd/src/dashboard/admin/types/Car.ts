@@ -21,6 +21,14 @@ export interface Car {
     bodyType: BodyType;
     description: string;
     featureName: string[];
+    // Backend may also return a features array with rich objects
+    features?: Array<{
+        featureId?: number;
+        featureName: string;
+        featureDescription?: string;
+        featureCategory?: string;
+        available?: boolean;
+    }>;
     createdAt: string;
     updatedAt: string;
 }

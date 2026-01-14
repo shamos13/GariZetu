@@ -62,9 +62,10 @@ public class CarMapper {
         carResponseDTO.setBodyType(car.getBodyType());
 
 
-        //Map FEATURES to DTO
-        if (car.getFeatures() != null) {
-            List<FeatureResponseDTO> features = car.getFeatures().stream()
+        //Map FEATURES to DTO - always set features list (even if empty)
+        List<FeatureResponseDTO> features = new java.util.ArrayList<>();
+        if (car.getFeatures() != null && !car.getFeatures().isEmpty()) {
+            features = car.getFeatures().stream()
                     .map(feature -> {
                         FeatureResponseDTO featureResponseDTO = new FeatureResponseDTO();
                         featureResponseDTO.setFeatureId(feature.getFeatureId());
@@ -75,8 +76,8 @@ public class CarMapper {
                         return featureResponseDTO;
                     })
                     .collect(Collectors.toList());
-            carResponseDTO.setFeatures(features);
         }
+        carResponseDTO.setFeatures(features);
 
         carResponseDTO.setCreatedAt(car.getCreatedAt());
         carResponseDTO.setUpdatedAt(car.getUpdatedAt());

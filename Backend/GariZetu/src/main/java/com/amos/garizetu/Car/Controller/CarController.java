@@ -14,6 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -90,10 +91,20 @@ public class CarController {
         return ResponseEntity.ok(cars);
     }
 
-    // Updating car in patches
+    // Updating car in patches (partial update of selected fields)
     @PatchMapping("/{id}")
     public ResponseEntity<CarResponseDTO> updateCar(@PathVariable Long id, @RequestBody CarUpdateDTO updateDTO) {
         CarResponseDTO updatedCar = carService.updateStatus(id, updateDTO);
+        return ResponseEntity.ok(updatedCar);
+    }
+
+    // Update only the car image/photo
+    @PatchMapping(value = "/{id}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CarResponseDTO> updateCarImage(
+            @PathVariable Long id,
+            @RequestParam("image") MultipartFile image
+    ) {
+        CarResponseDTO updatedCar = carService.updateCarImage(id, image);
         return ResponseEntity.ok(updatedCar);
     }
     @DeleteMapping({"/{id}"})
