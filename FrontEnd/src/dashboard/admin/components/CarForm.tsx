@@ -90,17 +90,13 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
             return;
         }
 
-        if (formData.description.length < 10) {
-            alert("Description must be at least 50 characters");
-            return;
-        }
-
-        if (formData.description.length > 1000) {
+        // Optional: Only validate max length if description is provided
+        if (formData.description && formData.description.length > 1000) {
             alert("Description must not exceed 1000 characters");
             return;
         }
 
-        // Add selected features to formData
+        // Add selected features to formData (can be empty array)
         const dataToSubmit = {
             ...formData,
             featureName: selectedFeatures
@@ -170,7 +166,7 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
 
     const descriptionLength = formData.description.length;
     const descriptionStatus =
-        descriptionLength < 50 ? "too-short" :
+        descriptionLength === 0 ? "empty" :
             descriptionLength > 1000 ? "too-long" : "valid";
 
     return (
@@ -411,35 +407,32 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                 </div>
             </div>
 
-            {/* Description - Full Width */}
+            {/* Description - Full Width (OPTIONAL) */}
             <div>
-                <Label htmlFor="description" className="text-gray-300">Description *</Label>
+                <Label htmlFor="description" className="text-gray-300">Description (Optional)</Label>
                 <textarea
                     id="description"
                     value={formData.description}
                     onChange={(e) => handleChange("description", e.target.value)}
-                    placeholder="Describe the vehicle in detail... (50-1000 characters)"
+                    placeholder="Describe the vehicle in detail... (max 1000 characters)"
                     rows={4}
                     className="w-full px-3 py-2 bg-[#0a0a0a] border border-gray-700 rounded-lg text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-white resize-none"
-                    required
                 />
                 <div className="flex justify-between mt-1 text-sm">
                     <span className={`
-                        ${descriptionStatus === "too-short" ? "text-red-400" : ""}
-                        ${descriptionStatus === "too-long" ? "text-red-400" : ""}
-                        ${descriptionStatus === "valid" ? "text-emerald-400" : ""}
+                        ${descriptionStatus === "too-long" ? "text-red-400" : "text-gray-400"}
                     `}>
-                        {descriptionStatus === "too-short" && "⚠️ Too short (min 50 characters)"}
                         {descriptionStatus === "too-long" && "⚠️ Too long (max 1000 characters)"}
-                        {descriptionStatus === "valid" && "✓ Good length"}
+                        {descriptionStatus === "valid" && descriptionLength > 0 && "✓ Good"}
+                        {descriptionStatus === "empty" && "Optional field"}
                     </span>
                     <span className="text-gray-400">{descriptionLength} / 1000</span>
                 </div>
             </div>
 
-            {/* Features Section */}
+            {/* Features Section (OPTIONAL) */}
             <div className="space-y-4">
-                <Label className="text-gray-300">Features</Label>
+                <Label className="text-gray-300">Features (Optional)</Label>
 
                 {/* Loading state */}
                 {isLoadingFeatures && (
