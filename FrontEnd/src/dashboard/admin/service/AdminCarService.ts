@@ -1,12 +1,30 @@
 // File: services/adminCarService.ts
 import { api } from "../../../lib/api";
-import type { Car as BackendCar } from "../types/Car";
+import type {
+    BodyType,
+    Car as BackendCar,
+    CarStatus,
+    FuelType,
+    TransmissionType,
+} from "../types/Car";
 
 /**
  * Admin-only car service
  * Handles car management operations (create, update, delete)
  */
 export const adminCarService = {
+    /**
+     * Get all cars (raw backend format for admin)
+     */
+    getAll: async (): Promise<BackendCar[]> => {
+        try {
+            const res = await api.get<BackendCar[]>("/cars/getcars");
+            return res.data;
+        } catch (error) {
+            console.error("Failed to fetch admin cars:", error);
+            throw error;
+        }
+    },
     /**
      * Create a new car
      *
@@ -33,35 +51,68 @@ export const adminCarService = {
     },
 
     /**
-     * Update an existing car
-     * TODO: Implement when backend endpoint is ready
+     * Update an existing car (partial update).
+     * You can update any combination of: status, mileage, dailyPrice.
+     * Optionally pass a new image file to update the photo.
      */
-    updateCar: async (id: number, formData: FormData): Promise<BackendCar> => {
+    updateCar: async (
+        id: number,
+        payload: {
+            make?: string;
+            registrationNumber?: string;
+            vehicleModel?: string;
+            year?: number;
+            engineCapacity?: number;
+            colour?: string;
+            mileage?: number;
+            dailyPrice?: number;
+            seatingCapacity?: number;
+            carStatus?: CarStatus;
+            transmissionType?: TransmissionType;
+            fuelType?: FuelType;
+            bodyType?: BodyType;
+            description?: string;
+            featureName?: string[];
+        },
+        image?: File
+    ): Promise<BackendCar> => {
         try {
-            const res = await api.put<BackendCar>(
-                `/cars/admin/${id}`,
-                formData,
-                {
-                    headers: {
-                        "Content-Type": "multipart/form-data"
-                    }
-                }
+            // First update JSON fields (status, mileage, dailyPrice)
+            const res = await api.patch<BackendCar>(
+                `/cars/${id}`,
+                payload
             );
 
-            return res.data;
+            let updatedCar = res.data;
+
+            // If there is a new image, update it in a separate call
+            if (image) {
+                const formData = new FormData();
+                formData.append("image", image);
+
+                const imageRes = await api.patch<BackendCar>(
+                    `/cars/${id}/image`,
+                    formData,
+                    {
+                        headers: {
+                            "Content-Type": "multipart/form-data"
+                        }
+                    }
+                );
+
+                updatedCar = imageRes.data;
+            }
+
+            return updatedCar;
         } catch (error) {
             console.error(`Failed to update car ${id}:`, error);
             throw error;
         }
     },
 
-    /**
-     * Delete a car
-     * TODO: Implement when backend endpoint is ready
-     */
     deleteCar: async (id: number): Promise<void> => {
         try {
-            await api.delete(`/cars/admin/${id}`);
+            await api.delete(`/cars/${id}`);
         } catch (error) {
             console.error(`Failed to delete car ${id}:`, error);
             throw error;

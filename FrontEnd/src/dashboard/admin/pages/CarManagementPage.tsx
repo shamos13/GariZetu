@@ -1,6 +1,6 @@
-import {Car} from "../types/Car.ts";
-import { Search, Plus, MoreVertical, Pencil, Trash2, Car as CarIcon } from "lucide-react";
-import {useState} from "react";
+import { Car, CarStatus } from "../types/Car.ts";
+import { Search, Plus, MoreVertical, Pencil, Trash2, Car as CarIcon, CheckCircle2, XCircle, Wrench } from "lucide-react";
+import { useState } from "react";
 import { Button } from "../../../components/ui/button";
 import { Badge } from "../../../components/ui/badge.tsx";
 import {
@@ -14,28 +14,90 @@ import {getImageUrl} from "../../../lib/ImageUtils.ts";
 interface CarManagementPageProps {
     cars: Car[];
     onAdd: () => void;
-
+    onEdit: (car: Car) => void;
+    onDelete: (car: Car) => void;
+    onStatusChange?: (car: Car, newStatus: Car["carStatus"]) => void;
 }
-export function CarManagementPage({ cars, onAdd }: CarManagementPageProps) {
+
+export function CarManagementPage({ cars, onAdd, onEdit, onDelete, onStatusChange }: CarManagementPageProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const filteredCars = cars.filter((car) => {
         const matchesSearch = car.make.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus =
             statusFilter === "all" ||
-            (statusFilter === "available" && car.carStatus) ||
-            (statusFilter === "unavailable" && !car.carStatus);
+            (statusFilter === "available" && car.carStatus === "AVAILABLE") ||
+            (statusFilter === "unavailable" && car.carStatus !== "AVAILABLE");
         return matchesSearch && matchesStatus;
     });
 
     const getCarStatusBadge = (car: Car) => {
-        if (car.carStatus == "AVAILABLE") {
-            return (
-                <Badge className="absolute top-3 right-3 bg-green-500/20 text-green-400 border-green-500/30">
-                    Available
-                </Badge>
-            );
-        }
+        const statusConfig = {
+            AVAILABLE: {
+                bg: "bg-green-500/20",
+                text: "text-green-400",
+                border: "border-green-500/30",
+                label: "Available",
+                icon: CheckCircle2
+            },
+            RENTED: {
+                bg: "bg-blue-500/20",
+                text: "text-blue-400",
+                border: "border-blue-500/30",
+                label: "Rented",
+                icon: XCircle
+            },
+            MAINTENANCE: {
+                bg: "bg-yellow-500/20",
+                text: "text-yellow-400",
+                border: "border-yellow-500/30",
+                label: "Maintenance",
+                icon: Wrench
+            }
+        };
+
+        const config = statusConfig[car.carStatus] || statusConfig.AVAILABLE;
+        const Icon = config.icon;
+
+        return (
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Badge className={`absolute top-3 right-3 ${config.bg} ${config.text} ${config.border} cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-1`}>
+                        <Icon className="w-3 h-3" />
+                        {config.label}
+                    </Badge>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="bg-[#1a1a1a] border-gray-800" align="end">
+                    {car.carStatus !== "AVAILABLE" && (
+                        <DropdownMenuItem
+                            className="text-green-400 hover:text-green-300 hover:bg-gray-800 cursor-pointer"
+                            onSelect={() => onStatusChange?.(car, "AVAILABLE")}
+                        >
+                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                            Mark as Available
+                        </DropdownMenuItem>
+                    )}
+                    {car.carStatus !== "RENTED" && (
+                        <DropdownMenuItem
+                            className="text-blue-400 hover:text-blue-300 hover:bg-gray-800 cursor-pointer"
+                            onSelect={() => onStatusChange?.(car, "RENTED")}
+                        >
+                            <XCircle className="w-4 h-4 mr-2" />
+                            Mark as Rented
+                        </DropdownMenuItem>
+                    )}
+                    {car.carStatus !== "MAINTENANCE" && (
+                        <DropdownMenuItem
+                            className="text-yellow-400 hover:text-yellow-300 hover:bg-gray-800 cursor-pointer"
+                            onSelect={() => onStatusChange?.(car, "MAINTENANCE")}
+                        >
+                            <Wrench className="w-4 h-4 mr-2" />
+                            Mark as Maintenance
+                        </DropdownMenuItem>
+                    )}
+                </DropdownMenuContent>
+            </DropdownMenu>
+        );
     }
 
 
@@ -104,12 +166,14 @@ export function CarManagementPage({ cars, onAdd }: CarManagementPageProps) {
                                     <DropdownMenuContent className="bg-[#1a1a1a] border-gray-800">
                                         <DropdownMenuItem
                                             className="text-gray-300 hover:text-white hover:bg-gray-800 cursor-pointer"
+                                            onSelect={() => onEdit(car)}
                                         >
                                             <Pencil className="w-4 h-4 mr-2"/>
                                             Edit
                                         </DropdownMenuItem>
                                         <DropdownMenuItem
                                             className="text-red-400 hover:text-red-300 hover:bg-gray-800 cursor-pointer"
+                                            onSelect={() => onDelete(car)}
                                         >
                                             <Trash2 className="w-4 h-4 mr-2"/>
                                             Delete

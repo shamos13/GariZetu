@@ -6,6 +6,7 @@ import {CarStatus, FuelType, TransmissionType, BodyType} from "../types/Car.ts";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "../../../components/ui/select.tsx";
 import {Plus, Upload, X} from "lucide-react";
 import axios from "axios";
+import { getImageUrl } from "../../../lib/ImageUtils.ts";
 
 export type CarFormData = {
     make: string;
@@ -23,6 +24,8 @@ export type CarFormData = {
     bodyType: BodyType;
     description: string;
     featureName: string[];
+    // Optional existing image URL (used when editing)
+    mainImageUrl?: string;
 }
 
 interface Feature {
@@ -39,6 +42,26 @@ interface CarFormProps {
 }
 
 export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
+    // Store original values for dirty tracking (only when editing)
+    const originalValues = car ? {
+        make: car.make,
+        registrationNumber: car.registrationNumber,
+        vehicleModel: car.vehicleModel,
+        year: car.year,
+        engineCapacity: car.engineCapacity,
+        colour: car.colour,
+        mileage: car.mileage,
+        dailyPrice: car.dailyPrice,
+        seatingCapacity: car.seatingCapacity,
+        carStatus: car.carStatus,
+        transmissionType: car.transmissionType,
+        fuelType: car.fuelType,
+        bodyType: car.bodyType,
+        description: car.description || "",
+        featureName: car.featureName || [],
+        hasImage: !!car.mainImageUrl,
+    } : null;
+
     const [formData, setFormData] = useState<CarFormData>({
         make: car?.make || "",
         registrationNumber: car?.registrationNumber || "",
@@ -55,16 +78,54 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         bodyType: car?.bodyType || "SEDAN",
         description: car?.description || "",
         featureName: car?.featureName || [],
+        mainImageUrl: car?.mainImageUrl,
     });
 
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
-    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(
+        car?.mainImageUrl ? getImageUrl(car.mainImageUrl) : null
+    );
 
     // Features state
     const [availableFeatures, setAvailableFeatures] = useState<Feature[]>([]);
-    const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+    const [selectedFeatures, setSelectedFeatures] = useState<string[]>(car?.featureName || []);
     const [customFeature, setCustomFeature] = useState("");
     const [isLoadingFeatures, setIsLoadingFeatures] = useState(false);
+
+    // Helper function to check if a field is dirty (changed from original)
+    const isFieldDirty = (fieldName: keyof CarFormData): boolean => {
+        if (!originalValues || !car) return false; // Not editing, so no dirty fields
+        
+        const currentValue = formData[fieldName];
+        const originalValue = originalValues[fieldName as keyof typeof originalValues];
+        
+        // Special handling for arrays (features)
+        if (fieldName === 'featureName') {
+            const currentFeatures = selectedFeatures.sort().join(',');
+            const originalFeatures = (originalValues.featureName || []).sort().join(',');
+            return currentFeatures !== originalFeatures;
+        }
+        
+        // Special handling for image
+        if (fieldName === 'mainImageUrl') {
+            return selectedImage !== null; // Image changed if a new file is selected
+        }
+        
+        return currentValue !== originalValue;
+    };
+
+    // Get count of dirty fields
+    const getDirtyFieldsCount = (): number => {
+        if (!originalValues || !car) return 0;
+        
+        const fields: (keyof CarFormData)[] = [
+            'make', 'registrationNumber', 'vehicleModel', 'year', 'engineCapacity',
+            'colour', 'mileage', 'dailyPrice', 'seatingCapacity', 'carStatus',
+            'transmissionType', 'fuelType', 'bodyType', 'description', 'featureName', 'mainImageUrl'
+        ];
+        
+        return fields.filter(field => isFieldDirty(field)).length;
+    };
 
     // Load available features on mount
     useEffect(() => {
@@ -85,7 +146,10 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        if (!selectedImage) {
+        const isEdit = !!car;
+
+        // For create, require an image; for edit, image is optional
+        if (!isEdit && !selectedImage) {
             alert("Please select a car image");
             return;
         }
@@ -107,6 +171,13 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
 
     const handleChange = (field: keyof CarFormData, value: string | number | string[]) => {
         setFormData({ ...formData, [field]: value });
+    };
+
+    // Helper to get field border color based on dirty state
+    const getFieldBorderClass = (fieldName: keyof CarFormData): string => {
+        const isDirty = isFieldDirty(fieldName);
+        if (!isDirty) return "border-gray-700";
+        return "border-blue-500 border-2"; // Highlight changed fields with blue border
     };
 
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -169,11 +240,29 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         descriptionLength === 0 ? "empty" :
             descriptionLength > 1000 ? "too-long" : "valid";
 
+    const dirtyCount = getDirtyFieldsCount();
+    const isEditMode = !!car;
+
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Dirty Fields Indicator */}
+            {isEditMode && dirtyCount > 0 && (
+                <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-3 flex items-center gap-2">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                    <span className="text-sm text-blue-400">
+                        {dirtyCount} field{dirtyCount !== 1 ? 's' : ''} modified
+                    </span>
+                </div>
+            )}
+
             {/* Image Upload */}
             <div className="space-y-3">
-                <Label htmlFor="image" className="text-gray-300">Car Image *</Label>
+                <div className="flex items-center gap-2">
+                    <Label htmlFor="image" className="text-gray-300">Car Image *</Label>
+                    {isFieldDirty('mainImageUrl') && (
+                        <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">Modified</span>
+                    )}
+                </div>
                 {imagePreview ? (
                     <div className="relative">
                         <img
@@ -188,9 +277,11 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                         >
                             <X className="w-4 h-4 text-white" />
                         </button>
-                        <div className="mt-2 text-sm text-gray-400">
-                            {selectedImage?.name} ({(selectedImage!.size / 1024 / 1024).toFixed(2)} MB)
-                        </div>
+                        {selectedImage && (
+                            <div className="mt-2 text-sm text-gray-400">
+                                {selectedImage.name} ({(selectedImage.size / 1024 / 1024).toFixed(2)} MB)
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <label
@@ -210,7 +301,7 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                             accept="image/png,image/jpeg,image/webp"
                             onChange={handleImageChange}
                             className="hidden"
-                            required
+                            required={!car}
                         />
                     </label>
                 )}
@@ -219,43 +310,63 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
             {/* Basic Details Grid */}
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <Label htmlFor="make" className="text-gray-300">Car Make/Brand</Label>
+                    <div className="flex items-center gap-2 mb-1">
+                        <Label htmlFor="make" className="text-gray-300">Car Make/Brand</Label>
+                        {isFieldDirty('make') && (
+                            <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">Modified</span>
+                        )}
+                    </div>
                     <Input
                         id="make"
                         value={formData.make}
                         onChange={(e) => handleChange("make", e.target.value)}
                         placeholder="e.g., Audi"
-                        className="bg-[#0a0a0a] border-gray-700 text-white placeholder:text-gray-500"
+                        className={`bg-[#0a0a0a] ${getFieldBorderClass('make')} text-white placeholder:text-gray-500`}
                         required
                     />
                 </div>
 
                 <div>
-                    <Label htmlFor="vehicleModel" className="text-gray-300">Vehicle Model</Label>
+                    <div className="flex items-center gap-2 mb-1">
+                        <Label htmlFor="vehicleModel" className="text-gray-300">Vehicle Model</Label>
+                        {isFieldDirty('vehicleModel') && (
+                            <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">Modified</span>
+                        )}
+                    </div>
                     <Input
                         id="vehicleModel"
                         value={formData.vehicleModel}
                         onChange={(e) => handleChange("vehicleModel", e.target.value)}
                         placeholder="e.g., A8 L"
-                        className="bg-[#0a0a0a] border-gray-700 text-white"
+                        className={`bg-[#0a0a0a] ${getFieldBorderClass('vehicleModel')} text-white`}
                         required
                     />
                 </div>
 
                 <div>
-                    <Label htmlFor="registrationNumber" className="text-gray-300">Registration Number</Label>
+                    <div className="flex items-center gap-2 mb-1">
+                        <Label htmlFor="registrationNumber" className="text-gray-300">Registration Number</Label>
+                        {isFieldDirty('registrationNumber') && (
+                            <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">Modified</span>
+                        )}
+                    </div>
                     <Input
                         id="registrationNumber"
                         value={formData.registrationNumber}
                         onChange={(e) => handleChange("registrationNumber", e.target.value)}
                         placeholder="e.g., KBC123A"
-                        className="bg-[#0a0a0a] border-gray-700 text-white"
+                        className={`bg-[#0a0a0a] ${getFieldBorderClass('registrationNumber')} text-white`}
                         required
                     />
                 </div>
 
                 <div>
-                    <Label htmlFor="year" className="text-gray-300">Year</Label>
+                    <div className="flex items-center gap-2 mb-1">
+                        <Label htmlFor="year" className="text-gray-300">Year</Label>
+                        {isFieldDirty('year') && (
+                            <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">Modified</span>
+                        )}
+                    </div>
                     <Input
                         id="year"
                         type="number"
@@ -263,51 +374,71 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                         onChange={(e) => handleChange("year", parseInt(e.target.value) || 0)}
                         min="2009"
                         max="2025"
-                        className="bg-[#0a0a0a] border-gray-700 text-white"
+                        className={`bg-[#0a0a0a] ${getFieldBorderClass('year')} text-white`}
                         required
                     />
                 </div>
 
                 <div>
-                    <Label htmlFor="engineCapacity" className="text-gray-300">Engine Capacity (cc)</Label>
+                    <div className="flex items-center gap-2 mb-1">
+                        <Label htmlFor="engineCapacity" className="text-gray-300">Engine Capacity (cc)</Label>
+                        {isFieldDirty('engineCapacity') && (
+                            <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">Modified</span>
+                        )}
+                    </div>
                     <Input
                         id="engineCapacity"
                         type="number"
                         value={formData.engineCapacity}
                         onChange={(e) => handleChange("engineCapacity", parseInt(e.target.value) || 0)}
                         min={500}
-                        className="bg-[#0a0a0a] border-gray-700 text-white"
+                        className={`bg-[#0a0a0a] ${getFieldBorderClass('engineCapacity')} text-white`}
                         required
                     />
                 </div>
 
                 <div>
-                    <Label htmlFor="colour" className="text-gray-300">Colour</Label>
+                    <div className="flex items-center gap-2 mb-1">
+                        <Label htmlFor="colour" className="text-gray-300">Colour</Label>
+                        {isFieldDirty('colour') && (
+                            <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">Modified</span>
+                        )}
+                    </div>
                     <Input
                         id="colour"
                         value={formData.colour}
                         onChange={(e) => handleChange("colour", e.target.value)}
                         placeholder="e.g., Black"
-                        className="bg-[#0a0a0a] border-gray-700 text-white"
+                        className={`bg-[#0a0a0a] ${getFieldBorderClass('colour')} text-white`}
                         required
                     />
                 </div>
 
                 <div>
-                    <Label htmlFor="mileage" className="text-gray-300">Mileage</Label>
+                    <div className="flex items-center gap-2 mb-1">
+                        <Label htmlFor="mileage" className="text-gray-300">Mileage</Label>
+                        {isFieldDirty('mileage') && (
+                            <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">Modified</span>
+                        )}
+                    </div>
                     <Input
                         id="mileage"
                         type="number"
                         value={formData.mileage}
                         onChange={(e) => handleChange("mileage", parseInt(e.target.value) || 0)}
                         min="0"
-                        className="bg-[#0a0a0a] border-gray-700 text-white"
+                        className={`bg-[#0a0a0a] ${getFieldBorderClass('mileage')} text-white`}
                         required
                     />
                 </div>
 
                 <div>
-                    <Label htmlFor="dailyPrice" className="text-gray-300">Price (Ksh/day)</Label>
+                    <div className="flex items-center gap-2 mb-1">
+                        <Label htmlFor="dailyPrice" className="text-gray-300">Price (Ksh/day)</Label>
+                        {isFieldDirty('dailyPrice') && (
+                            <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">Modified</span>
+                        )}
+                    </div>
                     <Input
                         id="dailyPrice"
                         type="number"
@@ -315,13 +446,18 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                         onChange={(e) => handleChange("dailyPrice", parseFloat(e.target.value) || 0)}
                         min="0"
                         step="100"
-                        className="bg-[#0a0a0a] border-gray-700 text-white"
+                        className={`bg-[#0a0a0a] ${getFieldBorderClass('dailyPrice')} text-white`}
                         required
                     />
                 </div>
 
                 <div>
-                    <Label htmlFor="seatingCapacity" className="text-gray-300">Seating Capacity</Label>
+                    <div className="flex items-center gap-2 mb-1">
+                        <Label htmlFor="seatingCapacity" className="text-gray-300">Seating Capacity</Label>
+                        {isFieldDirty('seatingCapacity') && (
+                            <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">Modified</span>
+                        )}
+                    </div>
                     <Input
                         id="seatingCapacity"
                         type="number"
@@ -329,18 +465,23 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                         onChange={(e) => handleChange("seatingCapacity", parseInt(e.target.value) || 0)}
                         min={2}
                         max={9}
-                        className="bg-[#0a0a0a] border-gray-700 text-white"
+                        className={`bg-[#0a0a0a] ${getFieldBorderClass('seatingCapacity')} text-white`}
                         required
                     />
                 </div>
 
                 <div>
-                    <Label htmlFor="transmissionType" className="text-gray-300">Transmission</Label>
+                    <div className="flex items-center gap-2 mb-1">
+                        <Label htmlFor="transmissionType" className="text-gray-300">Transmission</Label>
+                        {isFieldDirty('transmissionType') && (
+                            <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">Modified</span>
+                        )}
+                    </div>
                     <Select
                         value={formData.transmissionType}
                         onValueChange={(value) => handleChange("transmissionType", value as TransmissionType)}
                     >
-                        <SelectTrigger id="transmissionType" className="bg-[#0a0a0a] border-gray-700 text-white">
+                        <SelectTrigger id="transmissionType" className={`bg-[#0a0a0a] ${getFieldBorderClass('transmissionType')} text-white`}>
                             <SelectValue placeholder="Select transmission" />
                         </SelectTrigger>
                         <SelectContent className="bg-[#1a1a1a] border-gray-700 text-white">
@@ -351,12 +492,17 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                 </div>
 
                 <div>
-                    <Label htmlFor="fuelType" className="text-gray-300">Fuel Type</Label>
+                    <div className="flex items-center gap-2 mb-1">
+                        <Label htmlFor="fuelType" className="text-gray-300">Fuel Type</Label>
+                        {isFieldDirty('fuelType') && (
+                            <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">Modified</span>
+                        )}
+                    </div>
                     <Select
                         value={formData.fuelType}
                         onValueChange={(value) => handleChange("fuelType", value as FuelType)}
                     >
-                        <SelectTrigger id="fuelType" className="bg-[#0a0a0a] border-gray-700 text-white">
+                        <SelectTrigger id="fuelType" className={`bg-[#0a0a0a] ${getFieldBorderClass('fuelType')} text-white`}>
                             <SelectValue placeholder="Select fuel type" />
                         </SelectTrigger>
                         <SelectContent className="bg-[#1a1a1a] border-gray-700 text-white">
@@ -369,12 +515,17 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                 </div>
 
                 <div>
-                    <Label htmlFor="bodyType" className="text-gray-300">Body Type</Label>
+                    <div className="flex items-center gap-2 mb-1">
+                        <Label htmlFor="bodyType" className="text-gray-300">Body Type</Label>
+                        {isFieldDirty('bodyType') && (
+                            <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">Modified</span>
+                        )}
+                    </div>
                     <Select
                         value={formData.bodyType}
                         onValueChange={(value) => handleChange("bodyType", value as BodyType)}
                     >
-                        <SelectTrigger id="bodyType" className="bg-[#0a0a0a] border-gray-700 text-white">
+                        <SelectTrigger id="bodyType" className={`bg-[#0a0a0a] ${getFieldBorderClass('bodyType')} text-white`}>
                             <SelectValue placeholder="Select body type" />
                         </SelectTrigger>
                         <SelectContent className="bg-[#1a1a1a] border-gray-700 text-white">
@@ -390,17 +541,22 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                 </div>
 
                 <div>
-                    <Label htmlFor="carStatus" className="text-gray-300">Car Status</Label>
+                    <div className="flex items-center gap-2 mb-1">
+                        <Label htmlFor="carStatus" className="text-gray-300">Car Status</Label>
+                        {isFieldDirty('carStatus') && (
+                            <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">Modified</span>
+                        )}
+                    </div>
                     <Select
                         value={formData.carStatus}
                         onValueChange={(value) => handleChange("carStatus", value as CarStatus)}
                     >
-                        <SelectTrigger id="carStatus" className="bg-[#0a0a0a] border-gray-700 text-white">
+                        <SelectTrigger id="carStatus" className={`bg-[#0a0a0a] ${getFieldBorderClass('carStatus')} text-white`}>
                             <SelectValue placeholder="Select status" />
                         </SelectTrigger>
                         <SelectContent className="bg-[#1a1a1a] border-gray-700 text-white">
                             <SelectItem value="AVAILABLE">Available</SelectItem>
-                            <SelectItem value="BOOKED">Booked</SelectItem>
+                            <SelectItem value="RENTED">Rented</SelectItem>
                             <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
                         </SelectContent>
                     </Select>
@@ -409,14 +565,19 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
 
             {/* Description - Full Width (OPTIONAL) */}
             <div>
-                <Label htmlFor="description" className="text-gray-300">Description (Optional)</Label>
+                <div className="flex items-center gap-2 mb-1">
+                    <Label htmlFor="description" className="text-gray-300">Description (Optional)</Label>
+                    {isFieldDirty('description') && (
+                        <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">Modified</span>
+                    )}
+                </div>
                 <textarea
                     id="description"
                     value={formData.description}
                     onChange={(e) => handleChange("description", e.target.value)}
                     placeholder="Describe the vehicle in detail... (max 1000 characters)"
                     rows={4}
-                    className="w-full px-3 py-2 bg-[#0a0a0a] border border-gray-700 rounded-lg text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-white resize-none"
+                    className={`w-full px-3 py-2 bg-[#0a0a0a] border ${getFieldBorderClass('description')} rounded-lg text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-white resize-none`}
                 />
                 <div className="flex justify-between mt-1 text-sm">
                     <span className={`
@@ -432,7 +593,12 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
 
             {/* Features Section (OPTIONAL) */}
             <div className="space-y-4">
-                <Label className="text-gray-300">Features (Optional)</Label>
+                <div className="flex items-center gap-2">
+                    <Label className="text-gray-300">Features (Optional)</Label>
+                    {isFieldDirty('featureName') && (
+                        <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">Modified</span>
+                    )}
+                </div>
 
                 {/* Loading state */}
                 {isLoadingFeatures && (
