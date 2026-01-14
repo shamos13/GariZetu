@@ -21,6 +21,7 @@ import { Footer } from "../components/Footer";
 import { Car, CARS_DATA } from "../data/cars";
 import { getImageUrl } from "../lib/ImageUtils";
 import { carService } from "../services/carService";
+import { CarDetailsModal } from "../components/CarDetailsModal";
 
 export default function VehicleDetailsPage() {
     const { id } = useParams<{ id: string }>();
@@ -36,6 +37,8 @@ export default function VehicleDetailsPage() {
         end: null
     });
     const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [quickViewCar, setQuickViewCar] = useState<Car | null>(null);
+    const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
 
     // Fetch car data on mount
     useEffect(() => {
@@ -44,17 +47,34 @@ export default function VehicleDetailsPage() {
                 setIsLoading(true);
                 setError(null);
 
-                const fetchedCar = await carService.getById(Number(id));
-                setCar(fetchedCar);
+                const carId = Number(id);
+                
+                // Check if it's a mock/featured car (IDs >= 9000) first
+                if (carId >= 9000) {
+                    const mockCar = CARS_DATA.find(c => c.id === carId);
+                    if (mockCar) {
+                        setCar(mockCar);
+                        setIsLoading(false);
+                        return;
+                    }
+                }
+
+                // Try backend first
+                try {
+                    const fetchedCar = await carService.getById(carId);
+                    setCar(fetchedCar);
+                } catch (backendError) {
+                    // If backend fails, try mock data
+                    const fallbackCar = CARS_DATA.find(c => c.id === carId);
+                    if (fallbackCar) {
+                        setCar(fallbackCar);
+                    } else {
+                        throw backendError;
+                    }
+                }
             } catch (error) {
                 console.error("Failed to fetch car:", error);
                 setError("Failed to load vehicle details");
-
-                // Fallback to CARS_DATA
-                const fallbackCar = CARS_DATA.find(c => c.id === Number(id));
-                if (fallbackCar) {
-                    setCar(fallbackCar);
-                }
             } finally {
                 setIsLoading(false);
             }
@@ -100,6 +120,24 @@ export default function VehicleDetailsPage() {
         if (!car) return [];
         return CARS_DATA.filter(c => c.bodyType === car.bodyType && c.id !== car.id).slice(0, 3);
     }, [car]);
+
+    const toModalCar = (c: Car) => ({
+        id: c.id,
+        name: c.name,
+        dailyPrice: c.dailyPrice,
+        mainImageUrl: c.mainImageUrl,
+        gallery: c.gallery?.map(g => g.url) ?? [c.mainImageUrl],
+        specs: {
+            mileage: c.mileage,
+            transmission: c.transmission,
+            capacity: `${c.seatingCapacity} Person`,
+            fuel: c.fuelType,
+        },
+        description: c.description,
+        features: c.features?.map(f => f.name),
+        rating: c.rating,
+        reviewCount: c.reviewCount,
+    });
 
     // ✅ NOW CONDITIONAL RETURNS ARE SAFE - ALL HOOKS CALLED
     // Loading state
@@ -327,23 +365,29 @@ export default function VehicleDetailsPage() {
                         {/* Features */}
                         <div className="bg-white rounded-2xl p-6 shadow-sm">
                             <h2 className="text-lg font-semibold text-gray-900 mb-4">Features & Amenities</h2>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                                {car.features.map((feature, index) => (
-                                    <div
-                                        key={index}
-                                        className={`flex items-center gap-3 p-3 rounded-lg ${
-                                            feature.available ? "bg-emerald-50" : "bg-gray-50"
-                                        }`}
-                                    >
-                                        <CheckCircle2 className={`w-5 h-5 flex-shrink-0 ${
-                                            feature.available ? "text-emerald-500" : "text-gray-300"
-                                        }`} />
-                                        <span className={feature.available ? "text-gray-900" : "text-gray-400"}>
-                                            {feature.name}
-                                        </span>
-                                    </div>
-                                ))}
-                            </div>
+                            {car.features && car.features.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    {car.features.map((feature, index) => (
+                                        <div
+                                            key={index}
+                                            className={`flex items-center gap-3 p-3 rounded-lg ${
+                                                feature.available ? "bg-emerald-50" : "bg-gray-50"
+                                            }`}
+                                        >
+                                            <CheckCircle2 className={`w-5 h-5 flex-shrink-0 ${
+                                                feature.available ? "text-emerald-500" : "text-gray-300"
+                                            }`} />
+                                            <span className={feature.available ? "text-gray-900" : "text-gray-400"}>
+                                                {feature.name}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="text-center py-8 text-gray-500">
+                                    <p>No features listed for this vehicle.</p>
+                                </div>
+                            )}
                         </div>
 
                         {/* Policies */}
@@ -511,12 +555,11 @@ export default function VehicleDetailsPage() {
                         <h2 className="text-2xl font-bold text-gray-900 mb-6">Similar Vehicles</h2>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             {relatedCars.map((relatedCar) => (
-                                <Link
+                                <div
                                     key={relatedCar.id}
-                                    to={`/vehicles/${relatedCar.id}`}
                                     className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-lg transition-all"
                                 >
-                                    <div className="aspect-[4/3] bg-gray-100 overflow-hidden">
+                                    <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
                                         <img
                                             src={getImageUrl(relatedCar.mainImageUrl)}
                                             alt={relatedCar.name}
@@ -525,6 +568,23 @@ export default function VehicleDetailsPage() {
                                                 e.currentTarget.src = "/placeholder-car.jpg";
                                             }}
                                         />
+                                        <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                            <button
+                                                onClick={() => {
+                                                    setQuickViewCar(relatedCar);
+                                                    setIsQuickViewOpen(true);
+                                                }}
+                                                className="bg-white text-black px-4 py-2 rounded-full text-sm font-semibold hover:scale-105 transition-transform"
+                                            >
+                                                Quick View
+                                            </button>
+                                            <button
+                                                onClick={() => navigate(`/vehicles/${relatedCar.id}`)}
+                                                className="bg-emerald-500 text-white px-4 py-2 rounded-full text-sm font-semibold hover:bg-emerald-600 transition-colors"
+                                            >
+                                                View Details
+                                            </button>
+                                        </div>
                                     </div>
                                     <div className="p-4">
                                         <h3 className="font-bold text-gray-900 mb-1">{relatedCar.name}</h3>
@@ -539,7 +599,7 @@ export default function VehicleDetailsPage() {
                                             </div>
                                         </div>
                                     </div>
-                                </Link>
+                                </div>
                             ))}
                         </div>
                     </div>
@@ -547,6 +607,22 @@ export default function VehicleDetailsPage() {
             </div>
 
             <Footer />
+
+            {quickViewCar && (
+                <CarDetailsModal
+                    car={toModalCar(quickViewCar)}
+                    isOpen={isQuickViewOpen}
+                    onClose={() => setIsQuickViewOpen(false)}
+                    onBookNow={(c) => {
+                        setIsQuickViewOpen(false);
+                        navigate(`/vehicles/${c.id}`);
+                    }}
+                    onViewDetails={(c) => {
+                        setIsQuickViewOpen(false);
+                        navigate(`/vehicles/${c.id}`);
+                    }}
+                />
+            )}
         </div>
     );
 }

@@ -9,5 +9,16 @@ export const getImageUrl = (relativeUrl: string| null | undefined): string => {
         return relativeUrl;
     }
 
-    return `${BASE_URL}${relativeUrl}`;
+    // Backend-stored images (e.g. /api/v1/cars/images/...)
+    if (relativeUrl.startsWith("/api/")) {
+        return `${BASE_URL}${relativeUrl}`;
+    }
+
+    // Frontend public assets (e.g. /nissan-maxima-white.jpg)
+    if (relativeUrl.startsWith("/")) {
+        return relativeUrl;
+    }
+
+    // Fallback: treat as backend-relative path
+    return `${BASE_URL}/${relativeUrl}`;
 }
