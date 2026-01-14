@@ -78,8 +78,8 @@ export function transformBackendCarToCustomer(backendCar: BackendCar): CustomerC
             ? backendCar.description
             : generateDescription(backendCar),
 
-        // ✅ UPDATED: Transform backend featureName array to CarFeature objects
-        features: transformFeatures(backendCar.featureName),
+        // ✅ UPDATED: Transform backend features or featureName array to CarFeature objects
+        features: transformFeatures(backendCar.features, backendCar.featureName),
 
         // Default values for fields not in backend yet
         rating: 4.5,  // TODO: Will come from reviews table later
@@ -101,15 +101,23 @@ export function transformBackendCarsToCustomer(backendCars: BackendCar[]): Custo
  * Backend gives: ["GPS Navigation", "Bluetooth", "Leather Seats"]
  * Customer needs: [{ name: "GPS Navigation", available: true }, ...]
  */
-function transformFeatures(featureNames?: string[]): CarFeature[] {
-    if (!featureNames || featureNames.length === 0) {
-        return [];
+function transformFeatures(features?: any[] , featureNames?: string[]): CarFeature[] {
+    // Prefer rich features array from backend if available
+    if (features && features.length > 0) {
+        return features.map((f) => ({
+            name: f.featureName ?? f.name ?? "Feature",
+            available: f.available ?? true,
+        }));
     }
 
-    return featureNames.map(name => ({
-        name: name,
-        available: true  // All features from backend are available
-    }));
+    if (featureNames && featureNames.length > 0) {
+        return featureNames.map(name => ({
+            name: name,
+            available: true  // All features from backend are available
+        }));
+    }
+
+    return [];
 }
 
 /**

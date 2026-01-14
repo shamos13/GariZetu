@@ -89,15 +89,17 @@ public class CarService {
     //Reading a single response
     public CarResponseDTO getCarById(Long id) {
         log.debug("Fetching car with ID: {}", id);
-        Car car = carRepository.findById(id)
+        Car car = carRepository.findByIdWithFeatures(id)
                 .orElseThrow(() -> new RuntimeException("Car with ID " + id + " not found"));
+        log.debug("Car {} has {} features", id, car.getFeatures() != null ? car.getFeatures().size() : 0);
         return carMapper.toResponseDTO(car);
     }
 
     //Fetch all Cars
     public List<CarResponseDTO> getAllCars(){
         log.debug("Fetching all cars");
-        List<Car> cars = carRepository.findAll();
+        List<Car> cars = carRepository.findAllWithFeatures();
+        log.debug("Fetched {} cars", cars.size());
         return cars.stream()
                 .map(carMapper::toResponseDTO)
                 .collect(Collectors.toList());
@@ -108,13 +110,13 @@ public class CarService {
     // Fetching Cars by make
     public List<CarResponseDTO> getCarsByMake(String make) {
         log.debug("Fetching cars by make {}", make);
-        List<Car> cars = carRepository.findCarByMakeIgnoreCase(make);
+        List<Car> cars = carRepository.findCarByMakeIgnoreCaseWithFeatures(make);
         return cars.stream().map(carMapper::toResponseDTO).collect(Collectors.toList());
     }
 
     // Updating the car (partial update)
     public CarResponseDTO updateStatus(Long id, CarUpdateDTO updateDTO){
-        Car car = carRepository.findById(id)
+        Car car = carRepository.findByIdWithFeatures(id)
                 .orElseThrow(() -> new RuntimeException("Car with ID " + id + " not found"));
 
         // Update only fields that are provided
@@ -201,7 +203,7 @@ public class CarService {
 
     // Update car image/photo
     public CarResponseDTO updateCarImage(Long id, MultipartFile image) {
-        Car car = carRepository.findById(id)
+        Car car = carRepository.findByIdWithFeatures(id)
                 .orElseThrow(() -> new RuntimeException("Car with ID " + id + " not found"));
 
         // Store the new image and update the URL
