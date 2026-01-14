@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Gauge, Milestone, Users, Fuel, ArrowRight, Star, Heart } from "lucide-react";
 import { CarDetailsModal } from "./CarDetailsModal";
 
@@ -20,7 +20,7 @@ interface CarData {
 
 const CARS: CarData[] = [
     {
-        id: 1,
+        id: 9001, // High ID to avoid conflicts with backend cars
         name: "Audi A8 L 2022",
         price: 4000,
         image: "/audi-a8-gray.jpg",
@@ -29,7 +29,7 @@ const CARS: CarData[] = [
         specs: { mileage: "4,000", transmission: "Auto", capacity: "4 Person", fuel: "Electric" },
     },
     {
-        id: 2,
+        id: 9002, // High ID to avoid conflicts with backend cars
         name: "Nissan Maxima Platinum 2022",
         price: 3500,
         image: "/nissan-maxima-white.jpg",
@@ -38,7 +38,7 @@ const CARS: CarData[] = [
         specs: { mileage: "4,000", transmission: "Auto", capacity: "4 Person", fuel: "Electric" },
     },
     {
-        id: 3,
+        id: 9003, // High ID to avoid conflicts with backend cars
         name: "Porsche Cayenne GTS 2022",
         price: 5500,
         image: "/porsche-cayenne-black.jpg",
@@ -51,6 +51,7 @@ const CARS: CarData[] = [
 const CATEGORIES = ["Popular Car", "Luxury Car", "Vintage Car", "Family Car", "Off-Road Car"]
 
 export function FeaturedCollection() {
+    const navigate = useNavigate();
     const [selectedCar, setSelectedCar] = useState<CarData | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [activeCategory, setActiveCategory] = useState(0);
@@ -67,10 +68,8 @@ export function FeaturedCollection() {
     };
 
     const handleBookNow = (car: CarData) => {
-        // Handle booking logic here
-        console.log("Booking:", car);
-        // You can navigate to booking page or show booking form
         handleCloseModal();
+        navigate(`/vehicles/${car.id}`);
     };
 
     const toggleFavorite = (carId: number, e: React.MouseEvent) => {
@@ -150,13 +149,13 @@ export function FeaturedCollection() {
                                 </div>
                             )}
 
-                            {/* Quick View Overlay */}
+                            {/* View Details Overlay */}
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
                                 <button
                                     onClick={() => handleRentNow(car)}
                                     className="bg-white text-black px-6 py-2.5 rounded-full font-semibold transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300"
                                 >
-                                    Quick View
+                                    View Details
                                 </button>
                             </div>
                         </div>
@@ -217,7 +216,7 @@ export function FeaturedCollection() {
                                 onClick={() => handleRentNow(car)}
                                 className="w-full py-3.5 rounded-xl text-sm font-bold transition-all duration-300 mt-4 bg-black text-white hover:bg-zinc-800 hover:shadow-lg hover:shadow-black/20 active:scale-95"
                             >
-                                Rent Now
+                                View Details
                             </button>
                         </div>
                     </div>
@@ -242,6 +241,7 @@ export function FeaturedCollection() {
                     isOpen={isModalOpen}
                     onClose={handleCloseModal}
                     onBookNow={handleBookNow}
+                    onViewDetails={(c) => { handleCloseModal(); navigate(`/vehicles/${c.id}`); }}
                 />
             )}
         </section>

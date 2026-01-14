@@ -1,16 +1,20 @@
-import { useState } from "react";
-import { X, ChevronLeft, ChevronRight, Users, Settings, Fuel, CheckCircle2, Gauge } from "lucide-react";
+import { useMemo, useState } from "react";
+import { X, ChevronLeft, ChevronRight, Users, Settings, Fuel, CheckCircle2, Gauge, Info } from "lucide-react";
 import {
     Dialog,
     DialogContent,
     DialogHeader,
 } from "./ui/dialog";
+import { getImageUrl } from "../lib/ImageUtils";
 
 interface CarData {
     id: number;
     name: string;
-    price: number;
-    image: string;
+    price?: number; // Support legacy prop name
+    dailyPrice?: number; // New prop name for parity with backend/customer cars
+    image?: string;
+    mainImageUrl?: string;
+    gallery?: string[];
     specs: {
         mileage: string;
         transmission: string;
@@ -29,10 +33,20 @@ interface CarDetailsModalProps {
     isOpen: boolean;
     onClose: () => void;
     onBookNow?: (car: CarData) => void;
+    onViewDetails?: (car: CarData) => void;
 }
 
 const getCarImages = (car: CarData) => {
-    return [car.image, car.image, car.image];
+    if (car.gallery && car.gallery.length > 0) {
+        return car.gallery.map((url) => getImageUrl(url));
+    }
+    if (car.mainImageUrl) {
+        return [getImageUrl(car.mainImageUrl)];
+    }
+    if (car.image) {
+        return [getImageUrl(car.image)];
+    }
+    return ["/placeholder-car.jpg"];
 };
 
 const getCarFeatures = (car: CarData): string[] => {
@@ -54,15 +68,16 @@ const getCategory = (car: CarData): string => {
     return car.category || "Sedan";
 };
 
-export function CarDetailsModal({ car, isOpen, onClose, onBookNow }: CarDetailsModalProps) {
+export function CarDetailsModal({ car, isOpen, onClose, onBookNow, onViewDetails }: CarDetailsModalProps) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
     if (!car) return null;
 
-    const images = getCarImages(car);
+    const images = useMemo(() => getCarImages(car), [car]);
     const features = getCarFeatures(car);
     const description = getCarDescription(car);
     const category = getCategory(car);
+    const pricePerDay = car.dailyPrice ?? car.price ?? 0;
 
     const handlePreviousImage = () => {
         setCurrentImageIndex((prev) => (prev === 0 ? images.length - 1 : prev - 1));
@@ -75,6 +90,12 @@ export function CarDetailsModal({ car, isOpen, onClose, onBookNow }: CarDetailsM
     const handleBookNow = () => {
         if (onBookNow) {
             onBookNow(car);
+        }
+    };
+
+    const handleViewDetails = () => {
+        if (onViewDetails) {
+            onViewDetails(car);
         }
     };
 
@@ -105,6 +126,7 @@ export function CarDetailsModal({ car, isOpen, onClose, onBookNow }: CarDetailsM
                                 src={images[currentImageIndex]}
                                 alt={car.name}
                                 className="w-full h-full object-cover"
+                                onError={(e) => { e.currentTarget.src = "/placeholder-car.jpg"; }}
                             />
 
                             {/* Gradient Overlay */}
@@ -172,7 +194,7 @@ export function CarDetailsModal({ car, isOpen, onClose, onBookNow }: CarDetailsM
                             <div className="mb-5 pb-4 border-b border-gray-100">
                                 <div className="flex items-baseline gap-1">
                                     <span className="text-2xl lg:text-3xl font-bold text-gray-900">
-                                        Ksh {car.price.toLocaleString()}
+                                        Ksh {pricePerDay.toLocaleString()}
                                     </span>
                                     <span className="text-sm text-gray-500">/day</span>
                                 </div>
@@ -235,12 +257,14 @@ export function CarDetailsModal({ car, isOpen, onClose, onBookNow }: CarDetailsM
                                 >
                                     Book Now
                                 </button>
-                                <button
-                                    onClick={onClose}
-                                    className="px-4 py-3 bg-gray-100 text-gray-700 rounded-xl font-medium text-sm hover:bg-gray-200 transition-colors"
-                                >
-                                    Close
-                                </button>
+                                {onViewDetails && (
+                                    <button
+                                        onClick={() => onViewDetails(car)}
+                                        className="px-4 py-3 bg-black/5 text-gray-900 rounded-xl font-medium text-sm hover:bg-black/10 transition-colors flex items-center gap-2"
+                                    >
+                                        View Details
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>

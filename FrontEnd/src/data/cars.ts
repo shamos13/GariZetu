@@ -49,9 +49,9 @@ export const CARS_DATA: Car[] = [
         year: 2023,
         name: "Toyota Camry 2023",
         dailyPrice: 3500,
-        mainImageUrl: "/toyota-camry-placeholder.jpg",  // ← Using mainImageUrl now
+        mainImageUrl: "/nissan-maxima-white.jpg",  // Use existing public asset
         gallery: [
-            { id: 1, url: "/toyota-camry-placeholder.jpg", alt: "Toyota Camry Exterior" },
+            { id: 1, url: "/nissan-maxima-white.jpg", alt: "Toyota Camry Exterior" },
         ],
         mileage: "15,000 km",
         transmission: "Automatic",
@@ -79,9 +79,9 @@ export const CARS_DATA: Car[] = [
         year: 2023,
         name: "Nissan X-Trail 2023",
         dailyPrice: 4000,
-        mainImageUrl: "/nissan-xtrail-placeholder.jpg",
+        mainImageUrl: "/audi-a8-gray.jpg",
         gallery: [
-            { id: 1, url: "/nissan-xtrail-placeholder.jpg", alt: "Nissan X-Trail Exterior" },
+            { id: 1, url: "/audi-a8-gray.jpg", alt: "Nissan X-Trail Exterior" },
         ],
         mileage: "12,000 km",
         transmission: "Automatic",
@@ -109,9 +109,9 @@ export const CARS_DATA: Car[] = [
         year: 2023,
         name: "Mercedes-Benz E-Class 2023",
         dailyPrice: 5500,
-        mainImageUrl: "/mercedes-eclass-placeholder.jpg",
+        mainImageUrl: "/porsche-cayenne-black.jpg",
         gallery: [
-            { id: 1, url: "/mercedes-eclass-placeholder.jpg", alt: "Mercedes E-Class Exterior" },
+            { id: 1, url: "/porsche-cayenne-black.jpg", alt: "Mercedes E-Class Exterior" },
         ],
         mileage: "8,000 km",
         transmission: "Automatic",
