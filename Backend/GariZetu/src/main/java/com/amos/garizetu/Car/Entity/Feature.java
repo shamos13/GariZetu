@@ -1,14 +1,13 @@
 package com.amos.garizetu.Car.Entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.HashSet;
 import java.util.Set;
 
-@Data
+@Getter
+@Setter
 @AllArgsConstructor
 @NoArgsConstructor
 @Entity
@@ -31,6 +30,20 @@ public class Feature {
     // Many features can be associated with many cars
     @ManyToMany(mappedBy = "features")
     private Set<Car> cars = new HashSet<>();
+
+    //Re-solving the concurrent modification
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Feature)) return false;
+        Feature feature = (Feature) o;
+        return featureId != null && featureId.equals(feature.featureId);
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
 
 }
 
