@@ -1,10 +1,11 @@
-import React, {useState} from "react";
+import React, {useEffect, useState} from "react";
 import {Button} from "../../../components/ui/button";
 import {Input} from "../../../components/ui/input";
 import {Label} from "../../../components/ui/label";
-import {CarStatus, FuelType, TransmissionType} from "../types/Car.ts";
+import {CarStatus, FuelType, TransmissionType, BodyType} from "../types/Car.ts";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "../../../components/ui/select.tsx";
-import {Upload, X} from "lucide-react";
+import {Plus, Upload, X} from "lucide-react";
+import axios from "axios";
 
 export type CarFormData = {
     make: string;
@@ -19,6 +20,16 @@ export type CarFormData = {
     carStatus: CarStatus;
     transmissionType: TransmissionType;
     fuelType: FuelType;
+    bodyType: BodyType;
+    description: string;
+    featureName: string[];
+}
+
+interface Feature {
+    featureId: number;
+    featureName: string;
+    featureDescription: string;
+    featureCategory: string;
 }
 
 interface CarFormProps {
@@ -41,71 +52,132 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         carStatus: car?.carStatus || "AVAILABLE",
         transmissionType: car?.transmissionType || "AUTOMATIC",
         fuelType: car?.fuelType || "PETROL",
-
+        bodyType: car?.bodyType || "SEDAN",
+        description: car?.description || "",
+        featureName: car?.featureName || [],
     });
+
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+    // Features state
+    const [availableFeatures, setAvailableFeatures] = useState<Feature[]>([]);
+    const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
+    const [customFeature, setCustomFeature] = useState("");
+    const [isLoadingFeatures, setIsLoadingFeatures] = useState(false);
+
+    // Load available features on mount
+    useEffect(() => {
+        const loadFeatures = async () => {
+            try {
+                setIsLoadingFeatures(true);
+                const response = await axios.get<Feature[]>("http://localhost:8080/api/v1/features");
+                setAvailableFeatures(response.data);
+            } catch (error) {
+                console.error("Failed to load features:", error);
+            } finally {
+                setIsLoadingFeatures(false);
+            }
+        };
+        loadFeatures();
+    }, []);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
 
-        // Validate if   image is selected
-        if(!selectedImage){
-            alert("please select a car image")
+        if (!selectedImage) {
+            alert("Please select a car image");
             return;
         }
-        onSubmit(formData, selectedImage);
 
+        if (formData.description.length < 10) {
+            alert("Description must be at least 50 characters");
+            return;
+        }
+
+        if (formData.description.length > 1000) {
+            alert("Description must not exceed 1000 characters");
+            return;
+        }
+
+        // Add selected features to formData
+        const dataToSubmit = {
+            ...formData,
+            featureName: selectedFeatures
+        };
+
+        onSubmit(dataToSubmit, selectedImage);
     };
 
-    const handleChange = (field: keyof CarFormData, value: string | number) => {
+    const handleChange = (field: keyof CarFormData, value: string | number | string[]) => {
         setFormData({ ...formData, [field]: value });
     };
 
-    //Handle image selection
     const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0]
+        const file = e.target.files?.[0];
 
         if (file) {
-
-            //Validate file type
-            if (!file.type.startsWith('image')){
-                alert("Please select an image file")
+            if (!file.type.startsWith('image')) {
+                alert("Please select an image file");
                 return;
             }
 
-            // Validate file size (10mb)
-            const maxSize = 10*1024*1024;
-            if (file.size > maxSize){
-                alert("Image sie must be less than 10mb");
+            const maxSize = 10 * 1024 * 1024;
+            if (file.size > maxSize) {
+                alert("Image size must be less than 10mb");
                 return;
             }
 
             setSelectedImage(file);
-
-            // Create a preview URL
             const previewUrl = URL.createObjectURL(file);
             setImagePreview(previewUrl);
         }
     };
 
-    // Clear Selected image
     const handleClearImage = () => {
         setSelectedImage(null);
         setImagePreview(null);
-
-        //Reset file input
         const fileInput = document.getElementById('image') as HTMLInputElement;
         if (fileInput) fileInput.value = '';
-    }
+    };
+
+    // Feature handlers
+    const toggleFeature = (featureName: string) => {
+        if (selectedFeatures.includes(featureName)) {
+            setSelectedFeatures(selectedFeatures.filter(f => f !== featureName));
+        } else {
+            setSelectedFeatures([...selectedFeatures, featureName]);
+        }
+    };
+
+    const addCustomFeature = () => {
+        const trimmed = customFeature.trim();
+        if (!trimmed) {
+            alert("Please enter a feature name");
+            return;
+        }
+        if (selectedFeatures.includes(trimmed)) {
+            alert("This feature is already added");
+            return;
+        }
+        setSelectedFeatures([...selectedFeatures, trimmed]);
+        setCustomFeature("");
+    };
+
+    const removeFeature = (featureName: string) => {
+        setSelectedFeatures(selectedFeatures.filter(f => f !== featureName));
+    };
+
+    const descriptionLength = formData.description.length;
+    const descriptionStatus =
+        descriptionLength < 50 ? "too-short" :
+            descriptionLength > 1000 ? "too-long" : "valid";
 
     return (
         <form onSubmit={handleSubmit} className="space-y-6">
-            {/* NEW: Image Upload Section */}
+            {/* Image Upload */}
             <div className="space-y-3">
                 <Label htmlFor="image" className="text-gray-300">Car Image *</Label>
-
-                {/* Image Preview or Upload Button */}
                 {imagePreview ? (
                     <div className="relative">
                         <img
@@ -147,8 +219,9 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                     </label>
                 )}
             </div>
+
+            {/* Basic Details Grid */}
             <div className="grid grid-cols-2 gap-4">
-                {/* Make */}
                 <div>
                     <Label htmlFor="make" className="text-gray-300">Car Make/Brand</Label>
                     <Input
@@ -161,7 +234,6 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                     />
                 </div>
 
-                {/* Vehicle Model */}
                 <div>
                     <Label htmlFor="vehicleModel" className="text-gray-300">Vehicle Model</Label>
                     <Input
@@ -174,7 +246,6 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                     />
                 </div>
 
-                {/* Registration Number */}
                 <div>
                     <Label htmlFor="registrationNumber" className="text-gray-300">Registration Number</Label>
                     <Input
@@ -187,7 +258,6 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                     />
                 </div>
 
-                {/* Year */}
                 <div>
                     <Label htmlFor="year" className="text-gray-300">Year</Label>
                     <Input
@@ -202,7 +272,6 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                     />
                 </div>
 
-                {/* Engine Capacity */}
                 <div>
                     <Label htmlFor="engineCapacity" className="text-gray-300">Engine Capacity (cc)</Label>
                     <Input
@@ -216,7 +285,6 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                     />
                 </div>
 
-                {/* Colour */}
                 <div>
                     <Label htmlFor="colour" className="text-gray-300">Colour</Label>
                     <Input
@@ -229,7 +297,6 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                     />
                 </div>
 
-                {/* Mileage */}
                 <div>
                     <Label htmlFor="mileage" className="text-gray-300">Mileage</Label>
                     <Input
@@ -243,7 +310,6 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                     />
                 </div>
 
-                {/* Daily Price */}
                 <div>
                     <Label htmlFor="dailyPrice" className="text-gray-300">Price (Ksh/day)</Label>
                     <Input
@@ -258,7 +324,6 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                     />
                 </div>
 
-                {/* Seating Capacity */}
                 <div>
                     <Label htmlFor="seatingCapacity" className="text-gray-300">Seating Capacity</Label>
                     <Input
@@ -273,7 +338,6 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                     />
                 </div>
 
-                {/* Transmission Type */}
                 <div>
                     <Label htmlFor="transmissionType" className="text-gray-300">Transmission</Label>
                     <Select
@@ -290,7 +354,6 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                     </Select>
                 </div>
 
-                {/* Fuel Type */}
                 <div>
                     <Label htmlFor="fuelType" className="text-gray-300">Fuel Type</Label>
                     <Select
@@ -309,7 +372,27 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                     </Select>
                 </div>
 
-                {/* Car Status */}
+                <div>
+                    <Label htmlFor="bodyType" className="text-gray-300">Body Type</Label>
+                    <Select
+                        value={formData.bodyType}
+                        onValueChange={(value) => handleChange("bodyType", value as BodyType)}
+                    >
+                        <SelectTrigger id="bodyType" className="bg-[#0a0a0a] border-gray-700 text-white">
+                            <SelectValue placeholder="Select body type" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#1a1a1a] border-gray-700 text-white">
+                            <SelectItem value="SEDAN">Sedan</SelectItem>
+                            <SelectItem value="SUV">SUV</SelectItem>
+                            <SelectItem value="COUPE">Coupe</SelectItem>
+                            <SelectItem value="HATCHBACK">Hatchback</SelectItem>
+                            <SelectItem value="VAN">Van</SelectItem>
+                            <SelectItem value="MINIVAN">Minivan</SelectItem>
+                            <SelectItem value="TRUCK">Truck</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
                 <div>
                     <Label htmlFor="carStatus" className="text-gray-300">Car Status</Label>
                     <Select
@@ -328,11 +411,122 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                 </div>
             </div>
 
+            {/* Description - Full Width */}
+            <div>
+                <Label htmlFor="description" className="text-gray-300">Description *</Label>
+                <textarea
+                    id="description"
+                    value={formData.description}
+                    onChange={(e) => handleChange("description", e.target.value)}
+                    placeholder="Describe the vehicle in detail... (50-1000 characters)"
+                    rows={4}
+                    className="w-full px-3 py-2 bg-[#0a0a0a] border border-gray-700 rounded-lg text-white placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-white resize-none"
+                    required
+                />
+                <div className="flex justify-between mt-1 text-sm">
+                    <span className={`
+                        ${descriptionStatus === "too-short" ? "text-red-400" : ""}
+                        ${descriptionStatus === "too-long" ? "text-red-400" : ""}
+                        ${descriptionStatus === "valid" ? "text-emerald-400" : ""}
+                    `}>
+                        {descriptionStatus === "too-short" && "⚠️ Too short (min 50 characters)"}
+                        {descriptionStatus === "too-long" && "⚠️ Too long (max 1000 characters)"}
+                        {descriptionStatus === "valid" && "✓ Good length"}
+                    </span>
+                    <span className="text-gray-400">{descriptionLength} / 1000</span>
+                </div>
+            </div>
+
+            {/* Features Section */}
+            <div className="space-y-4">
+                <Label className="text-gray-300">Features</Label>
+
+                {/* Loading state */}
+                {isLoadingFeatures && (
+                    <p className="text-sm text-gray-400">Loading available features...</p>
+                )}
+
+                {/* Available features checkboxes */}
+                {!isLoadingFeatures && availableFeatures.length > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {availableFeatures.map((feature) => (
+                            <label
+                                key={feature.featureId}
+                                className={`
+                                    flex items-center gap-2 p-3 rounded-lg cursor-pointer transition-colors
+                                    ${selectedFeatures.includes(feature.featureName)
+                                    ? "bg-white text-black"
+                                    : "bg-[#0a0a0a] border border-gray-700 text-gray-300 hover:border-gray-600"
+                                }
+                                `}
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={selectedFeatures.includes(feature.featureName)}
+                                    onChange={() => toggleFeature(feature.featureName)}
+                                    className="w-4 h-4 rounded"
+                                />
+                                <span className="text-sm">{feature.featureName}</span>
+                            </label>
+                        ))}
+                    </div>
+                )}
+
+                {/* Add custom feature */}
+                <div className="space-y-3">
+                    <Label className="text-gray-300 text-sm">Add Custom Feature</Label>
+                    <div className="flex gap-2">
+                        <Input
+                            value={customFeature}
+                            onChange={(e) => setCustomFeature(e.target.value)}
+                            placeholder="e.g., Heated Steering Wheel"
+                            className="bg-[#0a0a0a] border-gray-700 text-white"
+                            onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomFeature())}
+                        />
+                        <Button
+                            type="button"
+                            onClick={addCustomFeature}
+                            className="bg-white text-black hover:bg-gray-200"
+                        >
+                            <Plus className="w-4 h-4 mr-1" />
+                            Add
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Selected features display */}
+                {selectedFeatures.length > 0 && (
+                    <div>
+                        <Label className="text-gray-300 text-sm mb-2 block">
+                            Selected Features ({selectedFeatures.length})
+                        </Label>
+                        <div className="flex flex-wrap gap-2">
+                            {selectedFeatures.map((feature) => (
+                                <div
+                                    key={feature}
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/50 rounded-full text-sm text-emerald-300"
+                                >
+                                    <span>{feature}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => removeFeature(feature)}
+                                        className="hover:text-white transition-colors"
+                                    >
+                                        <X className="w-3 h-3" />
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* Form Actions */}
             <div className="flex gap-3 justify-end pt-4">
                 <Button
                     type="button"
                     variant="outline"
-                    onClick={onCancel} // Use the onCancel prop
+                    onClick={onCancel}
                     className="bg-transparent border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
                 >
                     Cancel
