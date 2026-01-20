@@ -27,8 +27,12 @@ file:
   upload:
     directory: /home/cfreak97/Desktop/GariZetu_Project/uploads
 
-
 cloudinary:
   cloud-name: "dicnb9x6z"
   api-key: "633256643316292"
   api-secret: "17vAylBr1gjWcUDK6JMVn67f1gQ"
+
+jwt:
+  secret: "garizetu-super-secret-key-change-this-in-production-minimum-32-characters-required"
+  expiration: 86400000
+
