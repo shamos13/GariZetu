@@ -1,5 +1,6 @@
-package com.amos.garizetu.User;
+package com.amos.garizetu.User.Entity;
 
+import com.amos.garizetu.User.UserRole;
 import jakarta.persistence.*;
 import lombok.*;
 
