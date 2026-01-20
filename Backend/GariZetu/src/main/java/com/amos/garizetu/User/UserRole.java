@@ -2,5 +2,5 @@ package com.amos.garizetu.User;
 
 public enum UserRole {
     ADMIN,
-    USER,
+    CUSTOMER,
 }
