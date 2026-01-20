@@ -29,6 +29,11 @@ file:
 
 
 cloudinary:
-  cloud-name: "dicnb9x6z"
-  api-key: "633256643316292"
-  api-secret: "17vAylBr1gjWcUDK6JMVn67f1gQ"
+  cloud-name: ${CLOUD_NAME}
+  api-key: ${API_KEY}
+  api-secret: ${API_SECRET}
+
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION}
+
