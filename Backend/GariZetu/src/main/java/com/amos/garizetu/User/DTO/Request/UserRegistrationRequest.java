@@ -10,7 +10,7 @@ public class UserRegistrationRequest {
 
     @NotBlank(message = "Username is required")
     @Size(min=5, max = 15, message = "UserName must be between 5 and 15 characters")
-    private String username;
+    private String userName;
 
     @NotBlank(message = "Email is required")
     @Email(message = "Email must be  Valid")
