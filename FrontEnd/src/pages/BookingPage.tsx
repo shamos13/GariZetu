@@ -14,21 +14,16 @@ import {
     MapPin,
     Phone,
     Shield,
-    User
+    User,
+    LogIn
 } from "lucide-react";
 import {Navbar} from "../components/Navbar";
 import {Footer} from "../components/Footer";
 import {Car as CarType, CARS_DATA} from "../data/cars";
 import {carService} from "../services/carService";
 import {getImageUrl} from "../lib/ImageUtils";
-
-// Simulated auth state - replace with actual auth context
-const useAuth = () => {
-    return {
-        isAuthenticated: false,
-        user: null
-    };
-};
+import {authService} from "../services/AuthService";
+import {AuthModal} from "../components/AuthModal";
 
 // Pickup locations
 const PICKUP_LOCATIONS = [
@@ -42,7 +37,11 @@ const PICKUP_LOCATIONS = [
 export default function BookingPage() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
-    const { isAuthenticated } = useAuth();
+    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+    
+    // Get authentication state
+    const isAuthenticated = authService.isAuthenticated();
+    const user = authService.getUser();
 
     const carId = searchParams.get("carId");
 
@@ -73,13 +72,24 @@ export default function BookingPage() {
         urlPickupDate ? new Date(urlPickupDate) : new Date()
     );
 
-    // Guest info (for non-authenticated users)
+    // Guest info (for non-authenticated users) - prefill with user data if logged in
     const [guestInfo, setGuestInfo] = useState({
-        fullName: "",
-        email: "",
+        fullName: user?.userName || "",
+        email: user?.email || "",
         phone: "",
         idNumber: ""
     });
+
+    // Update guest info when user logs in
+    useEffect(() => {
+        if (isAuthenticated && user) {
+            setGuestInfo(prev => ({
+                ...prev,
+                fullName: user.userName || prev.fullName,
+                email: user.email || prev.email
+            }));
+        }
+    }, [isAuthenticated, user]);
 
     // Extras
     const [extras, setExtras] = useState({
@@ -441,6 +451,30 @@ export default function BookingPage() {
                                     </div>
                                 </div>
 
+                                {/* Authentication Prompt at Step 1 */}
+                                {!isAuthenticated && canProceedStep1 && (
+                                    <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-5">
+                                        <div className="flex items-center justify-between flex-wrap gap-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
+                                                    <LogIn className="w-5 h-5 text-emerald-600" />
+                                                </div>
+                                                <div>
+                                                    <p className="font-semibold text-emerald-900">Ready to continue?</p>
+                                                    <p className="text-sm text-emerald-700">Log in to save time on the next step</p>
+                                                </div>
+                                            </div>
+                                            <button
+                                                onClick={() => setIsAuthModalOpen(true)}
+                                                className="px-5 py-2.5 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors text-sm flex items-center gap-2"
+                                            >
+                                                <LogIn className="w-4 h-4" />
+                                                Log In
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* Extras */}
                                 <div className="bg-white rounded-2xl p-6 shadow-sm">
                                     <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -496,14 +530,33 @@ export default function BookingPage() {
                                 </h2>
 
                                 {!isAuthenticated && (
-                                    <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+                                    <div className="mb-6 p-4 bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-xl">
                                         <div className="flex items-start gap-3">
-                                            <AlertCircle className="w-5 h-5 text-amber-600 mt-0.5" />
-                                            <div>
-                                                <p className="text-sm font-medium text-amber-800">Not logged in?</p>
-                                                <p className="text-sm text-amber-700 mt-1">
-                                                    <Link to="/login" className="underline font-medium">Log in</Link> or continue as guest below.
+                                            <AlertCircle className="w-5 h-5 text-emerald-600 mt-0.5 flex-shrink-0" />
+                                            <div className="flex-1">
+                                                <p className="text-sm font-semibold text-emerald-900 mb-1">Not logged in?</p>
+                                                <p className="text-sm text-emerald-700 mb-3">
+                                                    Log in to save your details and track your bookings, or continue as guest below.
                                                 </p>
+                                                <button
+                                                    onClick={() => setIsAuthModalOpen(true)}
+                                                    className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg font-medium hover:bg-emerald-700 transition-colors text-sm"
+                                                >
+                                                    <LogIn className="w-4 h-4" />
+                                                    Log In Now
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {isAuthenticated && (
+                                    <div className="mb-6 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+                                        <div className="flex items-center gap-3">
+                                            <Check className="w-5 h-5 text-emerald-600" />
+                                            <div>
+                                                <p className="text-sm font-medium text-emerald-900">Logged in as {user?.userName}</p>
+                                                <p className="text-xs text-emerald-700 mt-0.5">Your details have been pre-filled</p>
                                             </div>
                                         </div>
                                     </div>
@@ -521,9 +574,15 @@ export default function BookingPage() {
                                                 value={guestInfo.fullName}
                                                 onChange={(e) => setGuestInfo({ ...guestInfo, fullName: e.target.value })}
                                                 placeholder="John Doe"
-                                                className="w-full pl-12 pr-4 py-3 bg-gray-50 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                                                disabled={isAuthenticated}
+                                                className={`w-full pl-12 pr-4 py-3 bg-gray-50 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-black ${
+                                                    isAuthenticated ? "opacity-75 cursor-not-allowed" : ""
+                                                }`}
                                             />
                                         </div>
+                                        {isAuthenticated && (
+                                            <p className="text-xs text-gray-500 mt-1">This field is pre-filled from your account</p>
+                                        )}
                                     </div>
 
                                     <div>
@@ -537,9 +596,15 @@ export default function BookingPage() {
                                                 value={guestInfo.email}
                                                 onChange={(e) => setGuestInfo({ ...guestInfo, email: e.target.value })}
                                                 placeholder="john@example.com"
-                                                className="w-full pl-12 pr-4 py-3 bg-gray-50 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                                                disabled={isAuthenticated}
+                                                className={`w-full pl-12 pr-4 py-3 bg-gray-50 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-black ${
+                                                    isAuthenticated ? "opacity-75 cursor-not-allowed" : ""
+                                                }`}
                                             />
                                         </div>
+                                        {isAuthenticated && (
+                                            <p className="text-xs text-gray-500 mt-1">This field is pre-filled from your account</p>
+                                        )}
                                     </div>
 
                                     <div>
@@ -649,7 +714,9 @@ export default function BookingPage() {
                                             </div>
                                             <div className="flex justify-between">
                                                 <span className="text-gray-600">Customer</span>
-                                                <span className="font-medium text-gray-900">{guestInfo.fullName}</span>
+                                                <span className="font-medium text-gray-900">
+                                                    {isAuthenticated ? user?.userName : guestInfo.fullName || "Guest"}
+                                                </span>
                                             </div>
                                         </div>
                                     </div>
@@ -791,6 +858,18 @@ export default function BookingPage() {
             </div>
 
             <Footer />
+
+            {/* Auth Modal */}
+            <AuthModal 
+                isOpen={isAuthModalOpen}
+                onClose={() => setIsAuthModalOpen(false)}
+                initialMode="login"
+                onLoginSuccess={() => {
+                    setIsAuthModalOpen(false);
+                    // Refresh the page to update auth state
+                    window.location.reload();
+                }}
+            />
         </div>
     );
 }
