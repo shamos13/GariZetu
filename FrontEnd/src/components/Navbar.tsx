@@ -1,6 +1,6 @@
 import {useEffect, useState} from "react";
 import {Link, useLocation, useNavigate} from "react-router-dom";
-import {ChevronDown, Phone, User, LogOut} from "lucide-react";
+import {ChevronDown, Phone, User, LogOut, Car, Truck, Sparkles, Home, Info, Settings} from "lucide-react";
 import {AuthModal} from "./AuthModal";
 import {authService} from "../services/AuthService.ts";
 
@@ -196,6 +196,7 @@ export function Navbar() {
                                     className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors group/item"
                                 >
                                     <span className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center group-hover/item:bg-black group-hover/item:text-white transition-colors">
+                                        <Car className="w-4 h-4 text-gray-600 group-hover/item:text-white" />
                                     </span>
                                     Sedans
                                 </Link>
@@ -204,6 +205,7 @@ export function Navbar() {
                                     className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors group/item"
                                 >
                                     <span className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center group-hover/item:bg-black group-hover/item:text-white transition-colors">
+                                        <Truck className="w-4 h-4 text-gray-600 group-hover/item:text-white" />
                                     </span>
                                     SUVs
                                 </Link>
@@ -212,7 +214,7 @@ export function Navbar() {
                                     className="flex items-center gap-3 px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors group/item"
                                 >
                                     <span className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center group-hover/item:bg-black group-hover/item:text-white transition-colors">
-                                        ✨
+                                        <Sparkles className="w-4 h-4 text-gray-600 group-hover/item:text-white" />
                                     </span>
                                     Luxury
                                 </Link>
@@ -255,6 +257,23 @@ export function Navbar() {
                     >
                         Contact
                         {isActive("/contact") && (
+                            <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-white rounded-full" />
+                        )}
+                    </Link>
+
+                    {/* Temporary Admin Dashboard Link */}
+                    <Link 
+                        to="/adashboard" 
+                        className={`relative transition-colors text-sm lg:text-base font-medium flex items-center gap-1.5 ${
+                            isActive("/adashboard")
+                                ? "text-white"
+                                : "text-white/70 hover:text-white"
+                        }`}
+                        title="Temporary Admin Access"
+                    >
+                        <Settings className="w-4 h-4" />
+                        <span className="hidden lg:inline">Admin</span>
+                        {isActive("/adashboard") && (
                             <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-white rounded-full" />
                         )}
                     </Link>
@@ -348,7 +367,8 @@ export function Navbar() {
                                 location.pathname === "/" ? "text-white" : "text-white/70"
                             }`}
                         >
-                            🏠 Home
+                            <Home className="w-4 h-4" />
+                            Home
                             {location.pathname === "/" && (
                                 <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
                             )}
@@ -363,7 +383,8 @@ export function Navbar() {
                                 }`}
                             >
                                 <span className="flex items-center gap-2">
-                                    🚗 Vehicles
+                                    <Car className="w-4 h-4" />
+                                    Vehicles
                                 </span>
                                 <ChevronDown 
                                     size={18} 
@@ -415,7 +436,8 @@ export function Navbar() {
                                 isActive("/about") ? "text-white" : "text-white/70"
                             }`}
                         >
-                            ℹ️ About Us
+                            <User className="w-4 h-4" />
+                            About Us
                             {isActive("/about") && (
                                 <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
                             )}
@@ -428,8 +450,24 @@ export function Navbar() {
                                 isActive("/contact") ? "text-white" : "text-white/70"
                             }`}
                         >
-                            📞 Contact
+                            <Phone className="w-4 h-4" />
+                            Contact
                             {isActive("/contact") && (
+                                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
+                            )}
+                        </Link>
+
+                        {/* Temporary Admin Dashboard Link */}
+                        <Link
+                            to="/adashboard"
+                            onClick={closeMobileMenu}
+                            className={`py-3 transition-colors font-medium flex items-center gap-2 ${
+                                isActive("/adashboard") ? "text-white" : "text-white/70"
+                            }`}
+                        >
+                            <Settings className="w-4 h-4" />
+                            Admin Dashboard
+                            {isActive("/adashboard") && (
                                 <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
                             )}
                         </Link>
