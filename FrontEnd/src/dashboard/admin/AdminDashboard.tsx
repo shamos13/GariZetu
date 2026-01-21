@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { AdminLayout } from "./components/AdminLayout.tsx";
 import { Car, CarCreateRequest } from "./types/Car.ts";
 import { CarManagementPage } from "./pages/CarManagementPage.tsx";
+import { UserManagementPage } from "./pages/UserManagementPage.tsx";
 import { adminCarService } from "../admin/service/AdminCarService.ts";
 import { CarForm } from "./components/CarForm.tsx";
 import { toast } from "sonner";
@@ -202,6 +203,8 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                         onStatusChange={handleQuickStatusChange}
                     />
                 );
+            case "users":
+                return <UserManagementPage />;
             default:
                 return <div className="text-white">Select a page from the sidebar</div>;
         }
