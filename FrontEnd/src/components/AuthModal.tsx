@@ -1,31 +1,52 @@
 import { useState } from "react";
-import { 
-    X, 
-    Mail, 
-    Lock, 
-    User, 
-    Phone, 
-    Eye, 
-    EyeOff, 
+import {
+    X,
+    Mail,
+    Lock,
+    User,
+    Phone,
+    Eye,
+    EyeOff,
     ArrowRight,
     Check,
     AlertCircle
 } from "lucide-react";
+import { authService } from "../services/AuthService";
+import type { RegisterRequest, LoginRequest } from "../services/AuthService";
+
+/**
+ * AuthModal Component - Now Connected to Real Backend!
+ *
+ * This modal handles both user registration and login.
+ * It talks to your Spring Boot backend through the authService.
+ *
+ * Key changes from the mock version:
+ * 1. Replaced setTimeout with actual API calls
+ * 2. Added proper error handling
+ * 3. Stores JWT token on successful login
+ * 4. Shows backend error messages to user
+ */
 
 interface AuthModalProps {
     isOpen: boolean;
     onClose: () => void;
     initialMode?: "login" | "signup";
+    onLoginSuccess?: () => void;  // Optional callback after successful login
 }
 
-export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalProps) {
+export function AuthModal({
+                              isOpen,
+                              onClose,
+                              initialMode = "login",
+                              onLoginSuccess
+                          }: AuthModalProps) {
     const [mode, setMode] = useState<"login" | "signup">(initialMode);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-    // Form states
     const [loginForm, setLoginForm] = useState({
         email: "",
         password: "",
@@ -46,18 +67,30 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalP
         setError(null);
         setIsLoading(true);
 
-        // Simulate API call
-        setTimeout(() => {
-            setIsLoading(false);
-            // Handle login logic here
-            console.log("Login:", loginForm);
+        try {
+            const loginData: LoginRequest = {
+                email: loginForm.email,
+                password: loginForm.password,
+            };
+
+            const response = await authService.login(loginData);
+            console.log("✅ Login successful:", response);
+
+            onLoginSuccess?.();
             onClose();
-        }, 1500);
+
+        } catch (err: any) {
+            setError(err.message || "Login failed. Please try again.");
+            console.error("❌ Login error:", err);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleSignup = async (e: React.FormEvent) => {
         e.preventDefault();
         setError(null);
+        setSuccessMessage(null);
 
         if (signupForm.password !== signupForm.confirmPassword) {
             setError("Passwords do not match");
@@ -69,47 +102,74 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalP
             return;
         }
 
+        if (signupForm.password.length < 8) {
+            setError("Password must be at least 8 characters long");
+            return;
+        }
+
         setIsLoading(true);
 
-        // Simulate API call
-        setTimeout(() => {
+        try {
+            const registerData: RegisterRequest = {
+                userName: signupForm.fullName,
+                email: signupForm.email,
+                password: signupForm.password,
+                phoneNumber: signupForm.phone || undefined,
+            };
+
+            const response = await authService.register(registerData);
+            console.log("✅ Registration successful:", response);
+
+            setSuccessMessage(response.message);
+
+            setSignupForm({
+                fullName: "",
+                email: "",
+                phone: "",
+                password: "",
+                confirmPassword: "",
+                agreeToTerms: false
+            });
+
+            setTimeout(() => {
+                setMode("login");
+                setSuccessMessage(null);
+                setLoginForm({ ...loginForm, email: signupForm.email });
+            }, 2000);
+
+        } catch (err: any) {
+            setError(err.message || "Registration failed. Please try again.");
+            console.error("❌ Registration error:", err);
+        } finally {
             setIsLoading(false);
-            // Handle signup logic here
-            console.log("Signup:", signupForm);
-            onClose();
-        }, 1500);
+        }
     };
 
     const switchMode = (newMode: "login" | "signup") => {
         setMode(newMode);
         setError(null);
+        setSuccessMessage(null);
     };
 
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            {/* Backdrop with blur */}
-            <div 
+            <div
                 className="absolute inset-0 bg-black/60 backdrop-blur-md"
                 onClick={onClose}
             />
 
-            {/* Animated background shapes */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute -top-40 -right-40 w-80 h-80 bg-emerald-500/20 rounded-full blur-3xl animate-pulse" />
                 <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-blue-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl animate-pulse delay-500" />
             </div>
 
-            {/* Modal Container */}
             <div className="relative w-full max-w-md animate-in fade-in zoom-in duration-300">
-                {/* Glassmorphism Card */}
                 <div className="relative bg-white/10 backdrop-blur-xl rounded-3xl border border-white/20 shadow-2xl overflow-hidden">
-                    {/* Gradient accent at top */}
                     <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-400 via-blue-500 to-purple-500" />
 
-                    {/* Close Button */}
                     <button
                         onClick={onClose}
                         className="absolute top-4 right-4 z-10 w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center text-white/70 hover:text-white hover:bg-white/20 transition-all"
@@ -117,9 +177,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalP
                         <X className="w-5 h-5" />
                     </button>
 
-                    {/* Content */}
                     <div className="p-8 pt-10">
-                        {/* Logo/Brand */}
                         <div className="text-center mb-8">
                             <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 shadow-lg shadow-emerald-500/30 mb-4">
                                 <span className="text-2xl">🚗</span>
@@ -128,14 +186,13 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalP
                                 {mode === "login" ? "Welcome Back" : "Join GariZetu"}
                             </h2>
                             <p className="text-white/60 text-sm mt-2">
-                                {mode === "login" 
-                                    ? "Sign in to access your account" 
+                                {mode === "login"
+                                    ? "Sign in to access your account"
                                     : "Create an account to get started"
                                 }
                             </p>
                         </div>
 
-                        {/* Tab Switcher */}
                         <div className="flex bg-white/5 rounded-xl p-1 mb-6">
                             <button
                                 onClick={() => switchMode("login")}
@@ -159,7 +216,13 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalP
                             </button>
                         </div>
 
-                        {/* Error Message */}
+                        {successMessage && (
+                            <div className="mb-4 p-3 bg-emerald-500/20 border border-emerald-500/30 rounded-xl flex items-center gap-2 text-emerald-200 text-sm">
+                                <Check className="w-4 h-4 flex-shrink-0" />
+                                {successMessage}
+                            </div>
+                        )}
+
                         {error && (
                             <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-xl flex items-center gap-2 text-red-200 text-sm">
                                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -167,10 +230,8 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalP
                             </div>
                         )}
 
-                        {/* Login Form */}
                         {mode === "login" && (
                             <form onSubmit={handleLogin} className="space-y-4">
-                                {/* Email */}
                                 <div>
                                     <label className="block text-sm text-white/70 mb-2">Email Address</label>
                                     <div className="relative">
@@ -186,7 +247,6 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalP
                                     </div>
                                 </div>
 
-                                {/* Password */}
                                 <div>
                                     <label className="block text-sm text-white/70 mb-2">Password</label>
                                     <div className="relative">
@@ -209,7 +269,6 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalP
                                     </div>
                                 </div>
 
-                                {/* Remember Me & Forgot Password */}
                                 <div className="flex items-center justify-between">
                                     <label className="flex items-center gap-2 cursor-pointer">
                                         <input
@@ -225,7 +284,6 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalP
                                     </button>
                                 </div>
 
-                                {/* Submit Button */}
                                 <button
                                     type="submit"
                                     disabled={isLoading}
@@ -240,48 +298,11 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalP
                                         </>
                                     )}
                                 </button>
-
-                                {/* Divider */}
-                                <div className="relative my-6">
-                                    <div className="absolute inset-0 flex items-center">
-                                        <div className="w-full border-t border-white/10" />
-                                    </div>
-                                    <div className="relative flex justify-center text-sm">
-                                        <span className="px-4 text-white/40 bg-transparent">or continue with</span>
-                                    </div>
-                                </div>
-
-                                {/* Social Login */}
-                                <div className="grid grid-cols-2 gap-3">
-                                    <button
-                                        type="button"
-                                        className="flex items-center justify-center gap-2 py-3 bg-white/5 border border-white/10 rounded-xl text-white/80 hover:bg-white/10 hover:border-white/20 transition-all"
-                                    >
-                                        <svg className="w-5 h-5" viewBox="0 0 24 24">
-                                            <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                                            <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                                            <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                                            <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                                        </svg>
-                                        Google
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="flex items-center justify-center gap-2 py-3 bg-white/5 border border-white/10 rounded-xl text-white/80 hover:bg-white/10 hover:border-white/20 transition-all"
-                                    >
-                                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                                            <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-                                        </svg>
-                                        Facebook
-                                    </button>
-                                </div>
                             </form>
                         )}
 
-                        {/* Signup Form */}
                         {mode === "signup" && (
                             <form onSubmit={handleSignup} className="space-y-4">
-                                {/* Full Name */}
                                 <div>
                                     <label className="block text-sm text-white/70 mb-2">Full Name</label>
                                     <div className="relative">
@@ -292,12 +313,14 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalP
                                             onChange={(e) => setSignupForm({ ...signupForm, fullName: e.target.value })}
                                             placeholder="John Doe"
                                             required
+                                            minLength={5}
+                                            maxLength={15}
                                             className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-white/30 focus:bg-white/10 transition-all"
                                         />
                                     </div>
+                                    <p className="text-xs text-white/40 mt-1">5-15 characters</p>
                                 </div>
 
-                                {/* Email */}
                                 <div>
                                     <label className="block text-sm text-white/70 mb-2">Email Address</label>
                                     <div className="relative">
@@ -313,9 +336,8 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalP
                                     </div>
                                 </div>
 
-                                {/* Phone */}
                                 <div>
-                                    <label className="block text-sm text-white/70 mb-2">Phone Number</label>
+                                    <label className="block text-sm text-white/70 mb-2">Phone Number (Optional)</label>
                                     <div className="relative">
                                         <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
                                         <input
@@ -323,13 +345,11 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalP
                                             value={signupForm.phone}
                                             onChange={(e) => setSignupForm({ ...signupForm, phone: e.target.value })}
                                             placeholder="+254 712 345 678"
-                                            required
                                             className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/30 focus:outline-none focus:border-white/30 focus:bg-white/10 transition-all"
                                         />
                                     </div>
                                 </div>
 
-                                {/* Password */}
                                 <div>
                                     <label className="block text-sm text-white/70 mb-2">Password</label>
                                     <div className="relative">
@@ -351,9 +371,9 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalP
                                             {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                         </button>
                                     </div>
+                                    <p className="text-xs text-white/40 mt-1">Minimum 8 characters</p>
                                 </div>
 
-                                {/* Confirm Password */}
                                 <div>
                                     <label className="block text-sm text-white/70 mb-2">Confirm Password</label>
                                     <div className="relative">
@@ -376,7 +396,6 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalP
                                     </div>
                                 </div>
 
-                                {/* Password Match Indicator */}
                                 {signupForm.password && signupForm.confirmPassword && (
                                     <div className={`flex items-center gap-2 text-sm ${
                                         signupForm.password === signupForm.confirmPassword
@@ -397,7 +416,6 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalP
                                     </div>
                                 )}
 
-                                {/* Terms Agreement */}
                                 <label className="flex items-start gap-3 cursor-pointer">
                                     <input
                                         type="checkbox"
@@ -413,7 +431,6 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalP
                                     </span>
                                 </label>
 
-                                {/* Submit Button */}
                                 <button
                                     type="submit"
                                     disabled={isLoading}
@@ -432,13 +449,12 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalP
                         )}
                     </div>
 
-                    {/* Footer */}
                     <div className="px-8 py-4 bg-white/5 border-t border-white/10 text-center">
                         <p className="text-sm text-white/50">
                             {mode === "login" ? (
                                 <>
                                     Don't have an account?{" "}
-                                    <button 
+                                    <button
                                         onClick={() => switchMode("signup")}
                                         className="text-emerald-400 hover:text-emerald-300 font-medium"
                                     >
@@ -448,7 +464,7 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalP
                             ) : (
                                 <>
                                     Already have an account?{" "}
-                                    <button 
+                                    <button
                                         onClick={() => switchMode("login")}
                                         className="text-emerald-400 hover:text-emerald-300 font-medium"
                                     >
@@ -463,4 +479,3 @@ export function AuthModal({ isOpen, onClose, initialMode = "login" }: AuthModalP
         </div>
     );
 }
-
