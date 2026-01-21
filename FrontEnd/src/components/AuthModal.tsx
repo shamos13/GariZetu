@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
     X,
     Mail,
@@ -40,6 +41,7 @@ export function AuthModal({
                               initialMode = "login",
                               onLoginSuccess
                           }: AuthModalProps) {
+    const navigate = useNavigate();
     const [mode, setMode] = useState<"login" | "signup">(initialMode);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -76,8 +78,12 @@ export function AuthModal({
             const response = await authService.login(loginData);
             console.log("✅ Login successful:", response);
 
+            // Call the callback first (updates navbar state)
             onLoginSuccess?.();
             onClose();
+
+            // Redirect to dashboard
+            navigate("/dashboard");
 
         } catch (err: any) {
             setError(err.message || "Login failed. Please try again.");

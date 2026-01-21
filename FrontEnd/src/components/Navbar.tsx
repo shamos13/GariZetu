@@ -1,7 +1,8 @@
 import {useEffect, useState} from "react";
-import {Link, useLocation} from "react-router-dom";
-import {ChevronDown, Phone} from "lucide-react";
+import {Link, useLocation, useNavigate} from "react-router-dom";
+import {ChevronDown, Phone, User, LogOut} from "lucide-react";
 import {AuthModal} from "./AuthModal";
+import {authService} from "../services/AuthService.ts";
 
 export function Navbar() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -9,7 +10,37 @@ export function Navbar() {
     const [isScrolled, setIsScrolled] = useState(false);
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [user, setUser] = useState(authService.getUser());
     const location = useLocation();
+    const navigate = useNavigate();
+
+    // Check authentication status
+    useEffect(() => {
+        const checkAuth = () => {
+            const authenticated = authService.isAuthenticated();
+            setIsAuthenticated(authenticated);
+            setUser(authService.getUser());
+        };
+        checkAuth();
+        // Listen for storage changes (when login/logout happens in other tabs)
+        window.addEventListener('storage', checkAuth);
+        return () => window.removeEventListener('storage', checkAuth);
+    }, [location]);
+
+    const handleLogout = () => {
+        authService.logout();
+        setIsAuthenticated(false);
+        setUser(null);
+        navigate("/");
+        window.location.reload();
+    };
+
+    const handleLoginSuccess = () => {
+        setIsAuthenticated(true);
+        setUser(authService.getUser());
+        navigate("/dashboard");
+    };
     
     const openAuthModal = (mode: "login" | "signup") => {
         setAuthMode(mode);
@@ -106,20 +137,22 @@ export function Navbar() {
                 {/* Desktop Navigation */}
                 <div className="hidden md:flex items-center gap-6 lg:gap-8">
 
-                    {/* Temporary Link to Admin Dashboard */}
-                    <Link
-                        to="/adashboard"
-                        className={`relative transition-colors text-sm lg:text-base font-medium ${
-                            isActive("/about")
-                                ? "text-white"
-                                : "text-white/70 hover:text-white"
-                        }`}
-                    >
-                        Admin Dashboard
-                        {isActive("/adashboard") && (
-                            <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-white rounded-full"/>
-                        )}
-                    </Link>
+                    {/* Admin Dashboard Link (only for admins) */}
+                    {user?.role === "ADMIN" && (
+                        <Link
+                            to="/adashboard"
+                            className={`relative transition-colors text-sm lg:text-base font-medium ${
+                                isActive("/adashboard")
+                                    ? "text-white"
+                                    : "text-white/70 hover:text-white"
+                            }`}
+                        >
+                            Admin Dashboard
+                            {isActive("/adashboard") && (
+                                <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-white rounded-full"/>
+                            )}
+                        </Link>
+                    )}
 
                     {/* Home Link */}
                     <Link 
@@ -226,12 +259,38 @@ export function Navbar() {
                         )}
                     </Link>
 
-                    <button
-                        onClick={() => openAuthModal("login")}
-                        className="ml-2 px-5 py-2.5 bg-white text-black rounded-full text-sm lg:text-base font-semibold hover:bg-gray-100 transition-all duration-200 hover:scale-105 hover:shadow-lg"
-                    >
-                        Login / Register
-                    </button>
+                    {isAuthenticated ? (
+                        <div className="ml-2 flex items-center gap-3">
+                            {/* Profile Circle */}
+                            <Link
+                                to="/dashboard"
+                                className="relative w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-semibold hover:scale-110 transition-all duration-200 hover:shadow-lg hover:shadow-emerald-500/50 cursor-pointer"
+                                title="Dashboard"
+                            >
+                                <span className="text-sm">
+                                    {user?.userName 
+                                        ? user.userName.trim().split(/\s+/).length >= 2
+                                            ? (user.userName.trim().split(/\s+/)[0].charAt(0) + user.userName.trim().split(/\s+/)[1].charAt(0)).toUpperCase()
+                                            : user.userName.charAt(0).toUpperCase()
+                                        : "U"}
+                                </span>
+                            </Link>
+                            <button
+                                onClick={handleLogout}
+                                className="px-4 py-2.5 bg-white/10 text-white rounded-full text-sm lg:text-base font-semibold hover:bg-white/20 transition-all duration-200 flex items-center gap-2"
+                            >
+                                <LogOut className="w-4 h-4" />
+                                Logout
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => openAuthModal("login")}
+                            className="ml-2 px-5 py-2.5 bg-white text-black rounded-full text-sm lg:text-base font-semibold hover:bg-gray-100 transition-all duration-200 hover:scale-105 hover:shadow-lg"
+                        >
+                            Login / Register
+                        </button>
+                    )}
                 </div>
 
                 {/* Mobile Menu Button */}
@@ -389,13 +448,43 @@ export function Navbar() {
                     </div>
 
                     {/* Mobile CTA Button */}
-                    <div className="mt-auto pt-6 border-t border-white/10">
-                        <button
-                            onClick={() => openAuthModal("login")}
-                            className="block w-full py-3.5 px-4 bg-white text-black text-center rounded-xl font-semibold hover:bg-gray-100 transition-all active:scale-95"
-                        >
-                            Login / Register
-                        </button>
+                    <div className="mt-auto pt-6 border-t border-white/10 space-y-2">
+                        {isAuthenticated ? (
+                            <>
+                                <Link
+                                    to="/dashboard"
+                                    onClick={closeMobileMenu}
+                                    className="flex items-center justify-center gap-3 w-full py-3.5 px-4 bg-emerald-500 text-white text-center rounded-xl font-semibold hover:bg-emerald-600 transition-all active:scale-95"
+                                >
+                                    <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                                        <span className="text-sm font-bold">
+                                            {user?.userName 
+                                                ? user.userName.trim().split(/\s+/).length >= 2
+                                                    ? (user.userName.trim().split(/\s+/)[0].charAt(0) + user.userName.trim().split(/\s+/)[1].charAt(0)).toUpperCase()
+                                                    : user.userName.charAt(0).toUpperCase()
+                                                : "U"}
+                                        </span>
+                                    </div>
+                                    <span>Dashboard</span>
+                                </Link>
+                                <button
+                                    onClick={() => {
+                                        handleLogout();
+                                        closeMobileMenu();
+                                    }}
+                                    className="block w-full py-3.5 px-4 bg-white/10 text-white text-center rounded-xl font-semibold hover:bg-white/20 transition-all active:scale-95"
+                                >
+                                    Logout
+                                </button>
+                            </>
+                        ) : (
+                            <button
+                                onClick={() => openAuthModal("login")}
+                                className="block w-full py-3.5 px-4 bg-white text-black text-center rounded-xl font-semibold hover:bg-gray-100 transition-all active:scale-95"
+                            >
+                                Login / Register
+                            </button>
+                        )}
                     </div>
 
                     {/* Brand Footer */}
@@ -412,6 +501,7 @@ export function Navbar() {
                 isOpen={isAuthModalOpen}
                 onClose={() => setIsAuthModalOpen(false)}
                 initialMode={authMode}
+                onLoginSuccess={handleLoginSuccess}
             />
         </nav>
     );

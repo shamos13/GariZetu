@@ -7,6 +7,7 @@ import AboutPage from "./pages/AboutPage";
 import ContactPage from "./pages/ContactPage";
 import {Layout} from "./components/Layout.tsx";
 import AdminDashboardRoute from "./dashboard/admin/routes/AdminDashboardRoute.tsx";
+import CustomerDashboardRoute from "./dashboard/customer/routes/CustomerDashboardRoute.tsx";
 
 
 function App() {
@@ -20,6 +21,7 @@ function App() {
                 <Route path="/about" element={<AboutPage />} />
                 <Route path="/contact" element={<ContactPage />} />
                 <Route path="/adashboard" element={<AdminDashboardRoute />} />
+                <Route path="/dashboard" element={<CustomerDashboardRoute />} />
             </Routes>
         </Layout>
     );
