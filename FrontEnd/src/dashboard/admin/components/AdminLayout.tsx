@@ -1,6 +1,8 @@
 import { ReactNode, useState, useEffect, useRef } from "react";
 import { Search, Bell, ChevronDown, Menu} from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "../../../components/ui/button.tsx";
+import { authService } from "../../../services/AuthService.ts";
 import logoImage from "../../../assets/logo.png";
 
 interface AdminLayoutProps {
@@ -25,6 +27,8 @@ export function AdminLayout({ children, title, currentPage, onNavigate, onBack }
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const profileRef = useRef<HTMLDivElement>(null);
+    const navigate = useNavigate();
+    const user = authService.getUser();
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -38,6 +42,22 @@ export function AdminLayout({ children, title, currentPage, onNavigate, onBack }
             document.removeEventListener("mousedown", handleClickOutside);
         };
     }, []);
+
+    const handleLogout = () => {
+        authService.logout();
+        navigate("/");
+        window.location.reload();
+    };
+
+    // Get user initials for avatar
+    const getUserInitials = () => {
+        if (!user?.userName) return "A";
+        const names = user.userName.trim().split(/\s+/);
+        if (names.length >= 2) {
+            return (names[0].charAt(0) + names[1].charAt(0)).toUpperCase();
+        }
+        return user.userName.charAt(0).toUpperCase();
+    };
 
     return (
         <div className="min-h-screen bg-[#0a0a0a] text-white">
@@ -71,17 +91,27 @@ export function AdminLayout({ children, title, currentPage, onNavigate, onBack }
                         ))}
                     </nav>
 
-                    {onBack && (
-                        <div className="pt-6 mt-6 border-t border-gray-800">
+                    {/* User Profile Section */}
+                    <div className="pt-6 mt-6 border-t border-gray-800">
+                        <div className="flex items-center gap-3 px-4 py-3">
+                            <div className="w-10 h-10 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                <span className="text-sm font-semibold text-white">{getUserInitials()}</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-white truncate">{user?.userName || "Admin User"}</p>
+                                <p className="text-xs text-gray-400 truncate">{user?.email || "admin@garizetu.com"}</p>
+                            </div>
+                        </div>
+                        {onBack && (
                             <Button
                                 onClick={onBack}
                                 variant="outline"
-                                className="w-full bg-transparent border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white"
+                                className="w-full mt-3 bg-transparent border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white"
                             >
                                 Back to Site
                             </Button>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             </aside>
 
@@ -131,15 +161,22 @@ export function AdminLayout({ children, title, currentPage, onNavigate, onBack }
                                     onClick={() => setIsProfileOpen(!isProfileOpen)}
                                     className="flex items-center gap-2 p-2 hover:bg-gray-800 rounded-lg transition-colors"
                                 >
-                                    <div className="w-8 h-8 bg-gray-700 rounded-full flex items-center justify-center">
-                                        <span className="text-sm">A</span>
+                                    <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center">
+                                        <span className="text-sm font-semibold text-white">{getUserInitials()}</span>
                                     </div>
-                                    <span className="hidden md:inline text-sm text-white">Admin</span>
+                                    <div className="hidden md:flex flex-col items-start">
+                                        <span className="text-sm text-white font-medium">{user?.userName || "Admin User"}</span>
+                                        <span className="text-xs text-gray-400">{user?.email || "admin@garizetu.com"}</span>
+                                    </div>
                                     <ChevronDown className="w-4 h-4 text-gray-400" />
                                 </button>
 
                                 {isProfileOpen && (
-                                    <div className="absolute right-0 mt-2 w-48 bg-[#1a1a1a] border border-gray-800 rounded-lg shadow-lg py-2">
+                                    <div className="absolute right-0 mt-2 w-56 bg-[#1a1a1a] border border-gray-800 rounded-lg shadow-lg py-2 z-50">
+                                        <div className="px-4 py-2 border-b border-gray-800">
+                                            <p className="text-sm font-medium text-white">{user?.userName || "Admin User"}</p>
+                                            <p className="text-xs text-gray-400">{user?.email || "admin@garizetu.com"}</p>
+                                        </div>
                                         <button className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-800">
                                             Profile
                                         </button>
@@ -147,7 +184,10 @@ export function AdminLayout({ children, title, currentPage, onNavigate, onBack }
                                             Settings
                                         </button>
                                         <hr className="my-2 border-gray-800" />
-                                        <button className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-gray-800">
+                                        <button 
+                                            onClick={handleLogout}
+                                            className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-gray-800"
+                                        >
                                             Logout
                                         </button>
                                     </div>
