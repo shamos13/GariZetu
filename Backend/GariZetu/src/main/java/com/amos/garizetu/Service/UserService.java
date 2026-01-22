@@ -4,7 +4,6 @@ import com.amos.garizetu.Repository.UserRepository;
 import com.amos.garizetu.User.DTO.Request.UserLoginRequest;
 import com.amos.garizetu.User.DTO.Request.UserRegistrationRequest;
 import com.amos.garizetu.User.DTO.Response.LoginResponse;
-import com.amos.garizetu.User.DTO.Response.RegistrationResponse;
 import com.amos.garizetu.User.Entity.User;
 import com.amos.garizetu.User.UserRole;
 import com.amos.garizetu.User.mapper.UserMapper;
@@ -26,6 +25,16 @@ public class UserService {
     private final JWTUtil jwtUtil;
     private final UserMapper userMapper;
 
+
+    // Helper method that allows auto sign in
+    private LoginResponse createAuthResponse(User user) {
+        String token = jwtUtil.generateToken(
+                user.getEmail(),
+                user.getUserRole().name()
+        );
+
+        return userMapper.toLoginResponse(user, token);
+    }
     /**
      * Register a new user.
      *
@@ -42,7 +51,7 @@ public class UserService {
      * @throws RuntimeException if email already exists
      */
 
-    public RegistrationResponse registerUser(UserRegistrationRequest request) {
+    public LoginResponse registerUser(UserRegistrationRequest request) {
         log.info("Registering user with email: {}", request.getEmail());
 
         // Step 1: check if email exists
@@ -67,8 +76,8 @@ public class UserService {
         User savedUser = userRepository.save(user);
         log.info("User registered successfully with id: {}", savedUser.getUserId());
 
-        //Step 6: return success message
-        return new RegistrationResponse("User Registered Successfully. Please log in");
+        // Step 6: Login the user automatically
+        return createAuthResponse(savedUser);
     }
 
     /**
@@ -104,18 +113,10 @@ public class UserService {
 
         log.info("Password verified successfully for user: {}", request.getEmail());
 
-        //Step 3: Generate JWT token
-        String token = jwtUtil.generateToken(
-                user.getEmail(),
-                user.getUserRole().name() // convert enum to String
-        );
-        log.info("JWT token generated successfully for user: {}", request.getEmail());
 
-        //Step 4: Return token + user info
-        LoginResponse response = userMapper.toLoginResponse(user, token);
         log.info("Login successful for user: {}", request.getEmail());
 
-        return response;
+        return createAuthResponse(user);
     }
 
     /**

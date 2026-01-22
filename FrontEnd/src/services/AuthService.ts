@@ -30,11 +30,6 @@ export interface LoginRequest {
     password: string;
 }
 
-// What the backend sends back after successful registration
-export interface RegisterResponse {
-    message: string;  // e.g., "User Registered Successfully. Please log in"
-}
-
 // What the backend sends back after successful login
 export interface LoginResponse {
     token: string;      // The JWT token - this is the "key" to access protected resources
@@ -154,10 +149,13 @@ const isAdmin = (): boolean => {
  * Note: Registration does NOT automatically log the user in.
  * They need to use the login function after registering.
  */
-const register = async (data: RegisterRequest): Promise<RegisterResponse> => {
+const register = async (data: RegisterRequest): Promise<LoginResponse> => {
     try {
         // Make the API call
-        const response = await api.post<RegisterResponse>("/auth/register", data);
+        const response = await api.post<LoginResponse>("/auth/register", data);
+
+        //Log in the user automatically
+        saveAuthData(response.data)
 
         // Return the response message
         return response.data;
