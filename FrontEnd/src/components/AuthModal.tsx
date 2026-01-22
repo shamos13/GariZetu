@@ -120,22 +120,9 @@ export function AuthModal({
             const response = await authService.register(registerData);
             console.log("✅ Registration successful:", response);
 
-            setSuccessMessage(response.message);
+            onLoginSuccess?.();
+            onClose();
 
-            setSignupForm({
-                fullName: "",
-                email: "",
-                phone: "",
-                password: "",
-                confirmPassword: "",
-                agreeToTerms: false
-            });
-
-            setTimeout(() => {
-                setMode("login");
-                setSuccessMessage(null);
-                setLoginForm({ ...loginForm, email: signupForm.email });
-            }, 2000);
 
         } catch (err: any) {
             setError(err.message || "Registration failed. Please try again.");
