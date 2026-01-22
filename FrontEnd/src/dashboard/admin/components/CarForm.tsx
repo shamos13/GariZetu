@@ -1,12 +1,13 @@
-import React, {useEffect, useState} from "react";
+import React, {useEffect, useState, useMemo} from "react";
 import {Button} from "../../../components/ui/button";
 import {Input} from "../../../components/ui/input";
 import {Label} from "../../../components/ui/label";
 import {CarStatus, FuelType, TransmissionType, BodyType} from "../types/Car.ts";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "../../../components/ui/select.tsx";
-import {Plus, Upload, X} from "lucide-react";
+import {Plus, Upload, X, Search, Check} from "lucide-react";
 import axios from "axios";
 import { getImageUrl } from "../../../lib/ImageUtils.ts";
+import { api } from "../../../lib/api.ts";
 
 export type CarFormData = {
     make: string;
@@ -89,8 +90,10 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
     // Features state
     const [availableFeatures, setAvailableFeatures] = useState<Feature[]>([]);
     const [selectedFeatures, setSelectedFeatures] = useState<string[]>(car?.featureName || []);
-    const [customFeature, setCustomFeature] = useState("");
+    const [featureSearch, setFeatureSearch] = useState("");
     const [isLoadingFeatures, setIsLoadingFeatures] = useState(false);
+    const [isCreatingFeature, setIsCreatingFeature] = useState(false);
+    const [showFeatureDropdown, setShowFeatureDropdown] = useState(false);
 
     // Helper function to check if a field is dirty (changed from original)
     const isFieldDirty = (fieldName: keyof CarFormData): boolean => {
@@ -132,7 +135,7 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         const loadFeatures = async () => {
             try {
                 setIsLoadingFeatures(true);
-                const response = await axios.get<Feature[]>("http://localhost:8080/api/v1/features");
+                const response = await api.get<Feature[]>("/features");
                 setAvailableFeatures(response.data);
             } catch (error) {
                 console.error("Failed to load features:", error);
@@ -142,6 +145,86 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         };
         loadFeatures();
     }, []);
+
+    // Close dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            const target = event.target as HTMLElement;
+            if (!target.closest('.feature-dropdown-container')) {
+                setShowFeatureDropdown(false);
+            }
+        };
+        if (showFeatureDropdown) {
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => document.removeEventListener('mousedown', handleClickOutside);
+        }
+    }, [showFeatureDropdown]);
+
+    // Filter features based on search - improved case-insensitive matching
+    const filteredFeatures = useMemo(() => {
+        if (!featureSearch.trim()) {
+            // When no search, show all features (selected ones will be visually marked)
+            return availableFeatures;
+        }
+        const searchLower = featureSearch.toLowerCase().trim();
+        return availableFeatures.filter(f => {
+            const nameMatch = f.featureName.toLowerCase().includes(searchLower);
+            const descMatch = f.featureDescription?.toLowerCase().includes(searchLower) || false;
+            const categoryMatch = f.featureCategory?.toLowerCase().includes(searchLower) || false;
+            // Match if any field contains the search term
+            return nameMatch || descMatch || categoryMatch;
+        }).sort((a, b) => {
+            // Sort by relevance: exact name matches first, then starts with, then contains
+            const aNameLower = a.featureName.toLowerCase();
+            const bNameLower = b.featureName.toLowerCase();
+            
+            // Exact match first
+            if (aNameLower === searchLower) return -1;
+            if (bNameLower === searchLower) return 1;
+            
+            // Starts with second
+            if (aNameLower.startsWith(searchLower) && !bNameLower.startsWith(searchLower)) return -1;
+            if (bNameLower.startsWith(searchLower) && !aNameLower.startsWith(searchLower)) return 1;
+            
+            // Then alphabetical
+            return aNameLower.localeCompare(bNameLower);
+        });
+    }, [availableFeatures, featureSearch]);
+
+    // Check if search term matches an existing feature
+    const exactMatch = useMemo(() => {
+        if (!featureSearch.trim()) return null;
+        return availableFeatures.find(f => 
+            f.featureName.toLowerCase() === featureSearch.trim().toLowerCase()
+        );
+    }, [availableFeatures, featureSearch]);
+
+    // Create new feature in database
+    const createNewFeature = async (featureName: string) => {
+        try {
+            setIsCreatingFeature(true);
+            // Note: This endpoint needs to be created in backend: POST /api/v1/features
+            // For now, we'll add it to the list locally and it will be created when car is saved
+            const newFeature: Feature = {
+                featureId: Date.now(), // Temporary ID
+                featureName: featureName.trim(),
+                featureDescription: "",
+                featureCategory: "CUSTOM"
+            };
+            setAvailableFeatures(prev => [...prev, newFeature]);
+            toggleFeature(featureName.trim());
+            setFeatureSearch("");
+            setShowFeatureDropdown(false);
+        } catch (error) {
+            console.error("Failed to create feature:", error);
+            alert("Failed to create feature. It will be added when you save the car.");
+            // Still add it locally
+            toggleFeature(featureName.trim());
+            setFeatureSearch("");
+        } finally {
+            setIsCreatingFeature(false);
+        }
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -157,6 +240,28 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         // Optional: Only validate max length if description is provided
         if (formData.description && formData.description.length > 1000) {
             alert("Description must not exceed 1000 characters");
+            return;
+        }
+
+        // Ensure number fields are valid (not 0 or empty)
+        if (!formData.year || formData.year === 0) {
+            alert("Please enter a valid year");
+            return;
+        }
+        if (!formData.engineCapacity || formData.engineCapacity === 0) {
+            alert("Please enter a valid engine capacity");
+            return;
+        }
+        if (formData.mileage === undefined || formData.mileage === null) {
+            alert("Please enter mileage");
+            return;
+        }
+        if (!formData.dailyPrice || formData.dailyPrice === 0) {
+            alert("Please enter a valid daily price");
+            return;
+        }
+        if (!formData.seatingCapacity || formData.seatingCapacity === 0) {
+            alert("Please enter a valid seating capacity");
             return;
         }
 
@@ -217,18 +322,36 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         }
     };
 
-    const addCustomFeature = () => {
-        const trimmed = customFeature.trim();
+    const handleFeatureInputChange = (value: string) => {
+        setFeatureSearch(value);
+        // Show dropdown when typing or when input is focused
+        if (value.trim() || availableFeatures.length > 0) {
+            setShowFeatureDropdown(true);
+        }
+    };
+
+    const handleSelectFeature = (featureName: string) => {
+        toggleFeature(featureName);
+        setFeatureSearch("");
+        setShowFeatureDropdown(false);
+    };
+
+    const handleAddNewFeature = () => {
+        const trimmed = featureSearch.trim();
         if (!trimmed) {
-            alert("Please enter a feature name");
             return;
         }
         if (selectedFeatures.includes(trimmed)) {
-            alert("This feature is already added");
+            alert("This feature is already selected");
             return;
         }
-        setSelectedFeatures([...selectedFeatures, trimmed]);
-        setCustomFeature("");
+        if (exactMatch) {
+            // Feature exists, just select it
+            handleSelectFeature(trimmed);
+            return;
+        }
+        // Create new feature
+        createNewFeature(trimmed);
     };
 
     const removeFeature = (featureName: string) => {
@@ -370,8 +493,23 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                     <Input
                         id="year"
                         type="number"
-                        value={formData.year}
-                        onChange={(e) => handleChange("year", parseInt(e.target.value) || 0)}
+                        value={formData.year || ""}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === "") {
+                                setFormData({ ...formData, year: 0 });
+                            } else {
+                                const num = parseInt(val);
+                                if (!isNaN(num)) {
+                                    handleChange("year", num);
+                                }
+                            }
+                        }}
+                        onBlur={(e) => {
+                            if (e.target.value === "" || parseInt(e.target.value) === 0) {
+                                setFormData({ ...formData, year: new Date().getFullYear() });
+                            }
+                        }}
                         min="2009"
                         max="2025"
                         className={`bg-[#0a0a0a] ${getFieldBorderClass('year')} text-white`}
@@ -389,8 +527,23 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                     <Input
                         id="engineCapacity"
                         type="number"
-                        value={formData.engineCapacity}
-                        onChange={(e) => handleChange("engineCapacity", parseInt(e.target.value) || 0)}
+                        value={formData.engineCapacity || ""}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === "") {
+                                setFormData({ ...formData, engineCapacity: 0 });
+                            } else {
+                                const num = parseInt(val);
+                                if (!isNaN(num)) {
+                                    handleChange("engineCapacity", num);
+                                }
+                            }
+                        }}
+                        onBlur={(e) => {
+                            if (e.target.value === "" || parseInt(e.target.value) === 0) {
+                                setFormData({ ...formData, engineCapacity: 1500 });
+                            }
+                        }}
                         min={500}
                         className={`bg-[#0a0a0a] ${getFieldBorderClass('engineCapacity')} text-white`}
                         required
@@ -424,8 +577,23 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                     <Input
                         id="mileage"
                         type="number"
-                        value={formData.mileage}
-                        onChange={(e) => handleChange("mileage", parseInt(e.target.value) || 0)}
+                        value={formData.mileage || ""}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === "") {
+                                setFormData({ ...formData, mileage: 0 });
+                            } else {
+                                const num = parseInt(val);
+                                if (!isNaN(num)) {
+                                    handleChange("mileage", num);
+                                }
+                            }
+                        }}
+                        onBlur={(e) => {
+                            if (e.target.value === "" || parseInt(e.target.value) === 0) {
+                                setFormData({ ...formData, mileage: 100000 });
+                            }
+                        }}
                         min="0"
                         className={`bg-[#0a0a0a] ${getFieldBorderClass('mileage')} text-white`}
                         required
@@ -442,8 +610,23 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                     <Input
                         id="dailyPrice"
                         type="number"
-                        value={formData.dailyPrice}
-                        onChange={(e) => handleChange("dailyPrice", parseFloat(e.target.value) || 0)}
+                        value={formData.dailyPrice || ""}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === "") {
+                                setFormData({ ...formData, dailyPrice: 0 });
+                            } else {
+                                const num = parseFloat(val);
+                                if (!isNaN(num)) {
+                                    handleChange("dailyPrice", num);
+                                }
+                            }
+                        }}
+                        onBlur={(e) => {
+                            if (e.target.value === "" || parseFloat(e.target.value) === 0) {
+                                setFormData({ ...formData, dailyPrice: 1000 });
+                            }
+                        }}
                         min="0"
                         step="100"
                         className={`bg-[#0a0a0a] ${getFieldBorderClass('dailyPrice')} text-white`}
@@ -461,8 +644,23 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                     <Input
                         id="seatingCapacity"
                         type="number"
-                        value={formData.seatingCapacity}
-                        onChange={(e) => handleChange("seatingCapacity", parseInt(e.target.value) || 0)}
+                        value={formData.seatingCapacity || ""}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            if (val === "") {
+                                setFormData({ ...formData, seatingCapacity: 0 });
+                            } else {
+                                const num = parseInt(val);
+                                if (!isNaN(num)) {
+                                    handleChange("seatingCapacity", num);
+                                }
+                            }
+                        }}
+                        onBlur={(e) => {
+                            if (e.target.value === "" || parseInt(e.target.value) === 0) {
+                                setFormData({ ...formData, seatingCapacity: 5 });
+                            }
+                        }}
                         min={2}
                         max={9}
                         className={`bg-[#0a0a0a] ${getFieldBorderClass('seatingCapacity')} text-white`}
@@ -600,57 +798,117 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                     )}
                 </div>
 
-                {/* Loading state */}
-                {isLoadingFeatures && (
-                    <p className="text-sm text-gray-400">Loading available features...</p>
-                )}
-
-                {/* Available features checkboxes */}
-                {!isLoadingFeatures && availableFeatures.length > 0 && (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        {availableFeatures.map((feature) => (
-                            <label
-                                key={feature.featureId}
-                                className={`
-                                    flex items-center gap-2 p-3 rounded-lg cursor-pointer transition-colors
-                                    ${selectedFeatures.includes(feature.featureName)
-                                    ? "bg-white text-black"
-                                    : "bg-[#0a0a0a] border border-gray-700 text-gray-300 hover:border-gray-600"
-                                }
-                                `}
-                            >
-                                <input
-                                    type="checkbox"
-                                    checked={selectedFeatures.includes(feature.featureName)}
-                                    onChange={() => toggleFeature(feature.featureName)}
-                                    className="w-4 h-4 rounded"
-                                />
-                                <span className="text-sm">{feature.featureName}</span>
-                            </label>
-                        ))}
-                    </div>
-                )}
-
-                {/* Add custom feature */}
-                <div className="space-y-3">
-                    <Label className="text-gray-300 text-sm">Add Custom Feature</Label>
-                    <div className="flex gap-2">
+                {/* Searchable Feature Input */}
+                <div className="relative feature-dropdown-container">
+                    <div className="relative">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
                         <Input
-                            value={customFeature}
-                            onChange={(e) => setCustomFeature(e.target.value)}
-                            placeholder="e.g., Heated Steering Wheel"
-                            className="bg-[#0a0a0a] border-gray-700 text-white"
-                            onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCustomFeature())}
+                            value={featureSearch}
+                            onChange={(e) => handleFeatureInputChange(e.target.value)}
+                            onFocus={() => setShowFeatureDropdown(true)}
+                            placeholder="Search or type a new feature..."
+                            className="pl-12 pr-12 bg-[#0a0a0a] border-gray-700 text-white placeholder:text-gray-500"
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' && featureSearch.trim()) {
+                                    e.preventDefault();
+                                    handleAddNewFeature();
+                                }
+                                if (e.key === 'Escape') {
+                                    setShowFeatureDropdown(false);
+                                }
+                            }}
                         />
-                        <Button
-                            type="button"
-                            onClick={addCustomFeature}
-                            className="bg-white text-black hover:bg-gray-200"
-                        >
-                            <Plus className="w-4 h-4 mr-1" />
-                            Add
-                        </Button>
+                        {featureSearch && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setFeatureSearch("");
+                                    setShowFeatureDropdown(false);
+                                }}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        )}
                     </div>
+
+                    {/* Dropdown with search results - Autocomplete style */}
+                    {showFeatureDropdown && (
+                        <div className="absolute z-50 w-full mt-2 bg-[#1a1a1a] border border-gray-700 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                            {isLoadingFeatures ? (
+                                <div className="p-4 text-center text-gray-400 text-sm">Loading features...</div>
+                            ) : filteredFeatures.length > 0 ? (
+                                <>
+                                    {filteredFeatures.slice(0, 10).map((feature) => {
+                                        const isSelected = selectedFeatures.includes(feature.featureName);
+                                        return (
+                                            <button
+                                                key={feature.featureId}
+                                                type="button"
+                                                onClick={() => handleSelectFeature(feature.featureName)}
+                                                className={`w-full text-left px-4 py-3 hover:bg-gray-800 transition-colors flex items-center justify-between ${
+                                                    isSelected
+                                                        ? "bg-emerald-500/20 border-l-2 border-emerald-500"
+                                                        : ""
+                                                }`}
+                                            >
+                                                <div className="flex-1 min-w-0">
+                                                    <div className={`text-sm font-medium flex items-center gap-2 ${
+                                                        isSelected ? "text-emerald-300" : "text-white"
+                                                    }`}>
+                                                        {isSelected && <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />}
+                                                        <span className="truncate">{feature.featureName}</span>
+                                                    </div>
+                                                    {feature.featureDescription && (
+                                                        <div className="text-gray-400 text-xs mt-0.5 line-clamp-1">{feature.featureDescription}</div>
+                                                    )}
+                                                    {feature.featureCategory && (
+                                                        <div className="text-gray-500 text-xs mt-1">Category: {feature.featureCategory}</div>
+                                                    )}
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                    {featureSearch.trim() && !exactMatch && (
+                                        <div className="border-t border-gray-700">
+                                            <button
+                                                type="button"
+                                                onClick={handleAddNewFeature}
+                                                disabled={isCreatingFeature}
+                                                className="w-full text-left px-4 py-3 hover:bg-gray-800 transition-colors flex items-center gap-2 text-emerald-400 hover:text-emerald-300"
+                                            >
+                                                <Plus className="w-4 h-4" />
+                                                <span className="text-sm font-medium">
+                                                    {isCreatingFeature ? "Creating..." : `Create "${featureSearch.trim()}"`}
+                                                </span>
+                                            </button>
+                                        </div>
+                                    )}
+                                </>
+                            ) : featureSearch.trim() ? (
+                                <div>
+                                    <div className="p-3 text-xs text-gray-500 border-b border-gray-700">
+                                        No matching features found
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={handleAddNewFeature}
+                                        disabled={isCreatingFeature}
+                                        className="w-full text-left px-4 py-3 hover:bg-gray-800 transition-colors flex items-center gap-2 text-emerald-400 hover:text-emerald-300"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        <span className="text-sm font-medium">
+                                            {isCreatingFeature ? "Creating..." : `Create "${featureSearch.trim()}"`}
+                                        </span>
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="p-4 text-center text-gray-400 text-sm">
+                                    Start typing to search features...
+                                </div>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* Selected features display */}
@@ -663,13 +921,14 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                             {selectedFeatures.map((feature) => (
                                 <div
                                     key={feature}
-                                    className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/50 rounded-full text-sm text-emerald-300"
+                                    className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/40 rounded-full text-sm text-emerald-300"
                                 >
+                                    <Check className="w-3 h-3 text-emerald-400" />
                                     <span>{feature}</span>
                                     <button
                                         type="button"
                                         onClick={() => removeFeature(feature)}
-                                        className="hover:text-white transition-colors"
+                                        className="hover:text-red-400 transition-colors ml-1"
                                     >
                                         <X className="w-3 h-3" />
                                     </button>

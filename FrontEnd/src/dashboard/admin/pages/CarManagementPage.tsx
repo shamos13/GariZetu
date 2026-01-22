@@ -1,8 +1,7 @@
 import { Car, CarStatus } from "../types/Car.ts";
-import { Search, Plus, MoreVertical, Pencil, Trash2, Car as CarIcon, CheckCircle2, XCircle, Wrench } from "lucide-react";
+import { Search, Plus, MoreVertical, Pencil, Trash2, Car as CarIcon, Gauge, Settings, Fuel, Users } from "lucide-react";
 import { useState } from "react";
 import { Button } from "../../../components/ui/button";
-import { Badge } from "../../../components/ui/badge.tsx";
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -10,6 +9,7 @@ import {
     DropdownMenuTrigger,
 } from "../../../components/ui/dropdown-menu.tsx";
 import {getImageUrl} from "../../../lib/ImageUtils.ts";
+import { AdminCarDetailsModal } from "../components/AdminCarDetailsModal.tsx";
 
 interface CarManagementPageProps {
     cars: Car[];
@@ -22,6 +22,8 @@ interface CarManagementPageProps {
 export function CarManagementPage({ cars, onAdd, onEdit, onDelete, onStatusChange }: CarManagementPageProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
+    const [selectedCar, setSelectedCar] = useState<Car | null>(null);
+    const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
     const filteredCars = cars.filter((car) => {
         const matchesSearch = car.make.toLowerCase().includes(searchQuery.toLowerCase());
         const matchesStatus =
@@ -31,77 +33,7 @@ export function CarManagementPage({ cars, onAdd, onEdit, onDelete, onStatusChang
         return matchesSearch && matchesStatus;
     });
 
-    const getCarStatusBadge = (car: Car) => {
-        const statusConfig = {
-            AVAILABLE: {
-                bg: "bg-green-500/20",
-                text: "text-green-400",
-                border: "border-green-500/30",
-                label: "Available",
-                icon: CheckCircle2
-            },
-            RENTED: {
-                bg: "bg-blue-500/20",
-                text: "text-blue-400",
-                border: "border-blue-500/30",
-                label: "Rented",
-                icon: XCircle
-            },
-            MAINTENANCE: {
-                bg: "bg-yellow-500/20",
-                text: "text-yellow-400",
-                border: "border-yellow-500/30",
-                label: "Maintenance",
-                icon: Wrench
-            }
-        };
-
-        const config = statusConfig[car.carStatus] || statusConfig.AVAILABLE;
-        const Icon = config.icon;
-
-        return (
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Badge className={`absolute top-3 right-3 ${config.bg} ${config.text} ${config.border} cursor-pointer hover:opacity-80 transition-opacity flex items-center gap-1`}>
-                        <Icon className="w-3 h-3" />
-                        {config.label}
-                    </Badge>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="bg-[#1a1a1a] border-gray-800" align="end">
-                    {car.carStatus !== "AVAILABLE" && (
-                        <DropdownMenuItem
-                            className="text-green-400 hover:text-green-300 hover:bg-gray-800 cursor-pointer"
-                            onSelect={() => onStatusChange?.(car, "AVAILABLE")}
-                        >
-                            <CheckCircle2 className="w-4 h-4 mr-2" />
-                            Mark as Available
-                        </DropdownMenuItem>
-                    )}
-                    {car.carStatus !== "RENTED" && (
-                        <DropdownMenuItem
-                            className="text-blue-400 hover:text-blue-300 hover:bg-gray-800 cursor-pointer"
-                            onSelect={() => onStatusChange?.(car, "RENTED")}
-                        >
-                            <XCircle className="w-4 h-4 mr-2" />
-                            Mark as Rented
-                        </DropdownMenuItem>
-                    )}
-                    {car.carStatus !== "MAINTENANCE" && (
-                        <DropdownMenuItem
-                            className="text-yellow-400 hover:text-yellow-300 hover:bg-gray-800 cursor-pointer"
-                            onSelect={() => onStatusChange?.(car, "MAINTENANCE")}
-                        >
-                            <Wrench className="w-4 h-4 mr-2" />
-                            Mark as Maintenance
-                        </DropdownMenuItem>
-                    )}
-                </DropdownMenuContent>
-            </DropdownMenu>
-        );
-    }
-
-
-        return (
+    return (
             <div className="space-y-6">
                 {/* Header Actions */}
                 <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
@@ -144,81 +76,123 @@ export function CarManagementPage({ cars, onAdd, onEdit, onDelete, onStatusChang
                     {filteredCars.map((car) => (
                         <div
                             key={car.carId}
-                            className="bg-[#141414] border border-gray-800 rounded-lg overflow-hidden hover:border-gray-700 transition-colors group"
+                            className="group bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer"
+                            onClick={() => {
+                                setSelectedCar(car);
+                                setIsDetailsModalOpen(true);
+                            }}
                         >
-                            {/* Car Image */}
-                            <div className="relative h-48">
+                            {/* Image */}
+                            <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
                                 <img
                                     src={getImageUrl(car.mainImageUrl)}
-                                    alt={car.make}
-                                    className="w-full h-full object-cover"
+                                    alt={`${car.make} ${car.vehicleModel}`}
+                                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                                    onError={(e) => {
+                                        e.currentTarget.src = "/placeholder-car.jpg";
+                                    }}
                                 />
-                                {getCarStatusBadge(car)}
-
+                                
+                                {/* Status Badge */}
+                                <div className="absolute top-3 left-3">
+                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                        car.carStatus === "AVAILABLE" 
+                                            ? "bg-emerald-500 text-white" 
+                                            : car.carStatus === "RENTED"
+                                            ? "bg-blue-500 text-white"
+                                            : "bg-yellow-500 text-white"
+                                    }`}>
+                                        {car.carStatus === "AVAILABLE" ? "Available" : car.carStatus === "RENTED" ? "Rented" : "Maintenance"}
+                                    </span>
+                                </div>
+                                
                                 {/* Menu Button */}
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <button
-                                            className="absolute top-3 left-3 p-2 bg-black/50 hover:bg-black/70 rounded-lg transition-colors">
-                                            <MoreVertical className="w-4 h-4 text-white"/>
-                                        </button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent className="bg-[#1a1a1a] border-gray-800">
-                                        <DropdownMenuItem
-                                            className="text-gray-300 hover:text-white hover:bg-gray-800 cursor-pointer"
-                                            onSelect={() => onEdit(car)}
-                                        >
-                                            <Pencil className="w-4 h-4 mr-2"/>
-                                            Edit
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem
-                                            className="text-red-400 hover:text-red-300 hover:bg-gray-800 cursor-pointer"
-                                            onSelect={() => onDelete(car)}
-                                        >
-                                            <Trash2 className="w-4 h-4 mr-2"/>
-                                            Delete
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
+                                <div className="absolute top-3 right-3" onClick={(e) => e.stopPropagation()}>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger asChild>
+                                            <button className="p-2 bg-white/90 backdrop-blur-sm hover:bg-white rounded-lg transition-colors">
+                                                <MoreVertical className="w-4 h-4 text-gray-700"/>
+                                            </button>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent className="bg-white border-gray-200">
+                                            <DropdownMenuItem
+                                                className="text-gray-700 hover:text-gray-900 hover:bg-gray-50 cursor-pointer"
+                                                onSelect={() => onEdit(car)}
+                                            >
+                                                <Pencil className="w-4 h-4 mr-2"/>
+                                                Edit
+                                            </DropdownMenuItem>
+                                            <DropdownMenuItem
+                                                className="text-red-600 hover:text-red-700 hover:bg-red-50 cursor-pointer"
+                                                onSelect={() => onDelete(car)}
+                                            >
+                                                <Trash2 className="w-4 h-4 mr-2"/>
+                                                Delete
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
+                                </div>
                             </div>
-
-                            {/* Car Details */}
-                            <div className="p-4">
-                                <p className="text-xs text-gray-500 mb-1">{car.vehicleModel}</p>
-                                <h3 className="text-white mb-2">{car.make}</h3>
-                                <p className="text-white text-lg mb-4">
-                                    Ksh {car.dailyPrice.toLocaleString()}
-                                    <span className="text-gray-400 text-sm">/day</span>
-                                </p>
-
+                            
+                            {/* Content */}
+                            <div className="p-5">
+                                {/* Header */}
+                                <div className="mb-3">
+                                    <p className="text-xs text-gray-500 uppercase tracking-wider mb-1">{car.bodyType}</p>
+                                    <h3 className="text-lg font-bold text-gray-900 group-hover:text-gray-700 transition-colors">
+                                        {car.make} {car.vehicleModel} {car.year}
+                                    </h3>
+                                </div>
+                                
                                 {/* Specs */}
-                                <div className="flex items-center gap-4 text-xs text-gray-400">
-                                    <div className="flex items-center gap-1">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                  d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                                        </svg>
-                                        <span>{Math.floor(Math.random() * 10000 + 1000)} km</span>
+                                <div className="grid grid-cols-4 gap-2 py-4 border-t border-b border-gray-100">
+                                    <div className="flex flex-col items-center gap-1">
+                                        <Gauge className="w-4 h-4 text-gray-400" />
+                                        <span className="text-[10px] text-gray-500 uppercase">{car.mileage.toLocaleString()} km</span>
                                     </div>
-                                    <div className="flex items-center gap-1">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                  d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
-                                        </svg>
-                                        <span>{car.transmissionType}</span>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <Settings className="w-4 h-4 text-gray-400" />
+                                        <span className="text-[10px] text-gray-500 uppercase">{car.transmissionType.slice(0, 4)}</span>
                                     </div>
-                                    <div className="flex items-center gap-1">
-                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-                                        </svg>
-                                        <span>{car.seatingCapacity} Person</span>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <Users className="w-4 h-4 text-gray-400" />
+                                        <span className="text-[10px] text-gray-500 uppercase">{car.seatingCapacity} Seats</span>
                                     </div>
+                                    <div className="flex flex-col items-center gap-1">
+                                        <Fuel className="w-4 h-4 text-gray-400" />
+                                        <span className="text-[10px] text-gray-500 uppercase">{car.fuelType}</span>
+                                    </div>
+                                </div>
+                                
+                                {/* Price & CTA */}
+                                <div className="flex items-center justify-between mt-4">
+                                    <div>
+                                        <span className="text-2xl font-bold text-gray-900">Ksh {car.dailyPrice.toLocaleString()}</span>
+                                        <span className="text-sm text-gray-500">/day</span>
+                                    </div>
+                                    <span className="px-4 py-2 bg-black text-white text-sm font-medium rounded-lg group-hover:bg-zinc-800 transition-colors">
+                                        View Details
+                                    </span>
                                 </div>
                             </div>
                         </div>
                     ))}
                 </div>
+
+                {/* Car Details Modal */}
+                <AdminCarDetailsModal
+                    car={selectedCar}
+                    isOpen={isDetailsModalOpen}
+                    onClose={() => {
+                        setIsDetailsModalOpen(false);
+                        setSelectedCar(null);
+                    }}
+                    onEdit={(car) => {
+                        setIsDetailsModalOpen(false);
+                        onEdit(car);
+                    }}
+                    onStatusChange={onStatusChange}
+                />
 
                 {filteredCars.length === 0 && (
                     <div className="text-center py-12 bg-[#141414] border border-gray-800 rounded-lg">

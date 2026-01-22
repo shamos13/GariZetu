@@ -39,9 +39,15 @@ export default function BookingPage() {
     const navigate = useNavigate();
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     
+    // Track auth state to trigger re-renders when login succeeds
+    const [authState, setAuthState] = useState(() => ({
+        isAuthenticated: authService.isAuthenticated(),
+        user: authService.getUser()
+    }));
+    
     // Get authentication state
-    const isAuthenticated = authService.isAuthenticated();
-    const user = authService.getUser();
+    const isAuthenticated = authState.isAuthenticated;
+    const user = authState.user;
 
     const carId = searchParams.get("carId");
 
@@ -80,6 +86,22 @@ export default function BookingPage() {
         idNumber: ""
     });
 
+    // Update auth state when modal closes (in case user logged in)
+    useEffect(() => {
+        if (!isAuthModalOpen) {
+            // Check auth state after modal closes
+            const checkAuth = () => {
+                setAuthState({
+                    isAuthenticated: authService.isAuthenticated(),
+                    user: authService.getUser()
+                });
+            };
+            // Small delay to ensure localStorage is updated
+            const timeoutId = setTimeout(checkAuth, 100);
+            return () => clearTimeout(timeoutId);
+        }
+    }, [isAuthModalOpen]);
+    
     // Update guest info when user logs in
     useEffect(() => {
         if (isAuthenticated && user) {
@@ -221,7 +243,7 @@ export default function BookingPage() {
             <Navbar />
 
             {/* Header */}
-            <div className="bg-black pt-20 pb-8">
+            <div className="bg-black pt-32 pb-8">
                 <div className="max-w-6xl mx-auto px-5 md:px-8">
                     <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Complete Your Booking</h1>
                     <p className="text-gray-400">You're booking: {car.name}</p>
@@ -865,9 +887,12 @@ export default function BookingPage() {
                 onClose={() => setIsAuthModalOpen(false)}
                 initialMode="login"
                 onLoginSuccess={() => {
+                    // Update auth state without reloading the page
+                    setAuthState({
+                        isAuthenticated: authService.isAuthenticated(),
+                        user: authService.getUser()
+                    });
                     setIsAuthModalOpen(false);
-                    // Refresh the page to update auth state
-                    window.location.reload();
                 }}
             />
         </div>
