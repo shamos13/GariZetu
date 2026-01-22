@@ -43,7 +43,7 @@ public class SecurityConfig {
 
                 // STEP 2: Configure which endpoints require authentication
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/cars/admin/**").authenticated()
+                        .requestMatchers("/api/v1/cars/admin/**").hasRole("ADMIN")
                         // PUBLIC endpoints - anyone can access without token
                         .requestMatchers("/api/v1/auth/**").permitAll()// Registration & Login
                         .requestMatchers("/api/v1/cars/**").permitAll()

@@ -38,8 +38,15 @@ export function Navbar() {
 
     const handleLoginSuccess = () => {
         setIsAuthenticated(true);
-        setUser(authService.getUser());
-        navigate("/dashboard");
+        const currentUser = authService.getUser();
+        setUser(currentUser);
+        
+        // Redirect based on user role
+        if (authService.isAdmin()) {
+            navigate("/adashboard");
+        } else {
+            navigate("/dashboard");
+        }
     };
     
     const openAuthModal = (mode: "login" | "signup") => {
@@ -275,12 +282,12 @@ export function Navbar() {
                             </button>
                         </div>
                     ) : (
-                        <button
-                            onClick={() => openAuthModal("login")}
-                            className="ml-2 px-5 py-2.5 bg-white text-black rounded-full text-sm lg:text-base font-semibold hover:bg-gray-100 transition-all duration-200 hover:scale-105 hover:shadow-lg"
-                        >
-                            Login / Register
-                        </button>
+                    <button
+                        onClick={() => openAuthModal("login")}
+                        className="ml-2 px-5 py-2.5 bg-white text-black rounded-full text-sm lg:text-base font-semibold hover:bg-gray-100 transition-all duration-200 hover:scale-105 hover:shadow-lg"
+                    >
+                        Login / Register
+                    </button>
                     )}
                 </div>
 
@@ -485,12 +492,12 @@ export function Navbar() {
                                 </button>
                             </>
                         ) : (
-                            <button
-                                onClick={() => openAuthModal("login")}
-                                className="block w-full py-3.5 px-4 bg-white text-black text-center rounded-xl font-semibold hover:bg-gray-100 transition-all active:scale-95"
-                            >
-                                Login / Register
-                            </button>
+                        <button
+                            onClick={() => openAuthModal("login")}
+                            className="block w-full py-3.5 px-4 bg-white text-black text-center rounded-xl font-semibold hover:bg-gray-100 transition-all active:scale-95"
+                        >
+                            Login / Register
+                        </button>
                         )}
                     </div>
 
