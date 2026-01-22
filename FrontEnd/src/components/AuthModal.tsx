@@ -29,11 +29,11 @@ interface AuthModalProps {
 }
 
 export function AuthModal({
-    isOpen,
-    onClose,
-    initialMode = "login",
-    onLoginSuccess
-}: AuthModalProps) {
+                              isOpen,
+                              onClose,
+                              initialMode = "login",
+                              onLoginSuccess
+                          }: AuthModalProps) {
     const [mode, setMode] = useState<"login" | "signup">(initialMode);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -196,13 +196,13 @@ export function AuthModal({
             {/* Modal Container - Fixed size, no scroll */}
             <div className="relative w-full max-w-5xl max-h-[90vh] bg-black/95 backdrop-blur-xl rounded-2xl border border-white/20 shadow-2xl overflow-hidden flex flex-col">
                 {/* Close Button - Always visible */}
-                <button
-                    onClick={onClose}
+                    <button
+                        onClick={onClose}
                     className="absolute top-4 right-4 z-20 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 backdrop-blur-sm flex items-center justify-center text-white transition-all group"
                     aria-label="Close"
-                >
+                    >
                     <X className="w-5 h-5 group-hover:rotate-90 transition-transform" />
-                </button>
+                    </button>
 
                 {/* Content Container - Flex layout */}
                 <div className="flex flex-col lg:flex-row flex-1 overflow-hidden">
@@ -274,119 +274,119 @@ export function AuthModal({
                         <div className="flex-1 overflow-y-auto px-8 py-12">
                             <div className="max-w-md mx-auto">
                                 {/* Header */}
-                                <div className="text-center mb-8">
+                        <div className="text-center mb-8">
                                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/10 border border-white/20 mb-4">
                                         <User className="w-8 h-8 text-white" />
-                                    </div>
+                            </div>
                                     <h2 className="text-2xl font-bold text-white mb-2">
                                         {mode === "login" ? "Sign in" : "Create Account"}
-                                    </h2>
+                            </h2>
                                     <p className="text-white/50 text-sm">
-                                        {mode === "login"
+                                {mode === "login"
                                             ? "Welcome back to GariZetu"
                                             : "Join GariZetu today"
-                                        }
-                                    </p>
-                                </div>
+                                }
+                            </p>
+                        </div>
 
                                 {/* Mode Toggle - Only show for signup */}
                                 {mode === "signup" && (
-                                    <div className="flex bg-white/5 rounded-xl p-1 mb-6">
-                                        <button
-                                            onClick={() => switchMode("login")}
+                        <div className="flex bg-white/5 rounded-xl p-1 mb-6">
+                            <button
+                                onClick={() => switchMode("login")}
                                             className="flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all text-white/70 hover:text-white"
-                                        >
-                                            Sign In
-                                        </button>
-                                        <button
-                                            onClick={() => switchMode("signup")}
+                            >
+                                Sign In
+                            </button>
+                            <button
+                                onClick={() => switchMode("signup")}
                                             className="flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all bg-white text-gray-900 shadow-lg"
-                                        >
-                                            Sign Up
-                                        </button>
-                                    </div>
+                            >
+                                Sign Up
+                            </button>
+                        </div>
                                 )}
 
                                 {/* Messages */}
-                                {successMessage && (
+                        {successMessage && (
                                     <div className="mb-4 p-3 bg-white/10 border border-white/20 rounded-xl flex items-center gap-2 text-white text-sm">
-                                        <Check className="w-4 h-4 flex-shrink-0" />
-                                        {successMessage}
-                                    </div>
-                                )}
+                                <Check className="w-4 h-4 flex-shrink-0" />
+                                {successMessage}
+                            </div>
+                        )}
 
-                                {error && (
+                        {error && (
                                     <div className="mb-4 p-3 bg-red-500/20 border border-red-500/50 rounded-xl flex items-center gap-2 text-red-200 text-sm">
-                                        <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                                        {error}
-                                    </div>
-                                )}
+                                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                                {error}
+                            </div>
+                        )}
 
                                 {/* Login Form */}
-                                {mode === "login" && (
+                        {mode === "login" && (
                                     <form onSubmit={handleLogin} className="space-y-5">
-                                        <div>
+                                <div>
                                             <label className="block text-sm font-medium text-white mb-2">Email</label>
-                                            <input
-                                                type="email"
-                                                value={loginForm.email}
-                                                onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
-                                                placeholder="you@example.com"
-                                                required
+                                        <input
+                                            type="email"
+                                            value={loginForm.email}
+                                            onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                                            placeholder="you@example.com"
+                                            required
                                                     className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-white/50 focus:bg-white/10 transition-all"
-                                            />
-                                        </div>
+                                        />
+                                </div>
 
-                                        <div>
+                                <div>
                                             <label className="block text-sm font-medium text-white mb-2">Password</label>
-                                            <div className="relative">
-                                                <input
-                                                    type={showPassword ? "text" : "password"}
-                                                    value={loginForm.password}
-                                                    onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                                    <div className="relative">
+                                        <input
+                                            type={showPassword ? "text" : "password"}
+                                            value={loginForm.password}
+                                            onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
                                                     placeholder="Enter your password"
-                                                    required
+                                            required
                                                     className="w-full px-4 py-3 pr-12 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-white/50 focus:bg-white/10 transition-all"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowPassword(!showPassword)}
-                                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
-                                                >
-                                                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                                </button>
-                                            </div>
-                                        </div>
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
+                                        >
+                                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                        </button>
+                                    </div>
+                                </div>
 
-                                        <div className="flex items-center justify-between">
-                                            <label className="flex items-center gap-2 cursor-pointer">
-                                                <input
-                                                    type="checkbox"
-                                                    checked={loginForm.rememberMe}
-                                                    onChange={(e) => setLoginForm({ ...loginForm, rememberMe: e.target.checked })}
+                                <div className="flex items-center justify-between">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={loginForm.rememberMe}
+                                            onChange={(e) => setLoginForm({ ...loginForm, rememberMe: e.target.checked })}
                                                     className="w-4 h-4 rounded border-white/20 bg-white/5 text-white focus:ring-white/50"
-                                                />
+                                        />
                                                 <span className="text-sm text-white/70">Remember me</span>
-                                            </label>
+                                    </label>
                                             <button type="button" className="text-sm text-white/70 hover:text-white transition-colors">
                                                 Forgot your password?
-                                            </button>
-                                        </div>
+                                    </button>
+                                </div>
 
-                                        <button
-                                            type="submit"
-                                            disabled={isLoading}
+                                <button
+                                    type="submit"
+                                    disabled={isLoading}
                                             className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/30"
-                                        >
-                                            {isLoading ? (
-                                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                            ) : (
-                                                <>
+                                >
+                                    {isLoading ? (
+                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <>
                                                     Sign in
                                                     <ArrowRight className="w-5 h-5" />
-                                                </>
-                                            )}
-                                        </button>
+                                        </>
+                                    )}
+                                </button>
 
                                         {/* Separator */}
                                         <div className="relative my-6">
@@ -441,154 +441,154 @@ export function AuthModal({
                                                 </button>
                                             </p>
                                         </div>
-                                    </form>
-                                )}
+                            </form>
+                        )}
 
                                 {/* Signup Form */}
-                                {mode === "signup" && (
-                                    <form onSubmit={handleSignup} className="space-y-4">
-                                        <div>
+                        {mode === "signup" && (
+                            <form onSubmit={handleSignup} className="space-y-4">
+                                <div>
                                             <label className="block text-sm font-medium text-white mb-2">Full Name</label>
-                                            <div className="relative">
-                                                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
-                                                <input
-                                                    type="text"
-                                                    value={signupForm.fullName}
-                                                    onChange={(e) => setSignupForm({ ...signupForm, fullName: e.target.value })}
-                                                    placeholder="John Doe"
-                                                    required
-                                                    minLength={5}
-                                                    maxLength={15}
+                                    <div className="relative">
+                                        <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                                        <input
+                                            type="text"
+                                            value={signupForm.fullName}
+                                            onChange={(e) => setSignupForm({ ...signupForm, fullName: e.target.value })}
+                                            placeholder="John Doe"
+                                            required
+                                            minLength={5}
+                                            maxLength={15}
                                                     className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-white/50 focus:bg-white/10 transition-all"
-                                                />
-                                            </div>
-                                            <p className="text-xs text-white/40 mt-1">5-15 characters</p>
-                                        </div>
+                                        />
+                                    </div>
+                                    <p className="text-xs text-white/40 mt-1">5-15 characters</p>
+                                </div>
 
-                                        <div>
+                                <div>
                                             <label className="block text-sm font-medium text-white mb-2">Email Address</label>
-                                            <div className="relative">
-                                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
-                                                <input
-                                                    type="email"
-                                                    value={signupForm.email}
-                                                    onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
-                                                    placeholder="you@example.com"
-                                                    required
+                                    <div className="relative">
+                                        <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                                        <input
+                                            type="email"
+                                            value={signupForm.email}
+                                            onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
+                                            placeholder="you@example.com"
+                                            required
                                                     className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-white/50 focus:bg-white/10 transition-all"
-                                                />
-                                            </div>
-                                        </div>
+                                        />
+                                    </div>
+                                </div>
 
-                                        <div>
+                                <div>
                                             <label className="block text-sm font-medium text-white mb-2">Phone Number (Optional)</label>
-                                            <div className="relative">
-                                                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
-                                                <input
-                                                    type="tel"
-                                                    value={signupForm.phone}
-                                                    onChange={(e) => setSignupForm({ ...signupForm, phone: e.target.value })}
-                                                    placeholder="+254 712 345 678"
+                                    <div className="relative">
+                                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                                        <input
+                                            type="tel"
+                                            value={signupForm.phone}
+                                            onChange={(e) => setSignupForm({ ...signupForm, phone: e.target.value })}
+                                            placeholder="+254 712 345 678"
                                                     className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-white/50 focus:bg-white/10 transition-all"
-                                                />
-                                            </div>
-                                        </div>
+                                        />
+                                    </div>
+                                </div>
 
-                                        <div>
+                                <div>
                                             <label className="block text-sm font-medium text-white mb-2">Password</label>
-                                            <div className="relative">
-                                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
-                                                <input
-                                                    type={showPassword ? "text" : "password"}
-                                                    value={signupForm.password}
-                                                    onChange={(e) => setSignupForm({ ...signupForm, password: e.target.value })}
-                                                    placeholder="••••••••"
-                                                    required
-                                                    minLength={8}
+                                    <div className="relative">
+                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                                        <input
+                                            type={showPassword ? "text" : "password"}
+                                            value={signupForm.password}
+                                            onChange={(e) => setSignupForm({ ...signupForm, password: e.target.value })}
+                                            placeholder="••••••••"
+                                            required
+                                            minLength={8}
                                                     className="w-full pl-12 pr-12 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-white/50 focus:bg-white/10 transition-all"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowPassword(!showPassword)}
-                                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
-                                                >
-                                                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                                </button>
-                                            </div>
-                                            <p className="text-xs text-white/40 mt-1">Minimum 8 characters</p>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-white mb-2">Confirm Password</label>
-                                            <div className="relative">
-                                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
-                                                <input
-                                                    type={showConfirmPassword ? "text" : "password"}
-                                                    value={signupForm.confirmPassword}
-                                                    onChange={(e) => setSignupForm({ ...signupForm, confirmPassword: e.target.value })}
-                                                    placeholder="••••••••"
-                                                    required
-                                                    className="w-full pl-12 pr-12 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-white/50 focus:bg-white/10 transition-all"
-                                                />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
-                                                >
-                                                    {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                                                </button>
-                                            </div>
-                                        </div>
-
-                                        {signupForm.password && signupForm.confirmPassword && (
-                                            <div className={`flex items-center gap-2 text-sm ${
-                                                signupForm.password === signupForm.confirmPassword
-                                                    ? "text-white/80"
-                                                    : "text-red-400"
-                                            }`}>
-                                                {signupForm.password === signupForm.confirmPassword ? (
-                                                    <>
-                                                        <Check className="w-4 h-4" />
-                                                        Passwords match
-                                                    </>
-                                                ) : (
-                                                    <>
-                                                        <AlertCircle className="w-4 h-4" />
-                                                        Passwords do not match
-                                                    </>
-                                                )}
-                                            </div>
-                                        )}
-
-                                        <label className="flex items-start gap-3 cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                checked={signupForm.agreeToTerms}
-                                                onChange={(e) => setSignupForm({ ...signupForm, agreeToTerms: e.target.checked })}
-                                                    className="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-white focus:ring-white/50"
-                                            />
-                                            <span className="text-sm text-white/60">
-                                                I agree to the{" "}
-                                                <a href="/terms" className="text-white hover:text-white/80 underline">Terms of Service</a>
-                                                {" "}and{" "}
-                                                <a href="/privacy" className="text-white hover:text-white/80 underline">Privacy Policy</a>
-                                            </span>
-                                        </label>
-
+                                        />
                                         <button
-                                            type="submit"
-                                            disabled={isLoading}
-                                            className="w-full py-3.5 bg-white text-black hover:bg-white/90 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-lg"
+                                            type="button"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
                                         >
-                                            {isLoading ? (
-                                                <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
-                                            ) : (
-                                                <>
-                                                    Create Account
-                                                    <ArrowRight className="w-5 h-5" />
-                                                </>
-                                            )}
+                                            {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                                         </button>
+                                    </div>
+                                    <p className="text-xs text-white/40 mt-1">Minimum 8 characters</p>
+                                </div>
+
+                                <div>
+                                            <label className="block text-sm font-medium text-white mb-2">Confirm Password</label>
+                                    <div className="relative">
+                                        <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                                        <input
+                                            type={showConfirmPassword ? "text" : "password"}
+                                            value={signupForm.confirmPassword}
+                                            onChange={(e) => setSignupForm({ ...signupForm, confirmPassword: e.target.value })}
+                                            placeholder="••••••••"
+                                            required
+                                                    className="w-full pl-12 pr-12 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-white/50 focus:bg-white/10 transition-all"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                            className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70 transition-colors"
+                                        >
+                                            {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {signupForm.password && signupForm.confirmPassword && (
+                                    <div className={`flex items-center gap-2 text-sm ${
+                                        signupForm.password === signupForm.confirmPassword
+                                                    ? "text-white/80"
+                                            : "text-red-400"
+                                    }`}>
+                                        {signupForm.password === signupForm.confirmPassword ? (
+                                            <>
+                                                <Check className="w-4 h-4" />
+                                                Passwords match
+                                            </>
+                                        ) : (
+                                            <>
+                                                <AlertCircle className="w-4 h-4" />
+                                                Passwords do not match
+                                            </>
+                                        )}
+                                    </div>
+                                )}
+
+                                <label className="flex items-start gap-3 cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={signupForm.agreeToTerms}
+                                        onChange={(e) => setSignupForm({ ...signupForm, agreeToTerms: e.target.checked })}
+                                                    className="mt-1 w-4 h-4 rounded border-white/20 bg-white/5 text-white focus:ring-white/50"
+                                    />
+                                    <span className="text-sm text-white/60">
+                                        I agree to the{" "}
+                                                <a href="/terms" className="text-white hover:text-white/80 underline">Terms of Service</a>
+                                        {" "}and{" "}
+                                                <a href="/privacy" className="text-white hover:text-white/80 underline">Privacy Policy</a>
+                                    </span>
+                                </label>
+
+                                <button
+                                    type="submit"
+                                    disabled={isLoading}
+                                            className="w-full py-3.5 bg-white text-black hover:bg-white/90 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-lg"
+                                >
+                                    {isLoading ? (
+                                                <div className="w-5 h-5 border-2 border-black/30 border-t-black rounded-full animate-spin" />
+                                    ) : (
+                                        <>
+                                            Create Account
+                                                    <ArrowRight className="w-5 h-5" />
+                                        </>
+                                    )}
+                                </button>
 
                                         {/* Separator */}
                                         <div className="relative my-6">
@@ -598,7 +598,7 @@ export function AuthModal({
                                             <div className="relative flex justify-center text-sm">
                                                 <span className="px-4 bg-black text-white/50">or</span>
                                             </div>
-                                        </div>
+                    </div>
 
                                         {/* Social Login */}
                                         <div className="flex justify-center gap-4">
@@ -616,7 +616,7 @@ export function AuthModal({
                                             >
                                                 <Facebook className="w-5 h-5 text-white" />
                                             </button>
-                                            <button
+                                    <button
                                                 type="button"
                                                 className="w-12 h-12 rounded-full bg-white hover:bg-gray-50 border border-white/20 flex items-center justify-center transition-all group shadow-lg"
                                                 title="Google"
@@ -627,24 +627,24 @@ export function AuthModal({
                                                     <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
                                                     <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
                                                 </svg>
-                                            </button>
+                                    </button>
                                         </div>
 
                                         {/* Login Link */}
                                         <div className="text-center pt-4">
                                             <p className="text-sm text-white/60">
-                                                Already have an account?{" "}
-                                                <button
+                                    Already have an account?{" "}
+                                    <button
                                                     type="button"
-                                                    onClick={() => switchMode("login")}
+                                        onClick={() => switchMode("login")}
                                                     className="text-white hover:text-white/80 font-medium underline"
-                                                >
-                                                    Sign in
-                                                </button>
+                                    >
+                                        Sign in
+                                    </button>
                                             </p>
                                         </div>
                                     </form>
-                                )}
+                            )}
                             </div>
                         </div>
                     </div>
