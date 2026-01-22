@@ -4,7 +4,6 @@ import com.amos.garizetu.Service.UserService;
 import com.amos.garizetu.User.DTO.Request.UserLoginRequest;
 import com.amos.garizetu.User.DTO.Request.UserRegistrationRequest;
 import com.amos.garizetu.User.DTO.Response.LoginResponse;
-import com.amos.garizetu.User.DTO.Response.RegistrationResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,19 +21,19 @@ public class AuthController {
 
     //Register a new User. return 201 response. Request Body JSON
     @PostMapping("/register")
-    public ResponseEntity<RegistrationResponse> registerUser(
+    public ResponseEntity<?> registerUser(
             @Valid @RequestBody UserRegistrationRequest request){
         log.info("Registering a new user: {}", request.getEmail());
 
         try {
-            RegistrationResponse response = userService.registerUser(request);
+            LoginResponse response = userService.registerUser(request);
             return ResponseEntity.status(201).body(response);
         } catch (RuntimeException e) {
 
             //if email already exists or another error
             log.error("Error registering user: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(new RegistrationResponse(e.getMessage()));
+                    .body(e.getMessage());
         }
 
     }
@@ -51,7 +50,7 @@ public class AuthController {
 
             // if Email not found or password incorrect
             log.error("Error logging in user: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new RegistrationResponse(e.getMessage()));
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
         }
     }
 
