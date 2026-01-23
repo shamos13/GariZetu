@@ -2,6 +2,7 @@ package com.amos.garizetu.User.mapper;
 
 import com.amos.garizetu.User.DTO.Request.UserRegistrationRequest;
 import com.amos.garizetu.User.DTO.Response.LoginResponse;
+import com.amos.garizetu.User.DTO.Response.UserResponseDTO;
 import com.amos.garizetu.User.Entity.User;
 import org.springframework.stereotype.Component;
 
@@ -37,5 +38,20 @@ public class UserMapper {
         response.setEmail(user.getEmail());
         response.setRole(user.getUserRole().name()); // converts enum to string
         return response;
+    }
+
+    public UserResponseDTO toUserResponseDTO(User user){
+        if (user == null){
+            return null;
+        }
+        UserResponseDTO dto = new UserResponseDTO();
+        dto.setUserId(user.getUserId());
+        dto.setUserName(user.getUserName());
+        dto.setEmail(user.getEmail());
+        dto.setPhoneNumber(user.getPhoneNumber());
+        dto.setUserRole(user.getUserRole().name());
+        dto.setCreatedAt(user.getCreatedAt());
+        dto.setUpdatedAt(user.getUpdatedAt());
+        return dto;
     }
 }

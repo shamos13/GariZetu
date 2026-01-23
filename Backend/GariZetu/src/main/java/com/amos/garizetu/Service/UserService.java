@@ -4,6 +4,7 @@ import com.amos.garizetu.Repository.UserRepository;
 import com.amos.garizetu.User.DTO.Request.UserLoginRequest;
 import com.amos.garizetu.User.DTO.Request.UserRegistrationRequest;
 import com.amos.garizetu.User.DTO.Response.LoginResponse;
+import com.amos.garizetu.User.DTO.Response.UserResponseDTO;
 import com.amos.garizetu.User.Entity.User;
 import com.amos.garizetu.User.UserRole;
 import com.amos.garizetu.User.mapper.UserMapper;
@@ -15,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -151,8 +153,26 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
     }
 
-    public List<User> getAllUsers(){
+
+    // Get all Users for admin view only
+    public List<UserResponseDTO> getAllUsers(){
+        log.info("Admin Fetching all users");
+
+        //Get all users form the database
         List<User> users = userRepository.findAll();
-        return users;
+
+        // Transform each user entity to userResponseDTO using streams
+        List<UserResponseDTO> userDTOs = users.stream()
+                .map(userMapper::toUserResponseDTO) // convert each user to UserResponseDTO
+                .collect(Collectors.toList()); // Collect each results into a list
+
+        log.info("Successfully fetched {} users for admin view", userDTOs.size());
+
+        return userDTOs;
     }
+
+//    public List<User> getAllUsers(){
+//        List<User> users = userRepository.findAll();
+//        return users;
+//    }
 }

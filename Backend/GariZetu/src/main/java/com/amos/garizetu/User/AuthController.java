@@ -4,7 +4,7 @@ import com.amos.garizetu.Service.UserService;
 import com.amos.garizetu.User.DTO.Request.UserLoginRequest;
 import com.amos.garizetu.User.DTO.Request.UserRegistrationRequest;
 import com.amos.garizetu.User.DTO.Response.LoginResponse;
-import com.amos.garizetu.User.Entity.User;
+import com.amos.garizetu.User.DTO.Response.UserResponseDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -58,8 +58,8 @@ public class AuthController {
     }
 
     @GetMapping("/findusers")
-    public ResponseEntity<List<User>> findAllUsers(){
-        List<User> users = userService.getAllUsers();
+    public ResponseEntity<List<UserResponseDTO>> findAllUsers(){
+        List<UserResponseDTO> users = userService.getAllUsers();
         return ResponseEntity.ok(users);
     }
 

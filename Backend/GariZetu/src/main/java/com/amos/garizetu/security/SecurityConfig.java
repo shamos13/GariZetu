@@ -43,10 +43,15 @@ public class SecurityConfig {
 
                 // STEP 2: Configure which endpoints require authentication
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/v1/cars/admin/**").hasRole("ADMIN")
+
                         // PUBLIC endpoints - anyone can access without token
                         .requestMatchers("/api/v1/auth/**").permitAll()// Registration & Login
                         .requestMatchers("/api/v1/cars/**").permitAll()
+
+                        //ADMIN-ONLY endpoints
+                        // The @PreAuthorize does all the role checking
+                        .requestMatchers("/api/v1/admin/users/**").authenticated()
+                        .requestMatchers("/api/v1/admin/cars/**").authenticated()
 
 
                         // PROTECTED endpoints - require valid JWT token
