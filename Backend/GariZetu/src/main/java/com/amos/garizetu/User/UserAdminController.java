@@ -31,7 +31,7 @@ public class UserAdminController {
      * @PreAuthorize checks if role is ADMIN
      * */
 
-    @GetMapping
+    @GetMapping("/allusers")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserResponseDTO>> getAllUsers(){
         log.info("Admin requesting all users");

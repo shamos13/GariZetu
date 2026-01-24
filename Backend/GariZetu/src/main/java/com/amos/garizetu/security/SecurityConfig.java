@@ -3,6 +3,7 @@ package com.amos.garizetu.security;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -10,6 +11,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfigurationSource;
 
 @Configuration
 @EnableWebSecurity
@@ -17,6 +19,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final CorsConfigurationSource corsConfigurationSource;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -41,21 +44,25 @@ public class SecurityConfig {
                 // STEP 1: Disable CSRF (not needed for stateless JWT APIs)
                 .csrf(csrf -> csrf.disable())
 
-                // STEP 2: Configure which endpoints require authentication
+                // STEP 2: Enable CORS (allows frontend at localhost:5173 to call API)
+                .cors(cors -> cors.configurationSource(corsConfigurationSource))
+
+                // STEP 3: Configure which endpoints require authentication
                 .authorizeHttpRequests(auth -> auth
 
+                        // CORS preflight - must be public or browser blocks all API calls
+                        .requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
+
                         // PUBLIC endpoints - anyone can access without token
-                        .requestMatchers("/api/v1/auth/**").permitAll()// Registration & Login
+                        .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/cars/**").permitAll()
 
-                        //ADMIN-ONLY endpoints
-                        // The @PreAuthorize does all the role checking
+                        // ADMIN-ONLY endpoints (@PreAuthorize does role checking)
                         .requestMatchers("/api/v1/admin/users/**").authenticated()
                         .requestMatchers("/api/v1/admin/cars/**").authenticated()
 
-
                         // PROTECTED endpoints - require valid JWT token
-                        .anyRequest().authenticated()  // Everything else needs authentication
+                        .anyRequest().authenticated()
                 )
 
                 // STEP 3: Configure session management
