@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { AdminLayout } from "./components/AdminLayout.tsx";
 import { Car, CarCreateRequest } from "./types/Car.ts";
 import { CarManagementPage } from "./pages/CarManagementPage.tsx";
@@ -13,12 +13,30 @@ interface AdminDashboardProps {
     onBack: () => void;
 }
 
+const ADMIN_PAGE_STORAGE_KEY = "admin_dashboard_current_page";
+
 export default function AdminDashboard({ onBack }: AdminDashboardProps) {
-    const [currentPage, setCurrentPage] = useState("dashboard");
+    // Load saved page from localStorage on mount, default to "dashboard"
+    const [currentPage, setCurrentPage] = useState(() => {
+        const savedPage = localStorage.getItem(ADMIN_PAGE_STORAGE_KEY);
+        return savedPage || "dashboard";
+    });
     const [cars, setCars] = useState<Car[]>([]);
     const [editingCar, setEditingCar] = useState<Car | null>(null);
     const [isFormOpen, setIsFormOpen] = useState(false);
+    const [carsLoaded, setCarsLoaded] = useState(false);
     const closeForm = () => setIsFormOpen(false);
+
+    // Save current page to localStorage whenever it changes
+    useEffect(() => {
+        localStorage.setItem(ADMIN_PAGE_STORAGE_KEY, currentPage);
+    }, [currentPage]);
+
+    // Wrapper function to update page and persist it
+    const handlePageChange = useCallback((page: string) => {
+        setCurrentPage(page);
+        localStorage.setItem(ADMIN_PAGE_STORAGE_KEY, page);
+    }, []);
 
     // Add car form
     const openAddForm = () => {
@@ -26,12 +44,17 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         setEditingCar(null);
     }
 
-    // Load cars from backend (admin/raw format) on mount
+    // Load cars from backend only when cars page is active and not already loaded
     useEffect(() => {
-        adminCarService.getAll()
-            .then(setCars)
-            .catch(console.error);
-    }, []);
+        if (currentPage === "cars" && !carsLoaded) {
+            adminCarService.getAll()
+                .then((data) => {
+                    setCars(data);
+                    setCarsLoaded(true);
+                })
+                .catch(console.error);
+        }
+    }, [currentPage, carsLoaded]);
 
     const handleAddCar = async (carData: CarCreateRequest, image: File | null) => {
         try {
@@ -81,6 +104,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
 
             // Step 4: Update local state with the new car
             setCars(prev => [...prev, createdCar]);
+            setCarsLoaded(true);
 
             // Step 5: Close form and show success message
             setIsFormOpen(false);
@@ -104,6 +128,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         try {
             await adminCarService.deleteCar(car.carId);
             setCars(prev => prev.filter(c => c.carId !== car.carId));
+            setCarsLoaded(true);
             toast.success("Car deleted successfully");
         } catch (error) {
             console.error("Failed to delete car:", error);
@@ -143,6 +168,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
             setCars(prev =>
                 prev.map(c => (c.carId === updatedCar.carId ? updatedCar : c))
             );
+            setCarsLoaded(true);
 
             setIsFormOpen(false);
             setEditingCar(null);
@@ -163,6 +189,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
             setCars(prev =>
                 prev.map(c => (c.carId === updatedCar.carId ? updatedCar : c))
             );
+            setCarsLoaded(true);
 
             toast.success(`Car status updated to ${newStatus}`);
         } catch (error) {
@@ -192,13 +219,24 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         }
     };
 
+    // Refresh cars list manually
+    const refreshCars = useCallback(() => {
+        adminCarService.getAll()
+            .then((data) => {
+                setCars(data);
+                setCarsLoaded(true);
+            })
+            .catch(console.error);
+    }, []);
+
     const renderPage = () => {
         switch (currentPage) {
             case "dashboard":
-                return <DashboardPage />;
+                return <DashboardPage key="dashboard" />;
             case "cars":
                 return (
                     <CarManagementPage
+                        key="cars"
                         cars={cars}
                         onAdd={openAddForm}
                         onEdit={handleEditClick}
@@ -207,9 +245,9 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                     />
                 );
             case "users":
-                return <UserManagementPage />;
+                return <UserManagementPage key="users" />;
             default:
-                return <DashboardPage />;
+                return <DashboardPage key="dashboard-default" />;
         }
     }
 
@@ -218,7 +256,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
             <AdminLayout
                 title={getPageTitle()}
                 currentPage={currentPage}
-                onNavigate={setCurrentPage}
+                onNavigate={handlePageChange}
                 onBack={onBack}
             >
                 {renderPage()}
