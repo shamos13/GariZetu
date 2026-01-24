@@ -3,6 +3,7 @@ import { AdminLayout } from "./components/AdminLayout.tsx";
 import { Car, CarCreateRequest } from "./types/Car.ts";
 import { CarManagementPage } from "./pages/CarManagementPage.tsx";
 import { UserManagementPage } from "./pages/UserManagementPage.tsx";
+import { DashboardPage } from "./pages/DashboardPage.tsx";
 import { adminCarService } from "../admin/service/AdminCarService.ts";
 import { CarForm } from "./components/CarForm.tsx";
 import { toast } from "sonner";
@@ -193,6 +194,8 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
 
     const renderPage = () => {
         switch (currentPage) {
+            case "dashboard":
+                return <DashboardPage />;
             case "cars":
                 return (
                     <CarManagementPage
@@ -206,7 +209,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
             case "users":
                 return <UserManagementPage />;
             default:
-                return <div className="text-white">Select a page from the sidebar</div>;
+                return <DashboardPage />;
         }
     }
 

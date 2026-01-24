@@ -3,6 +3,7 @@ import {Link, useLocation, useNavigate} from "react-router-dom";
 import {ChevronDown, Phone, User, LogOut} from "lucide-react";
 import {AuthModal} from "./AuthModal";
 import {authService} from "../services/AuthService.ts";
+import {toast} from "sonner";
 
 export function Navbar() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -38,8 +39,18 @@ export function Navbar() {
 
     const handleLoginSuccess = () => {
         setIsAuthenticated(true);
-        setUser(authService.getUser());
-        navigate("/dashboard");
+        const currentUser = authService.getUser();
+        setUser(currentUser);
+        
+        // Only redirect if the user is an admin
+        // Customers stay on the current page showing their profile info
+        if (authService.isAdmin()) {
+            navigate("/adashboard");
+            toast.success("Welcome to Admin Dashboard");
+        } else {
+            toast.success(`Welcome back, ${currentUser?.userName || 'User'}`);
+            // No navigation for regular users - they stay on the current page
+        }
     };
     
     const openAuthModal = (mode: "login" | "signup") => {
@@ -252,11 +263,11 @@ export function Navbar() {
 
                     {isAuthenticated ? (
                         <div className="ml-2 flex items-center gap-3">
-                            {/* Profile Circle */}
+                            {/* Profile Circle – admins go to /adashboard, customers to /dashboard */}
                             <Link
-                                to="/dashboard"
+                                to={authService.isAdmin() ? "/adashboard" : "/dashboard"}
                                 className="relative w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-semibold hover:scale-110 transition-all duration-200 hover:shadow-lg hover:shadow-emerald-500/50 cursor-pointer"
-                                title="Dashboard"
+                                title={authService.isAdmin() ? "Admin Dashboard" : "Dashboard"}
                             >
                                 <span className="text-sm">
                                     {user?.userName 
@@ -275,12 +286,12 @@ export function Navbar() {
                             </button>
                         </div>
                     ) : (
-                        <button
-                            onClick={() => openAuthModal("login")}
-                            className="ml-2 px-5 py-2.5 bg-white text-black rounded-full text-sm lg:text-base font-semibold hover:bg-gray-100 transition-all duration-200 hover:scale-105 hover:shadow-lg"
-                        >
-                            Login / Register
-                        </button>
+                    <button
+                        onClick={() => openAuthModal("login")}
+                        className="ml-2 px-5 py-2.5 bg-white text-black rounded-full text-sm lg:text-base font-semibold hover:bg-gray-100 transition-all duration-200 hover:scale-105 hover:shadow-lg"
+                    >
+                        Login / Register
+                    </button>
                     )}
                 </div>
 
@@ -459,7 +470,7 @@ export function Navbar() {
                         {isAuthenticated ? (
                             <>
                                 <Link
-                                    to="/dashboard"
+                                    to={authService.isAdmin() ? "/adashboard" : "/dashboard"}
                                     onClick={closeMobileMenu}
                                     className="flex items-center justify-center gap-3 w-full py-3.5 px-4 bg-emerald-500 text-white text-center rounded-xl font-semibold hover:bg-emerald-600 transition-all active:scale-95"
                                 >
@@ -485,12 +496,12 @@ export function Navbar() {
                                 </button>
                             </>
                         ) : (
-                            <button
-                                onClick={() => openAuthModal("login")}
-                                className="block w-full py-3.5 px-4 bg-white text-black text-center rounded-xl font-semibold hover:bg-gray-100 transition-all active:scale-95"
-                            >
-                                Login / Register
-                            </button>
+                        <button
+                            onClick={() => openAuthModal("login")}
+                            className="block w-full py-3.5 px-4 bg-white text-black text-center rounded-xl font-semibold hover:bg-gray-100 transition-all active:scale-95"
+                        >
+                            Login / Register
+                        </button>
                         )}
                     </div>
 

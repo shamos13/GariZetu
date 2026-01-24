@@ -4,12 +4,15 @@ import com.amos.garizetu.Service.UserService;
 import com.amos.garizetu.User.DTO.Request.UserLoginRequest;
 import com.amos.garizetu.User.DTO.Request.UserRegistrationRequest;
 import com.amos.garizetu.User.DTO.Response.LoginResponse;
+import com.amos.garizetu.User.DTO.Response.UserResponseDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -52,6 +55,12 @@ public class AuthController {
             log.error("Error logging in user: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
         }
+    }
+
+    @GetMapping("/findusers")
+    public ResponseEntity<List<UserResponseDTO>> findAllUsers(){
+        List<UserResponseDTO> users = userService.getAllUsers();
+        return ResponseEntity.ok(users);
     }
 
 }
