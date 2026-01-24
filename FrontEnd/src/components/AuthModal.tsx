@@ -331,9 +331,10 @@ export function AuthModal({
                                             type={showPassword ? "text" : "password"}
                                             value={loginForm.password}
                                             onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                                                    placeholder="Enter your password"
+                                            placeholder="Enter your password"
+                                            autoComplete="current-password"
                                             required
-                                                    className="w-full px-4 py-3 pr-12 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-white/50 focus:bg-white/10 transition-all"
+                                            className="w-full px-4 py-3 pr-12 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-white/50 focus:bg-white/10 transition-all"
                                         />
                                         <button
                                             type="button"
@@ -514,8 +515,9 @@ export function AuthModal({
                                             value={signupForm.confirmPassword}
                                             onChange={(e) => setSignupForm({ ...signupForm, confirmPassword: e.target.value })}
                                             placeholder="••••••••"
+                                            autoComplete="new-password"
                                             required
-                                                    className="w-full pl-12 pr-12 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-white/50 focus:bg-white/10 transition-all"
+                                            className="w-full pl-12 pr-12 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-white/50 focus:bg-white/10 transition-all"
                                         />
                                         <button
                                             type="button"
