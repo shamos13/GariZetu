@@ -1,6 +1,7 @@
 package com.amos.garizetu.User.Entity;
 
 import com.amos.garizetu.User.UserRole;
+import com.amos.garizetu.User.UserStatus;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -35,6 +36,15 @@ public class User {
     @Column(name = "user_role")
     private UserRole userRole;
 
+    //track account state - Active set as default in @PrePersist
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private UserStatus userStatus;
+
+    // Track user Activity and can autoblock
+    @Column(name = "last_login")
+    private LocalDateTime lastLogin;
+
     @Column(updatable = false)
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -43,6 +53,10 @@ public class User {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
+
+        // Set default Status to active
+        if (userStatus == null)
+            userStatus = userStatus.ACTIVE;
     }
 
     @PreUpdate

@@ -50,6 +50,8 @@ public class UserMapper {
         dto.setEmail(user.getEmail());
         dto.setPhoneNumber(user.getPhoneNumber());
         dto.setUserRole(user.getUserRole().name());
+        dto.setStatus(user.getUserStatus());
+        dto.setLastLogin(user.getLastLogin());
         dto.setCreatedAt(user.getCreatedAt());
         dto.setUpdatedAt(user.getUpdatedAt());
         return dto;

@@ -1,5 +1,6 @@
 package com.amos.garizetu.User.DTO.Response;
 
+import com.amos.garizetu.User.UserStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -15,6 +16,8 @@ public class UserResponseDTO {
     private String email;
     private String phoneNumber;
     private String userRole;
+    private UserStatus status;
+    private LocalDateTime lastLogin;
 
     //Time Stamps for admin
     private LocalDateTime createdAt;
