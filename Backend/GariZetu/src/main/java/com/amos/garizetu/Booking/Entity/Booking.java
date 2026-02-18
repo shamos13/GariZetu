@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 
 @Getter
@@ -50,7 +51,7 @@ public class Booking {
 
     //Special request from customer
     @Column(name = "special_requests", length = 500)
-    private String specialRequest;
+    private String specialRequests;
 
     // Pricing
     @Column(name = "daily_price", nullable = false)
@@ -61,7 +62,7 @@ public class Booking {
      * Calculated and stored when booking is created
      * */
     @Column(name = "total_cost", nullable = false)
-    private double totalCost;
+    private double totalPrice;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "booking_status", nullable = false)
@@ -69,11 +70,11 @@ public class Booking {
 
     // TimeStamps
     @Column(name = "created_at", nullable = false, updatable = false)
-    private LocalDate createdAt;
+    private LocalDateTime createdAt;
 
     // Updated whenever booking details change
     @Column(name = "updated_at", nullable = false)
-    private LocalDate updatedAt;
+    private LocalDateTime updatedAt;
 
     // ============Utility Methods====================
     /**
@@ -91,7 +92,7 @@ public class Booking {
     // Recalculate total price if dates change
     public void recalculateTotalPrice() {
         long days = getNumberOfDays();
-        totalCost = days * dailyPrice;
+        totalPrice = days * dailyPrice;
     }
 
     //Check if booking is active right now
@@ -108,10 +109,12 @@ public class Booking {
                 && bookingStatus != BookingStatus.CANCELLED;
     }
 
+
+
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDate.now();
-        updatedAt = LocalDate.now();
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
 
         // Default status when created
         if (bookingStatus == null){
@@ -119,7 +122,7 @@ public class Booking {
         }
 
         // Calculate price if not set
-        if (totalCost == 0){
+        if (totalPrice == 0){
             recalculateTotalPrice();
         }
     }
@@ -127,8 +130,9 @@ public class Booking {
     //@PreUpdate: Runs automatically BEFORE every update to DB
     @PreUpdate
     protected void onUpdate() {
-        updatedAt = LocalDate.now();
+        updatedAt = LocalDateTime.now();
     }
+
 
     // ========== EQUALS & HASHCODE ========
     /**
