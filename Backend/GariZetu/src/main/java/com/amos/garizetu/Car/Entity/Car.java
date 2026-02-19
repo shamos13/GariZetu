@@ -1,5 +1,6 @@
 package com.amos.garizetu.Car.Entity;
 
+import com.amos.garizetu.Booking.Entity.Booking;
 import com.amos.garizetu.Car.Enums.BodyType;
 import com.amos.garizetu.Car.Enums.CarStatus;
 import com.amos.garizetu.Car.Enums.FuelType;
@@ -12,6 +13,7 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 @Getter
@@ -66,6 +68,10 @@ public class Car {
     )
     private Set<Feature> features = new HashSet<>();
 
+
+    //Implementing relationship with booking
+    @OneToMany(mappedBy = "car")
+    private List<Booking> bookings;
 
     // Helper methods for managing features
     public void addFeature(Feature feature) {
