@@ -16,5 +16,6 @@ public class BookingUpdateDTO {
     private Double refundAmount;
 
     public String getSpecialRequests() {
+        return specialRequest;
     }
 }
