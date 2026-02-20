@@ -211,10 +211,10 @@ export default function VehicleDetailsPage() {
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto px-5 md:px-8 py-8">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="max-w-7xl mx-auto px-5 md:px-8 py-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Main Content */}
-                    <div className="lg:col-span-2 space-y-8">
+                    <div className="lg:col-span-2 space-y-6">
                         {/* Image Gallery */}
                         <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
                             {/* Main Image */}
@@ -551,7 +551,7 @@ export default function VehicleDetailsPage() {
 
                 {/* Related Cars */}
                 {relatedCars.length > 0 && (
-                    <div className="mt-16">
+                    <div className="mt-10">
                         <h2 className="text-2xl font-bold text-gray-900 mb-6">Similar Vehicles</h2>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             {relatedCars.map((relatedCar) => (

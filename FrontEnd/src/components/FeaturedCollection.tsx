@@ -67,7 +67,7 @@ export function FeaturedCollection() {
         setSelectedCar(null);
     };
 
-    const handleBookNow = (car: CarData) => {
+    const handleBookNow = (car: { id: number }) => {
         handleCloseModal();
         navigate(`/vehicles/${car.id}`);
     };
@@ -82,12 +82,12 @@ export function FeaturedCollection() {
     };
 
     return (
-        <section className="py-20 px-4 md:px-12 bg-white max-w-7xl mx-auto">
-            <div className="text-center space-y-4 mb-12">
+        <section className="py-12 md:py-14 px-4 md:px-12 bg-white max-w-7xl mx-auto">
+            <div className="text-center space-y-3 mb-8">
                 <p className="text-sm font-medium text-emerald-600 uppercase tracking-wider">
                     Featured Collection
                 </p>
-                <h2 className="text-3xl md:text-4xl font-bold text-gray-900">
+                <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
                     Our Impressive Collection of Cars
                 </h2>
                 <p className="text-gray-500 max-w-2xl mx-auto">
@@ -96,12 +96,12 @@ export function FeaturedCollection() {
             </div>
 
             {/* Category Pills */}
-            <div className="flex flex-wrap justify-center gap-3 mb-12">
+            <div className="flex flex-wrap justify-center gap-2.5 mb-8">
                 {CATEGORIES.map((cat, i) => (
                     <button
                         key={cat}
                         onClick={() => setActiveCategory(i)}
-                        className={`px-6 py-2.5 rounded-full text-sm font-medium transition-all duration-300 ${
+                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
                             activeCategory === i 
                                 ? "bg-black text-white shadow-lg shadow-black/20 scale-105" 
                                 : "bg-gray-100 text-gray-600 hover:bg-gray-200 hover:scale-105"
@@ -113,15 +113,15 @@ export function FeaturedCollection() {
             </div>
 
             {/* Cars Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 {CARS.map((car, index) => (
                     <div
                         key={car.id}
-                        className="group bg-white rounded-3xl p-4 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all duration-300"
+                        className="group bg-white rounded-2xl p-3 border border-gray-100 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300"
                         style={{ animationDelay: `${index * 100}ms` }}
                     >
                         {/* Image Container */}
-                        <div className="relative aspect-[4/3] rounded-2xl overflow-hidden mb-6 bg-gray-50">
+                        <div className="relative aspect-[4/3] rounded-xl overflow-hidden mb-4 bg-gray-50">
                             <img
                                 src={car.image || "/placeholder.svg"}
                                 alt={car.name}
@@ -131,7 +131,7 @@ export function FeaturedCollection() {
                             {/* Favorite Button */}
                             <button
                                 onClick={(e) => toggleFavorite(car.id, e)}
-                                className={`absolute top-3 right-3 w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 ${
+                                className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-300 ${
                                     favorites.includes(car.id)
                                         ? "bg-red-500 text-white scale-110"
                                         : "bg-white/80 backdrop-blur-sm text-gray-600 hover:bg-white hover:scale-110"
@@ -160,7 +160,7 @@ export function FeaturedCollection() {
                             </div>
                         </div>
 
-                        <div className="space-y-4 px-2">
+                        <div className="space-y-3 px-1">
                             {/* Rating */}
                             <div className="flex items-center gap-2">
                                 <div className="flex items-center gap-1">
@@ -177,14 +177,14 @@ export function FeaturedCollection() {
 
                             {/* Price */}
                             <div className="flex items-baseline gap-1">
-                                <span className="text-2xl font-bold text-gray-900">
+                                <span className="text-xl font-bold text-gray-900">
                                     Ksh {car.price.toLocaleString()}
                                 </span>
                                 <span className="text-gray-400 text-sm">/day</span>
                             </div>
 
                             {/* Specs Grid */}
-                            <div className="grid grid-cols-2 gap-y-3 gap-x-2 pt-4 border-t border-gray-100">
+                            <div className="grid grid-cols-2 gap-y-2 gap-x-2 pt-3 border-t border-gray-100">
                                 <div className="flex items-center gap-2 text-xs text-gray-500">
                                     <div className="w-7 h-7 bg-gray-100 rounded-lg flex items-center justify-center group-hover:bg-black group-hover:text-white transition-colors">
                                         <Gauge size={14} />
@@ -214,7 +214,7 @@ export function FeaturedCollection() {
                             {/* CTA Button */}
                             <button
                                 onClick={() => handleRentNow(car)}
-                                className="w-full py-3.5 rounded-xl text-sm font-bold transition-all duration-300 mt-4 bg-black text-white hover:bg-zinc-800 hover:shadow-lg hover:shadow-black/20 active:scale-95"
+                                className="w-full py-2.5 rounded-xl text-sm font-bold transition-all duration-300 mt-3 bg-black text-white hover:bg-zinc-800 hover:shadow-lg hover:shadow-black/20 active:scale-95"
                             >
                                 View Details
                             </button>
@@ -224,10 +224,10 @@ export function FeaturedCollection() {
             </div>
 
             {/* See All CTA */}
-            <div className="mt-16 flex justify-center">
+            <div className="mt-10 flex justify-center">
                 <Link 
                     to="/vehicles"
-                    className="group bg-black text-white px-8 py-4 rounded-xl font-bold flex items-center gap-3 hover:bg-zinc-800 hover:shadow-xl hover:shadow-black/20 transition-all duration-300 hover:gap-4"
+                    className="group bg-black text-white px-7 py-3 rounded-xl font-bold flex items-center gap-3 hover:bg-zinc-800 hover:shadow-xl hover:shadow-black/20 transition-all duration-300 hover:gap-4"
                 >
                     See all Cars 
                     <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />

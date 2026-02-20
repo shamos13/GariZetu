@@ -344,7 +344,7 @@ export default function BookingPage() {
             <Navbar />
 
             {/* Header */}
-            <div className="bg-black pt-32 pb-8">
+            <div className="bg-black pt-28 pb-6">
                 <div className="max-w-6xl mx-auto px-5 md:px-8">
                     <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Complete Your Booking</h1>
                     <p className="text-gray-400">You're booking: {car.name}</p>
@@ -362,7 +362,7 @@ export default function BookingPage() {
 
             {/* Progress Steps */}
             <div className="bg-white border-b border-gray-100 sticky top-16 z-40">
-                <div className="max-w-6xl mx-auto px-5 md:px-8 py-4">
+                <div className="max-w-6xl mx-auto px-5 md:px-8 py-3">
                     <div className="flex items-center justify-between max-w-xl">
                         {[
                             { num: 1, label: "Dates & Location" },
@@ -391,8 +391,8 @@ export default function BookingPage() {
                 </div>
             </div>
 
-            <div className="max-w-6xl mx-auto px-5 md:px-8 py-8">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="max-w-6xl mx-auto px-5 md:px-8 py-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Main Content */}
                     <div className="lg:col-span-2 space-y-6">
                         {/* Step 1: Dates & Location */}
@@ -899,7 +899,7 @@ export default function BookingPage() {
 
                     {/* Sidebar - Booking Summary */}
                     <div className="lg:col-span-1">
-                        <div className="sticky top-36 space-y-6">
+                        <div className="sticky top-28 space-y-5">
                             {/* Car Card */}
                             <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
                                 <div className="aspect-[16/10] bg-gray-100">

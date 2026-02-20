@@ -309,8 +309,8 @@ export default function VehiclesPage() {
         <div className="min-h-screen bg-zinc-100">
             <Navbar />
 
-            <main className="mx-auto max-w-7xl px-5 pb-16 pt-32 md:px-8 md:pt-36">
-                <header className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+            <main className="mx-auto max-w-7xl px-5 pb-14 pt-28 md:px-8 md:pt-32">
+                <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                     <div>
                         <h1 className="font-serif text-4xl text-zinc-900 md:text-5xl">Our Fleet</h1>
                         <p className="mt-2 text-sm text-zinc-600">

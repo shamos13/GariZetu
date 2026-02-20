@@ -32,14 +32,14 @@ const TESTIMONIALS = [
 
 export function Testimonials() {
     return (
-        <section className="py-20 bg-gray-50">
+        <section className="py-12 md:py-14 bg-gray-50">
             <div className="max-w-7xl mx-auto px-5 md:px-8">
                 {/* Header */}
-                <div className="text-center mb-12">
+                <div className="text-center mb-8">
                     <p className="text-sm font-medium text-emerald-600 uppercase tracking-wider mb-2">
                         Testimonials
                     </p>
-                    <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+                    <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
                         What Our Customers Say
                     </h2>
                     <p className="text-gray-600 max-w-2xl mx-auto">
@@ -48,12 +48,12 @@ export function Testimonials() {
                 </div>
 
                 {/* Testimonials Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {TESTIMONIALS.map((testimonial, index) => (
                         <div 
                             key={testimonial.id}
-                            className={`bg-white rounded-2xl p-6 shadow-sm hover:shadow-lg transition-all duration-300 ${
-                                index === 1 ? "md:-translate-y-4" : ""
+                            className={`bg-white rounded-2xl p-4 shadow-sm hover:shadow-lg transition-all duration-300 ${
+                                index === 1 ? "md:-translate-y-2" : ""
                             }`}
                         >
                             {/* Quote Icon */}
@@ -72,7 +72,7 @@ export function Testimonials() {
                             </div>
 
                             {/* Text */}
-                            <p className="text-gray-600 mb-6 leading-relaxed">
+                            <p className="text-gray-600 mb-4 leading-relaxed">
                                 "{testimonial.text}"
                             </p>
 
@@ -95,7 +95,7 @@ export function Testimonials() {
                 </div>
 
                 {/* Stats */}
-                <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div className="mt-10 grid grid-cols-2 md:grid-cols-4 gap-4">
                     {[
                         { value: "5,000+", label: "Happy Customers" },
                         { value: "4.9/5", label: "Average Rating" },
@@ -103,7 +103,7 @@ export function Testimonials() {
                         { value: "24/7", label: "Customer Support" },
                     ].map((stat) => (
                         <div key={stat.label} className="text-center">
-                            <p className="text-3xl md:text-4xl font-bold text-gray-900 mb-1">
+                            <p className="text-2xl md:text-3xl font-bold text-gray-900 mb-1">
                                 {stat.value}
                             </p>
                             <p className="text-sm text-gray-500">{stat.label}</p>
@@ -114,4 +114,3 @@ export function Testimonials() {
         </section>
     );
 }
-
