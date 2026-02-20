@@ -1,5 +1,6 @@
 import {useEffect, useMemo, useState} from "react";
 import {Link, useNavigate, useSearchParams} from "react-router-dom";
+import axios from "axios";
 import {
     AlertCircle,
     Calendar,
@@ -24,6 +25,7 @@ import {carService} from "../services/carService";
 import {getImageUrl} from "../lib/ImageUtils";
 import {authService} from "../services/AuthService";
 import {AuthModal} from "../components/AuthModal";
+import {bookingService, type BookingCreateRequest} from "../services/BookingService.ts";
 
 // Pickup locations
 const PICKUP_LOCATIONS = [
@@ -33,6 +35,29 @@ const PICKUP_LOCATIONS = [
     { id: 4, name: "Karen", address: "Karen, Nairobi" },
     { id: 5, name: "Wilson Airport", address: "Wilson Airport, Langata" },
 ];
+
+const formatDateForApi = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+};
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+    if (axios.isAxiosError(error)) {
+        const errorData = error.response?.data as { message?: string } | undefined;
+        const backendMessage = errorData?.message;
+        if (typeof backendMessage === "string" && backendMessage.trim().length > 0) {
+            return backendMessage;
+        }
+    }
+
+    if (error instanceof Error && error.message.trim().length > 0) {
+        return error.message;
+    }
+
+    return fallback;
+};
 
 export default function BookingPage() {
     const [searchParams] = useSearchParams();
@@ -85,6 +110,8 @@ export default function BookingPage() {
         phone: "",
         idNumber: ""
     });
+    const [bookingError, setBookingError] = useState<string | null>(null);
+    const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
 
     // Update auth state when modal closes (in case user logged in)
     useEffect(() => {
@@ -192,10 +219,84 @@ export default function BookingPage() {
         }
     };
 
+    const handleCompleteBooking = async () => {
+        setBookingError(null);
+
+        if (!isAuthenticated) {
+            setBookingError("Please log in to complete your booking.");
+            setStep(2);
+            setIsAuthModalOpen(true);
+            return;
+        }
+
+        if (!car) {
+            setBookingError("Unable to submit booking because vehicle details are missing.");
+            return;
+        }
+
+        if (!pickupDate || !dropoffDate || !pickupLocation) {
+            setBookingError("Please complete date and location details before submitting.");
+            setStep(1);
+            return;
+        }
+
+        const resolvedDropoffLocationId = sameLocation ? pickupLocation : dropoffLocation;
+        const pickupLocationOption = PICKUP_LOCATIONS.find((location) => location.id === pickupLocation);
+        const dropoffLocationOption = resolvedDropoffLocationId
+            ? PICKUP_LOCATIONS.find((location) => location.id === resolvedDropoffLocationId)
+            : null;
+
+        if (!pickupLocationOption) {
+            setBookingError("Please select a valid pick-up location.");
+            setStep(1);
+            return;
+        }
+
+        if (!dropoffLocationOption) {
+            setBookingError("Please select a valid drop-off location.");
+            setStep(1);
+            return;
+        }
+
+        const selectedExtras = [
+            extras.insurance ? "Insurance" : null,
+            extras.gps ? "GPS" : null,
+            extras.childSeat ? "Child Seat" : null,
+            extras.additionalDriver ? "Additional Driver" : null,
+        ].filter(Boolean);
+
+        const specialRequestsParts = [
+            `Pickup time: ${pickupTime}`,
+            `Dropoff time: ${dropoffTime}`,
+            selectedExtras.length > 0 ? `Extras: ${selectedExtras.join(", ")}` : null,
+            guestInfo.phone.trim() ? `Contact phone: ${guestInfo.phone.trim()}` : null,
+            guestInfo.idNumber.trim() ? `ID/Passport: ${guestInfo.idNumber.trim()}` : null,
+        ].filter(Boolean) as string[];
+
+        const payload: BookingCreateRequest = {
+            carId: car.id,
+            pickupDate: formatDateForApi(pickupDate),
+            returnDate: formatDateForApi(dropoffDate),
+            pickupLocation: `${pickupLocationOption.name} - ${pickupLocationOption.address}`,
+            returnLocation: `${dropoffLocationOption.name} - ${dropoffLocationOption.address}`,
+            specialRequests: specialRequestsParts.length > 0 ? specialRequestsParts.join(" | ") : undefined,
+        };
+
+        try {
+            setIsSubmittingBooking(true);
+            await bookingService.create(payload);
+            navigate("/dashboard");
+        } catch (error) {
+            console.error("Failed to create booking:", error);
+            setBookingError(getErrorMessage(error, "Failed to complete booking. Please try again."));
+        } finally {
+            setIsSubmittingBooking(false);
+        }
+    };
+
     // Validation
-    const canProceedStep1 = pickupDate && dropoffDate && pickupLocation;
-    const canProceedStep2 = isAuthenticated || (guestInfo.fullName && guestInfo.email && guestInfo.phone && guestInfo.idNumber);
-    const canProceedStep3 = true;
+    const canProceedStep1 = Boolean(pickupDate && dropoffDate && pickupLocation && (sameLocation || dropoffLocation));
+    const canProceedStep2 = isAuthenticated;
 
     // ✅ LOADING STATE
     if (isLoadingCar) {
@@ -548,7 +649,7 @@ export default function BookingPage() {
                             <div className="bg-white rounded-2xl p-6 shadow-sm">
                                 <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                                     <User className="w-5 h-5" />
-                                    {isAuthenticated ? "Confirm Your Details" : "Enter Your Details"}
+                                    {isAuthenticated ? "Confirm Your Details" : "Sign In To Continue"}
                                 </h2>
 
                                 {!isAuthenticated && (
@@ -556,9 +657,9 @@ export default function BookingPage() {
                                         <div className="flex items-start gap-3">
                                             <AlertCircle className="w-5 h-5 text-emerald-600 mt-0.5 flex-shrink-0" />
                                             <div className="flex-1">
-                                                <p className="text-sm font-semibold text-emerald-900 mb-1">Not logged in?</p>
+                                                <p className="text-sm font-semibold text-emerald-900 mb-1">Login required</p>
                                                 <p className="text-sm text-emerald-700 mb-3">
-                                                    Log in to save your details and track your bookings, or continue as guest below.
+                                                    Your backend account is required to create and track a booking.
                                                 </p>
                                                 <button
                                                     onClick={() => setIsAuthModalOpen(true)}
@@ -746,6 +847,13 @@ export default function BookingPage() {
                             </div>
                         )}
 
+                        {/* Submission Errors */}
+                        {bookingError && (
+                            <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                                <p className="text-sm text-red-700">{bookingError}</p>
+                            </div>
+                        )}
+
                         {/* Navigation Buttons */}
                         <div className="flex items-center justify-between">
                             {step > 1 ? (
@@ -773,9 +881,17 @@ export default function BookingPage() {
                                 </button>
                             ) : (
                                 <button
-                                    className="px-8 py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors"
+                                    onClick={handleCompleteBooking}
+                                    disabled={isSubmittingBooking || !isAuthenticated}
+                                    className={`px-8 py-3 rounded-xl font-semibold transition-colors ${
+                                        isSubmittingBooking || !isAuthenticated
+                                            ? "bg-emerald-300 text-white cursor-not-allowed"
+                                            : "bg-emerald-600 text-white hover:bg-emerald-700"
+                                    }`}
                                 >
-                                    Complete Booking - Ksh {pricing.total.toLocaleString()}
+                                    {isSubmittingBooking
+                                        ? "Submitting booking..."
+                                        : `Complete Booking - Ksh ${pricing.total.toLocaleString()}`}
                                 </button>
                             )}
                         </div>

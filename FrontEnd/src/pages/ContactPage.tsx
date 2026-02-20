@@ -1,4 +1,5 @@
 import { useState } from "react";
+import axios from "axios";
 import { 
     Phone, 
     Mail, 
@@ -11,6 +12,7 @@ import {
 } from "lucide-react";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
+import { contactService } from "../services/ContactService.ts";
 
 // Contact info
 const CONTACT_INFO = {
@@ -77,17 +79,38 @@ export default function ContactPage() {
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
+    const [submitError, setSubmitError] = useState<string | null>(null);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
-        
-        // Simulate API call
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        
-        setIsSubmitting(false);
-        setIsSubmitted(true);
-        setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
+        setSubmitError(null);
+
+        try {
+            await contactService.submitMessage({
+                name: formData.name.trim(),
+                email: formData.email.trim(),
+                phone: formData.phone.trim(),
+                subject: formData.subject.trim() || undefined,
+                message: formData.message.trim(),
+            });
+
+            setIsSubmitted(true);
+            setFormData({ name: "", email: "", phone: "", subject: "", message: "" });
+        } catch (error) {
+            if (axios.isAxiosError(error)) {
+                const data = error.response?.data as { message?: string } | undefined;
+                if (typeof data?.message === "string" && data.message.trim().length > 0) {
+                    setSubmitError(data.message);
+                } else {
+                    setSubmitError("Failed to send your message. Please try again.");
+                }
+            } else {
+                setSubmitError("Failed to send your message. Please try again.");
+            }
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -281,6 +304,9 @@ export default function ContactPage() {
                                             </>
                                         )}
                                     </button>
+                                    {submitError && (
+                                        <p className="text-sm text-red-600 mt-2">{submitError}</p>
+                                    )}
                                 </form>
                             )}
                         </div>
@@ -419,4 +445,3 @@ export default function ContactPage() {
         </div>
     );
 }
-

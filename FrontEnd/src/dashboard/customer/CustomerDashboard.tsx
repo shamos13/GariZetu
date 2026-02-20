@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CustomerLayout } from "./components/CustomerLayout.tsx";
 import { carService } from "../../services/carService.ts";
 import type { Car } from "../../data/cars.ts";
@@ -7,6 +7,7 @@ import { authService } from "../../services/AuthService.ts";
 import { Calendar, Car as CarIcon, TrendingUp, User, Mail, Phone, CreditCard, MapPin, Edit } from "lucide-react";
 import { Button } from "../../components/ui/button.tsx";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card.tsx";
+import { bookingService, type Booking, type BookingStatus } from "../../services/BookingService.ts";
 
 interface CustomerDashboardProps {
     onBack: () => void;
@@ -15,26 +16,52 @@ interface CustomerDashboardProps {
 export default function CustomerDashboard({ onBack }: CustomerDashboardProps) {
     const [currentPage, setCurrentPage] = useState("dashboard");
     const [cars, setCars] = useState<Car[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
+    const [bookings, setBookings] = useState<Booking[]>([]);
+    const [isLoadingCars, setIsLoadingCars] = useState(true);
+    const [isLoadingBookings, setIsLoadingBookings] = useState(true);
+    const [bookingsError, setBookingsError] = useState<string | null>(null);
     const navigate = useNavigate();
     const user = authService.getUser();
+    const isAuthenticated = authService.isAuthenticated();
 
-    // Load cars on mount
-    useEffect(() => {
-        const fetchCars = async () => {
-            try {
-                setIsLoading(true);
-                const fetchedCars = await carService.getAll();
-                setCars(fetchedCars.slice(0, 6)); // Show only 6 cars in dashboard
-            } catch (error) {
-                console.error("Failed to fetch cars:", error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchCars();
+    const fetchCars = useCallback(async () => {
+        try {
+            setIsLoadingCars(true);
+            const fetchedCars = await carService.getAll();
+            setCars(fetchedCars.slice(0, 6)); // Show only 6 cars in dashboard
+        } catch (error) {
+            console.error("Failed to fetch cars:", error);
+        } finally {
+            setIsLoadingCars(false);
+        }
     }, []);
+
+    const fetchBookings = useCallback(async () => {
+        if (!isAuthenticated) {
+            setBookings([]);
+            setBookingsError(null);
+            setIsLoadingBookings(false);
+            return;
+        }
+
+        try {
+            setIsLoadingBookings(true);
+            setBookingsError(null);
+            const fetchedBookings = await bookingService.getMyBookings();
+            setBookings(fetchedBookings);
+        } catch (error) {
+            console.error("Failed to fetch customer bookings:", error);
+            setBookingsError("Unable to load bookings right now.");
+        } finally {
+            setIsLoadingBookings(false);
+        }
+    }, [isAuthenticated]);
+
+    // Load cars and bookings on mount
+    useEffect(() => {
+        void fetchCars();
+        void fetchBookings();
+    }, [fetchCars, fetchBookings]);
 
     const getPageTitle = () => {
         switch (currentPage) {
@@ -50,7 +77,53 @@ export default function CustomerDashboard({ onBack }: CustomerDashboardProps) {
     };
 
     const availableCarsCount = cars.filter(car => car.status === "available").length;
-    const totalCarsCount = cars.length;
+    const activeBookingStatuses: BookingStatus[] = ["PENDING", "CONFIRMED", "ACTIVE"];
+    const activeBookingsCount = bookings.filter((booking) => activeBookingStatuses.includes(booking.bookingStatus)).length;
+    const totalRentalsCount = bookings.length;
+
+    const sortedBookings = useMemo(() => {
+        return [...bookings].sort((a, b) => {
+            const dateA = new Date(a.createdAt).getTime();
+            const dateB = new Date(b.createdAt).getTime();
+            return dateB - dateA;
+        });
+    }, [bookings]);
+
+    const formatBookingDate = (value: string): string => {
+        let date: Date;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+            const [year, month, day] = value.split("-").map(Number);
+            date = new Date(year, month - 1, day);
+        } else {
+            date = new Date(value);
+        }
+
+        if (Number.isNaN(date.getTime())) {
+            return value;
+        }
+
+        return date.toLocaleDateString("en-US", {
+            year: "numeric",
+            month: "short",
+            day: "numeric",
+        });
+    };
+
+    const getBookingBadgeClass = (status: BookingStatus): string => {
+        switch (status) {
+            case "PENDING":
+                return "bg-amber-500/20 text-amber-400 border border-amber-500/30";
+            case "CONFIRMED":
+                return "bg-blue-500/20 text-blue-400 border border-blue-500/30";
+            case "ACTIVE":
+                return "bg-violet-500/20 text-violet-400 border border-violet-500/30";
+            case "COMPLETED":
+                return "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+            case "CANCELLED":
+            default:
+                return "bg-red-500/20 text-red-400 border border-red-500/30";
+        }
+    };
 
     const renderDashboard = () => (
         <div className="space-y-6">
@@ -83,7 +156,7 @@ export default function CustomerDashboard({ onBack }: CustomerDashboardProps) {
                         <Calendar className="h-4 w-4 text-emerald-400" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-white">0</div>
+                        <div className="text-2xl font-bold text-white">{activeBookingsCount}</div>
                         <p className="text-xs text-gray-500 mt-1">Active reservations</p>
                     </CardContent>
                 </Card>
@@ -94,7 +167,7 @@ export default function CustomerDashboard({ onBack }: CustomerDashboardProps) {
                         <TrendingUp className="h-4 w-4 text-emerald-400" />
                     </CardHeader>
                     <CardContent>
-                        <div className="text-2xl font-bold text-white">0</div>
+                        <div className="text-2xl font-bold text-white">{totalRentalsCount}</div>
                         <p className="text-xs text-gray-500 mt-1">All time</p>
                     </CardContent>
                 </Card>
@@ -132,7 +205,7 @@ export default function CustomerDashboard({ onBack }: CustomerDashboardProps) {
                     </Button>
                 </div>
 
-                {isLoading ? (
+                {isLoadingCars ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {[1, 2, 3].map((i) => (
                             <Card key={i} className="bg-[#1a1a1a] border-gray-800 animate-pulse">
@@ -360,16 +433,72 @@ export default function CustomerDashboard({ onBack }: CustomerDashboardProps) {
                     <CardDescription>Your rental history and upcoming reservations</CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="text-center py-12">
-                        <Calendar className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                        <p className="text-gray-400 mb-4">You don't have any bookings yet.</p>
-                        <Button
-                            onClick={() => navigate("/vehicles")}
-                            className="bg-emerald-500 hover:bg-emerald-600 text-white"
-                        >
-                            Browse Vehicles
-                        </Button>
-                    </div>
+                    {!isAuthenticated ? (
+                        <div className="text-center py-10">
+                            <p className="text-gray-400 mb-4">Log in to view your booking history.</p>
+                            <Button onClick={() => navigate("/")} className="bg-emerald-500 hover:bg-emerald-600 text-white">
+                                Go to Home
+                            </Button>
+                        </div>
+                    ) : isLoadingBookings ? (
+                        <div className="space-y-3">
+                            {[1, 2, 3].map((item) => (
+                                <div key={item} className="h-24 rounded-xl bg-gray-800/60 animate-pulse" />
+                            ))}
+                        </div>
+                    ) : bookingsError ? (
+                        <div className="text-center py-10">
+                            <p className="text-red-400 mb-4">{bookingsError}</p>
+                            <Button
+                                onClick={() => void fetchBookings()}
+                                variant="outline"
+                                className="border-gray-700 text-gray-300 hover:bg-gray-800"
+                            >
+                                Try Again
+                            </Button>
+                        </div>
+                    ) : sortedBookings.length === 0 ? (
+                        <div className="text-center py-12">
+                            <Calendar className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                            <p className="text-gray-400 mb-4">You don&apos;t have any bookings yet.</p>
+                            <Button
+                                onClick={() => navigate("/vehicles")}
+                                className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                            >
+                                Browse Vehicles
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {sortedBookings.map((booking) => (
+                                <div key={booking.bookingId} className="rounded-xl border border-gray-800 bg-[#141414] p-4">
+                                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                                        <div>
+                                            <p className="text-sm text-gray-500">Booking #{booking.bookingId}</p>
+                                            <p className="text-white font-semibold">
+                                                {booking.carMake} {booking.carModel} {booking.carYear}
+                                            </p>
+                                            <p className="text-sm text-gray-400">
+                                                {formatBookingDate(booking.pickupDate)} to {formatBookingDate(booking.returnDate)}
+                                            </p>
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Pick-up: {booking.pickupLocation}
+                                            </p>
+                                        </div>
+
+                                        <div className="text-left md:text-right space-y-2">
+                                            <p className="text-emerald-400 font-semibold">
+                                                KES {booking.totalPrice.toLocaleString()}
+                                            </p>
+                                            <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${getBookingBadgeClass(booking.bookingStatus)}`}>
+                                                {booking.bookingStatus}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>
