@@ -14,13 +14,13 @@ import java.util.List;
 public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     // ========= BASIC QUERIES ==========
-    List<Booking> findByUserId(Long userId);
+    List<Booking> findByUserUserId(Long userId);
 
-    List<Booking> findByCarId(Long carId);
+    List<Booking> findByCarCarId(Long carId);
 
-    List<Booking> findByBookingStatus(String bookingStatus);
+    List<Booking> findByBookingStatus(BookingStatus bookingStatus);
 
-    List<Booking> findByUserIdAndBookingStatus(Long userId, BookingStatus status);
+    List<Booking> findByUserUserIdAndBookingStatus(Long userId, BookingStatus status);
 
     /**
      * Find bookings for specific car and status
@@ -28,7 +28,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
      * SQL: SELECT * FROM bookings
      *      WHERE car_id = :carId AND booking_status = :status
      */
-    List<Booking> findByCarIdAndBookingStatus(Long carId, BookingStatus status);
+    List<Booking> findByCarCarIdAndBookingStatus(Long carId, BookingStatus status);
 
     // ========== COMPLEX QUERY: AVAILABILITY CHECK ==========
 
@@ -119,12 +119,12 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
      * Use: Car details page - "This car has 12 total bookings"
      * SQL: SELECT COUNT(*) FROM bookings WHERE car_id = :carId
      */
-    long countByCarId(Long carId);
+    long countByCarCarId(Long carId);
 
     /**
      * Count bookings by user
      * Use: User profile - "You have 5 rental bookings"
      * SQL: SELECT COUNT(*) FROM bookings WHERE user_id = :userId
      */
-    long countByUserId(Long userId);
+    long countByUserUserId(Long userId);
 }
