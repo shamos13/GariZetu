@@ -1,6 +1,7 @@
 package com.amos.garizetu.security;
 
 import lombok.RequiredArgsConstructor;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -75,7 +76,16 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
-                // STEP 4: Add our JWT filter before Spring Security's username/password filter
+                // STEP 4: Return clear auth error codes for API clients.
+                // 401 = not authenticated (missing/invalid token), 403 = authenticated but not allowed.
+                .exceptionHandling(exceptions -> exceptions
+                        .authenticationEntryPoint((request, response, authException) ->
+                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
+                        .accessDeniedHandler((request, response, accessDeniedException) ->
+                                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Forbidden"))
+                )
+
+                // STEP 5: Add our JWT filter before Spring Security's username/password filter
                 // This filter runs FIRST to check for JWT tokens in requests
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 

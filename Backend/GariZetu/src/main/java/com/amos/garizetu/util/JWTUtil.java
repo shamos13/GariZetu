@@ -2,6 +2,8 @@ package com.amos.garizetu.util;
 
 import com.amos.garizetu.config.JWTConfig;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
 import lombok.RequiredArgsConstructor;
@@ -82,20 +84,16 @@ public class JWTUtil {
                 .parseSignedClaims(token)     // Parse and verify the token
                 .getPayload();                 // Get the payload (claims)
     }
-    private Boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
-    }
-
     public Boolean validateToken(String token) {
         try {
-            // Try to extract claims - this will fail if signature is invalid
+            // Parse once; this validates signature and expiration in one step.
             extractAllClaims(token);
-
-            // Check if token is expired
-            return !isTokenExpired(token);
-
-        } catch (Exception e) {
-            log.error("Invalid JWT token: {}", e.getMessage());
+            return true;
+        } catch (ExpiredJwtException e) {
+            log.warn("Expired JWT token: {}", e.getMessage());
+            return false;
+        } catch (JwtException | IllegalArgumentException e) {
+            log.warn("Invalid JWT token: {}", e.getMessage());
             return false;
         }
     }

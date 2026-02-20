@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Locale;
 import java.util.List;
 
 /**
@@ -39,7 +40,17 @@ import java.util.List;
 @Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final String AUTH_PATH_PREFIX = "/api/v1/auth/";
+    private static final String AUTH_PATH = "/api/v1/auth";
+    private static final String BEARER_PREFIX = "Bearer ";
+
     private final JWTUtil jwtUtil;
+
+    @Override
+    protected boolean shouldNotFilter(@NonNull HttpServletRequest request) {
+        String path = request.getServletPath();
+        return AUTH_PATH.equals(path) || path.startsWith(AUTH_PATH_PREFIX);
+    }
 
     /**
      * This method is called for EVERY request.
@@ -59,9 +70,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // STEP 1: Get the Authorization header from the request
         // Example: "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5..."
         final String authHeader = request.getHeader("Authorization");
+        final String jwt = extractTokenFromHeader(authHeader);
 
-        // STEP 2: Check if header exists and starts with "Bearer "
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+        // STEP 2: Continue when no usable token was provided.
+        if (jwt == null) {
             // No token present - let the request continue
             // If this is a protected endpoint, Spring Security will block it later
             filterChain.doFilter(request, response);
@@ -69,25 +81,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         try {
-            // STEP 3: Extract the token (remove "Bearer " prefix)
-            // "Bearer eyJhbGci..." → "eyJhbGci..."
-            final String jwt = authHeader.substring(7);
-
-            // STEP 4: Validate the token
+            // STEP 3: Validate the token
             if (jwtUtil.validateToken(jwt)) {
 
-                // STEP 5: Extract user information from the token
+                // STEP 4: Extract user information from the token
                 String email = jwtUtil.extractEmail(jwt);
                 String role = jwtUtil.extractRole(jwt);
 
                 log.debug("JWT validated for user: {} with role: {}", email, role);
 
-                // STEP 6: Create authentication object for Spring Security
+                // STEP 5: Create authentication object for Spring Security
                 // This tells Spring Security: "This user is authenticated!"
 
                 // Convert role string to Spring Security authority
                 // "CUSTOMER" → "ROLE_CUSTOMER" (Spring Security convention)
-                SimpleGrantedAuthority authority = new SimpleGrantedAuthority("ROLE_" + role);
+                String normalizedRole = role == null ? "" : role.trim().toUpperCase(Locale.ROOT);
+                String authorityValue = normalizedRole.startsWith("ROLE_")
+                        ? normalizedRole
+                        : "ROLE_" + normalizedRole;
+                SimpleGrantedAuthority authority = new SimpleGrantedAuthority(authorityValue);
 
                 // Create authentication token with user's email and role
                 UsernamePasswordAuthenticationToken authToken =
@@ -100,20 +112,46 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 // Add request details (IP address, session info, etc.)
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
-                // STEP 7: Store authentication in Spring Security context
+                // STEP 6: Store authentication in Spring Security context
                 // This is like putting a stamp on the request saying "AUTHENTICATED"
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-
-                log.debug("Authentication set in SecurityContext for user: {}", email);
+                if (SecurityContextHolder.getContext().getAuthentication() == null) {
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                    log.debug("Authentication set in SecurityContext for user: {}", email);
+                }
             } else {
-                log.warn("Invalid JWT token");
+                // Validation details are already logged in JWTUtil.
+                log.debug("JWT validation failed");
             }
 
         } catch (Exception e) {
             log.error("Cannot set user authentication: {}", e.getMessage());
         }
 
-        // STEP 8: Continue to the next filter/controller
+        // STEP 7: Continue to the next filter/controller
         filterChain.doFilter(request, response);
+    }
+
+    private String extractTokenFromHeader(String authHeader) {
+        if (authHeader == null || authHeader.isBlank()) {
+            return null;
+        }
+
+        String trimmed = authHeader.trim();
+
+        // Standard "Bearer <token>" header (case-insensitive).
+        if (trimmed.regionMatches(true, 0, BEARER_PREFIX, 0, BEARER_PREFIX.length())) {
+            String token = trimmed.substring(BEARER_PREFIX.length()).trim();
+            return token.isEmpty() ? null : token;
+        }
+
+        // Compatibility for malformed "Bearer<token>" with missing whitespace.
+        if (trimmed.regionMatches(true, 0, "Bearer", 0, "Bearer".length())) {
+            String token = trimmed.substring("Bearer".length()).trim();
+            return token.isEmpty() ? null : token;
+        }
+
+        // Compatibility: some clients send raw JWT in Authorization header (no scheme).
+        // Only accept raw values with no whitespace to avoid parsing other auth schemes.
+        return trimmed.contains(" ") ? null : trimmed;
     }
 }
