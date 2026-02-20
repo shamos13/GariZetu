@@ -51,7 +51,7 @@ public class BookingController {
      * Response: 201 Created with booking details
      */
     @PostMapping("/create")
-    @PreAuthorize("hasRole('CUSTOMER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
     public ResponseEntity<BookingResponseDTO> createBooking(
             @Valid @RequestBody BookingCreateRequest request,
             Authentication authentication) {

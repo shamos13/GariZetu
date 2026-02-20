@@ -16,6 +16,7 @@ public class BookingCreateRequest {
 
     // ========= REQUIRED FIELDS ==========
     private Long carId;
+    private Long userId;
 
     /**
      * @FutureOrPresent: Date must be today or later
