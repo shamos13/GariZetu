@@ -12,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -51,17 +50,12 @@ public class BookingController {
      * Response: 201 Created with booking details
      */
     @PostMapping("/create")
-    @PreAuthorize("hasRole('USER') or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('CUSTOMER') or hasRole('ADMIN')")
     public ResponseEntity<BookingResponseDTO> createBooking(
-            @Valid @RequestBody BookingCreateRequest request,
-            Authentication authentication) {
-        log.info("User {} creating booking for car {}",
-                authentication.getName(), request.getCarId());
-
-        // Extract user ID from JWT token
-        Long userId = getUserIdFromAuthentication(authentication);
-
-        BookingResponseDTO booking = bookingService.createBooking(userId, request);
+            @Valid @RequestBody BookingCreateRequest request) {
+        // Controller stays thin: no identity/business logic; service resolves authenticated user.
+        log.info("Processing create-booking request for car {}", request.getCarId());
+        BookingResponseDTO booking = bookingService.createBooking(request);
         return ResponseEntity.status(HttpStatus.CREATED).body(booking);
     }
 
@@ -73,12 +67,9 @@ public class BookingController {
      */
     @GetMapping("/my-bookings")
     @PreAuthorize("hasRole('CUSTOMER') or hasRole('ADMIN')")
-    public ResponseEntity<List<BookingResponseDTO>> getMyBookings(
-            Authentication authentication) {
-        Long userId = getUserIdFromAuthentication(authentication);
-        log.debug("User {} fetching their bookings", userId);
-
-        List<BookingResponseDTO> bookings = bookingService.getCustomerBookings(userId);
+    public ResponseEntity<List<BookingResponseDTO>> getMyBookings() {
+        // Service handles ownership scoping based on authenticated principal.
+        List<BookingResponseDTO> bookings = bookingService.getCustomerBookings();
         return ResponseEntity.ok(bookings);
     }
 
@@ -87,6 +78,7 @@ public class BookingController {
      * GET /api/v1/bookings/:id
      */
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('CUSTOMER') or hasRole('ADMIN')")
     public ResponseEntity<BookingResponseDTO> getBooking(@PathVariable Long id) {
         log.debug("Fetching booking {}", id);
         BookingResponseDTO booking = bookingService.getBookingById(id);
@@ -138,14 +130,8 @@ public class BookingController {
     public ResponseEntity<List<BookingResponseDTO>> getAllBookings(
             @RequestParam(required = false) BookingStatus status) {
         log.info("Admin fetching all bookings");
-
-        List<BookingResponseDTO> bookings;
-        if (status != null) {
-            bookings = bookingService.getBookingsByStatus(status);
-        } else {
-            bookings = bookingService.getAllBookings();
-        }
-
+        // Controller delegates filtering decision to service.
+        List<BookingResponseDTO> bookings = bookingService.getAllBookings(status);
         return ResponseEntity.ok(bookings);
     }
 
@@ -174,20 +160,5 @@ public class BookingController {
         BookingStatsDTO stats = bookingService.getBookingStats();
         return ResponseEntity.ok(stats);
     }
-
-    // ========== HELPER METHODS ==========
-
-    /**
-     * Extract user ID from JWT authentication
-     * In real app, you'd get this from the token's claims
-     * For now, using email as temporary identifier
-     */
-    private Long getUserIdFromAuthentication(Authentication authentication) {
-        // TODO: Extract actual user ID from JWT token claims
-        // For now, return 1L (hardcoded for testing)
-        // In production: decode JWT, get userId claim
-        return 1L;
-    }
-
 
 }

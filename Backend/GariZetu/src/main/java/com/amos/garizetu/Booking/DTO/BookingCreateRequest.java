@@ -16,7 +16,8 @@ public class BookingCreateRequest {
 
     // ========= REQUIRED FIELDS ==========
     private Long carId;
-    private Long userId;
+    // userId is intentionally not accepted from client payload.
+    // BookingService always resolves user identity from authenticated JWT context.
 
     /**
      * @FutureOrPresent: Date must be today or later
