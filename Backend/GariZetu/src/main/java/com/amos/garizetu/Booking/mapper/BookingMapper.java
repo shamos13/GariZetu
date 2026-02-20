@@ -1,11 +1,17 @@
 package com.amos.garizetu.Booking.mapper;
 
+import com.amos.garizetu.Booking.DTO.BookingCreateRequest;
 import com.amos.garizetu.Booking.DTO.BookingResponseDTO;
 import com.amos.garizetu.Booking.Entity.Booking;
+import com.amos.garizetu.Car.Entity.Car;
+import com.amos.garizetu.User.Entity.User;
 import org.springframework.stereotype.Component;
 
 @Component
 public class BookingMapper {
+
+    // Mapping Booking entity to BookingResponseDTO
+    // The response the customer gets
     public BookingResponseDTO toResponseDTO(Booking booking) {
         if (booking == null) {
             return null;
@@ -52,5 +58,25 @@ public class BookingMapper {
         dto.setUpdatedAt(booking.getUpdatedAt());
 
         return dto;
+    }
+
+    // Mapping BookingRequestDTO to Entity
+    // Request sent by the Customer
+    public Booking toEntity(BookingCreateRequest bookingCreateRequest, User user, Car car) {
+        if (bookingCreateRequest == null || user == null || car == null) {
+            return null;
+        }
+
+        Booking booking = new Booking();
+        booking.setPickupDate(bookingCreateRequest.getPickupDate());
+        booking.setReturnDate(bookingCreateRequest.getReturnDate());
+        booking.setPickupLocation(bookingCreateRequest.getPickupLocation());
+        //use pickup location if returnLocation is not provided
+        booking.setReturnLocation(bookingCreateRequest.getReturnLocation() !=null ? bookingCreateRequest.getReturnLocation() : bookingCreateRequest.getPickupLocation());
+        booking.setSpecialRequests(bookingCreateRequest.getSpecialRequests());
+        booking.setUser(user);
+        booking.setCar(car);
+        return booking;
+
     }
 }

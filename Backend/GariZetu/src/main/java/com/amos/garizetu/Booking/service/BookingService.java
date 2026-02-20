@@ -13,6 +13,7 @@ import com.amos.garizetu.Car.Enums.CarStatus;
 import com.amos.garizetu.Repository.CarRepository;
 import com.amos.garizetu.Repository.UserRepository;
 import com.amos.garizetu.User.Entity.User;
+import com.amos.garizetu.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -33,6 +34,7 @@ public class BookingService {
     private final CarRepository carRepository;
     private final UserRepository userRepository;
     private final BookingMapper bookingMapper;
+    private final SecurityUtils securityUtils;
 
     // ========== CREATE BOOKING ==========
 
@@ -48,8 +50,10 @@ public class BookingService {
      * 6. Create booking with PENDING status
      * 7. Save to database
      */
-    public BookingResponseDTO createBooking(Long userId, BookingCreateRequest request) {
-        log.info("User {} creating booking for car {}", userId, request.getCarId());
+    public BookingResponseDTO createBooking(BookingCreateRequest request) {
+        // Security hardening: always trust user identity from SecurityContext, never request payload.
+        Long authenticatedUserId = securityUtils.getAuthenticatedUserId();
+        log.info("User {} creating booking for car {}", authenticatedUserId, request.getCarId());
 
         // Step 1: Validate car exists
         Car car = carRepository.findById(request.getCarId())
@@ -57,8 +61,8 @@ public class BookingService {
         log.debug("Car found: {}", car.getMake());
 
         // Step 2: Validate user exists
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+        User user = userRepository.findById(authenticatedUserId)
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + authenticatedUserId));
         log.debug("User found: {}", user.getEmail());
 
         // Step 3: Validate dates
@@ -68,15 +72,8 @@ public class BookingService {
         checkCarAvailability(request.getCarId(), request.getPickupDate(), request.getReturnDate());
 
         // Step 5: Create and save booking
-        Booking booking = new Booking();
-        booking.setUser(user);
-        booking.setCar(car);
-        booking.setPickupDate(request.getPickupDate());
-        booking.setReturnDate(request.getReturnDate());
-        booking.setPickupLocation(request.getPickupLocation());
-        booking.setReturnLocation(request.getReturnLocation() != null ?
-                request.getReturnLocation() : request.getPickupLocation());
-        booking.setSpecialRequests(request.getSpecialRequests());
+        Booking booking = bookingMapper.toEntity(request, user, car);
+
 
         // Step 6: Calculate price
         long days = ChronoUnit.DAYS.between(request.getPickupDate(), request.getReturnDate());
@@ -104,12 +101,22 @@ public class BookingService {
     }
 
     /**
+     * Controller simplification:
+     * Keep filtering decision in service so controller remains transport-only.
+     */
+    public List<BookingResponseDTO> getAllBookings(BookingStatus status) {
+        return status != null ? getBookingsByStatus(status) : getAllBookings();
+    }
+
+    /**
      * Get bookings by customer ID
      * Use: Customer views their rental history
      */
-    public List<BookingResponseDTO> getCustomerBookings(Long userId) {
+    public List<BookingResponseDTO> getCustomerBookings() {
+        // Fetch only bookings that belong to authenticated user.
+        Long userId = securityUtils.getAuthenticatedUserId();
         log.debug("Fetching bookings for user {}", userId);
-        List<Booking> bookings = bookingRepository.findByUserId(userId);
+        List<Booking> bookings = bookingRepository.findByUserUserId(userId);
         return bookings.stream()
                 .map(bookingMapper::toResponseDTO)
                 .collect(Collectors.toList());
@@ -121,7 +128,7 @@ public class BookingService {
      */
     public List<BookingResponseDTO> getCarBookings(Long carId) {
         log.debug("Fetching bookings for car {}", carId);
-        List<Booking> bookings = bookingRepository.findByCarId(carId);
+        List<Booking> bookings = bookingRepository.findByCarCarId(carId);
         return bookings.stream()
                 .map(bookingMapper::toResponseDTO)
                 .collect(Collectors.toList());
@@ -134,6 +141,8 @@ public class BookingService {
         log.debug("Fetching booking {}", bookingId);
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found with ID: " + bookingId));
+        // Authorization in service: only booking owner or admin can access booking details.
+        assertAdminOrBookingOwner(booking, "view");
         return bookingMapper.toResponseDTO(booking);
     }
 
@@ -143,7 +152,7 @@ public class BookingService {
      */
     public List<BookingResponseDTO> getBookingsByStatus(BookingStatus status) {
         log.debug("Fetching bookings with status: {}", status);
-        List<Booking> bookings = bookingRepository.findByBookingStatus(String.valueOf(status));
+        List<Booking> bookings = bookingRepository.findByBookingStatus(status);
         return bookings.stream()
                 .map(bookingMapper::toResponseDTO)
                 .collect(Collectors.toList());
@@ -159,6 +168,8 @@ public class BookingService {
 
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found with ID: " + bookingId));
+        // Authorization in service: prevent users from updating other users' bookings.
+        assertAdminOrBookingOwner(booking, "update");
 
         // Update status if provided
         if (updateDTO.getBookingStatus() != null) {
@@ -204,6 +215,8 @@ public class BookingService {
 
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new RuntimeException("Booking not found with ID: " + bookingId));
+        // Authorization in service: prevent users from cancelling other users' bookings.
+        assertAdminOrBookingOwner(booking, "cancel");
 
         if (!booking.canBeCancelled()) {
             throw new RuntimeException("Cannot cancel booking with status: " + booking.getBookingStatus());
@@ -258,6 +271,22 @@ public class BookingService {
         }
 
         log.debug("Car {} is available for {} to {}", carId, pickupDate, returnDate);
+    }
+
+    /**
+     * Centralized ownership rule:
+     * - ADMIN can manage any booking
+     * - non-admin users can only manage their own bookings
+     */
+    private void assertAdminOrBookingOwner(Booking booking, String action) {
+        if (securityUtils.hasRole("ADMIN")) {
+            return;
+        }
+        Long authenticatedUserId = securityUtils.getAuthenticatedUserId();
+        Long bookingOwnerId = booking.getUser().getUserId();
+        if (!bookingOwnerId.equals(authenticatedUserId)) {
+            throw new RuntimeException("You are not allowed to " + action + " this booking");
+        }
     }
 
     // ========== STATISTICS ==========
