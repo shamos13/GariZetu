@@ -20,7 +20,7 @@ export function HeroSection() {
     };
 
     return (
-        <section className="relative flex min-h-[42vh] flex-col items-center justify-start overflow-hidden bg-black pb-0 pt-20 md:min-h-[52vh] md:pt-28">
+        <section className="relative flex min-h-[42vh] flex-col items-center justify-start overflow-hidden bg-black pb-0 pt-16 md:min-h-[52vh] md:pt-24">
             {/* Animated Background Gradient */}
             <div className="absolute inset-0 bg-gradient-to-b from-zinc-900/50 via-transparent to-black/50" />
             
@@ -70,14 +70,14 @@ export function HeroSection() {
 
             {/* Car Image with Animation */}
             <div 
-                className={`relative flex w-full max-w-2xl flex-grow justify-center px-2 mt-[-8px] md:mt-[-14px] transition-all duration-1000 delay-300 ${
+                className={`relative mt-[-8px] flex w-full max-w-3xl flex-grow justify-center px-1 md:mt-[-14px] transition-all duration-1000 delay-300 ${
                     isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-12"
                 }`}
             >
                 <img
                     src="/src/assets/car_traced.png"
                     alt="GariZetu Car"
-                    className="w-[100%] md:w-[108%] max-w-none object-contain pointer-events-none select-none relative z-0 drop-shadow-2xl"
+                    className="relative z-0 w-[108%] max-w-none object-contain pointer-events-none select-none drop-shadow-2xl md:w-[118%]"
                 />
                 
                 {/* Glow Effect */}

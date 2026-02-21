@@ -130,22 +130,22 @@ export function Navbar() {
             {/* Top Bar - Contact Info (hidden on scroll) */}
             <div 
                 className={`hidden md:block border-b border-white/10 overflow-hidden transition-all duration-300 ${
-                    isScrolled ? "h-0 opacity-0" : "h-8 opacity-100"
+                    isScrolled ? "h-0 opacity-0" : "h-7 opacity-100"
                 }`}
             >
-                <div className="layout-container h-8 flex items-center justify-between">
-                    <p className="text-xs text-gray-400">
+                <div className="layout-container h-7 flex items-center justify-between">
+                    <p className="text-[11px] text-gray-400">
                         🇰🇪 Kenya's Premier Car Rental Service
                     </p>
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-3">
                         <a 
                             href="tel:+254759064318"
-                            className="flex items-center gap-2 text-xs text-gray-400 hover:text-white transition-colors"
+                            className="flex items-center gap-1.5 text-[11px] text-gray-400 hover:text-white transition-colors"
                         >
                             <Phone className="w-3 h-3" />
                             +254 727 805 351
                         </a>
-                        <span className="text-xs text-emerald-400 font-medium animate-pulse">
+                        <span className="text-[11px] text-emerald-400 font-medium animate-pulse">
                             • Open Now
                         </span>
                     </div>
@@ -155,7 +155,7 @@ export function Navbar() {
             {/* Main Navbar */}
             <div 
                 className={`layout-container flex items-center justify-between transition-all duration-300 ${
-                    isScrolled ? "py-2.5" : "py-3.5"
+                    isScrolled ? "py-2" : "py-2.5"
                 }`}
             >
                 {/* Logo */}
@@ -167,13 +167,13 @@ export function Navbar() {
                         src="/src/assets/logo.png" 
                         alt="GariZetu" 
                         className={`w-auto object-contain transition-all duration-300 group-hover:scale-105 ${
-                            isScrolled ? "h-7 md:h-8" : "h-8 md:h-10"
+                            isScrolled ? "h-6 md:h-7" : "h-7 md:h-8"
                         }`}
                     />
                 </Link>
 
                 {/* Desktop Navigation */}
-                <div className="hidden md:flex items-center gap-5 lg:gap-6">
+                <div className="hidden md:flex items-center gap-4 lg:gap-5">
 
                     {/* Home Link */}
                     <Link 
@@ -274,16 +274,16 @@ export function Navbar() {
                     </Link>
 
                     {isAuthenticated ? (
-                        <div className="ml-2 flex items-center gap-4">
+                        <div className="ml-1 flex items-center gap-3">
                             <button
                                 className="relative text-white/80 hover:text-white transition-colors"
                                 aria-label="Notifications"
                             >
-                                <Bell className="w-5 h-5" />
+                                <Bell className="w-4 h-4" />
                                 <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-black" />
                             </button>
 
-                            <div className="h-8 w-px bg-white/20" />
+                            <div className="h-7 w-px bg-white/20" />
 
                             <div className="relative" ref={profileMenuRef}>
                                 <button
@@ -295,7 +295,7 @@ export function Navbar() {
                                         <p className="text-gray-400 text-xs">{authService.isAdmin() ? "Admin" : "Member"}</p>
                                     </div>
 
-                                    <div className="w-11 h-11 rounded-full border-2 border-white/20 bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-semibold">
+                                    <div className="w-9 h-9 rounded-full border-2 border-white/20 bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-sm text-white font-semibold">
                                         {getUserInitials()}
                                     </div>
 
@@ -336,7 +336,7 @@ export function Navbar() {
                     ) : (
                     <button
                         onClick={() => openAuthModal("login")}
-                        className="ml-2 px-5 py-2.5 bg-white text-black rounded-full text-sm lg:text-base font-semibold hover:bg-gray-100 transition-all duration-200 hover:scale-105 hover:shadow-lg"
+                        className="ml-1 rounded-full bg-white px-4 py-2 text-sm font-semibold text-black transition-all duration-200 hover:scale-105 hover:bg-gray-100 hover:shadow-lg"
                     >
                         Login / Register
                     </button>
@@ -346,7 +346,7 @@ export function Navbar() {
                 {/* Mobile Menu Button */}
                 <button
                     onClick={toggleMobileMenu}
-                    className="md:hidden relative z-50 p-2 text-white hover:bg-white/10 rounded-lg transition-colors"
+                    className="relative z-50 rounded-lg p-1.5 text-white transition-colors hover:bg-white/10 md:hidden"
                     aria-label="Toggle menu"
                 >
                     <div className="relative w-6 h-6">
@@ -383,18 +383,18 @@ export function Navbar() {
 
             {/* Mobile Menu Panel */}
             <div
-                className={`md:hidden fixed top-0 right-0 h-full w-[300px] bg-black z-40 transform transition-transform duration-300 ease-out shadow-2xl ${
+                className={`md:hidden fixed top-0 right-0 h-full w-[280px] bg-black z-40 transform transition-transform duration-300 ease-out shadow-2xl ${
                     isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
                 }`}
             >
-                <div className="flex flex-col h-full pt-20 pb-6 px-6">
+                <div className="flex h-full flex-col px-5 pb-5 pt-16">
                     {/* Mobile Nav Links */}
                     <div className="flex flex-col space-y-1">
                         {/* Home Link */}
                         <Link
                             to="/"
                             onClick={closeMobileMenu}
-                            className={`py-3 transition-colors font-medium flex items-center gap-2 ${
+                            className={`flex items-center gap-2 py-2.5 font-medium transition-colors ${
                                 location.pathname === "/" ? "text-white" : "text-white/70"
                             }`}
                         >
@@ -409,7 +409,7 @@ export function Navbar() {
                         <div>
                             <button
                                 onClick={() => setIsVehiclesOpen(!isVehiclesOpen)}
-                                className={`flex items-center justify-between w-full py-3 transition-colors font-medium ${
+                                className={`flex w-full items-center justify-between py-2.5 font-medium transition-colors ${
                                     isActive("/vehicles") ? "text-white" : "text-white/70"
                                 }`}
                             >
@@ -460,7 +460,7 @@ export function Navbar() {
                         <Link
                             to="/about"
                             onClick={closeMobileMenu}
-                            className={`py-3 transition-colors font-medium flex items-center gap-2 ${
+                            className={`flex items-center gap-2 py-2.5 font-medium transition-colors ${
                                 isActive("/about") ? "text-white" : "text-white/70"
                             }`}
                         >
@@ -474,7 +474,7 @@ export function Navbar() {
                         <Link
                             to="/contact"
                             onClick={closeMobileMenu}
-                            className={`py-3 transition-colors font-medium flex items-center gap-2 ${
+                            className={`flex items-center gap-2 py-2.5 font-medium transition-colors ${
                                 isActive("/contact") ? "text-white" : "text-white/70"
                             }`}
                         >
@@ -487,7 +487,7 @@ export function Navbar() {
                     </div>
 
                     {/* Quick Contact */}
-                    <div className="mt-8 p-4 bg-white/5 rounded-xl">
+                    <div className="mt-6 rounded-xl bg-white/5 p-3.5">
                         <p className="text-xs text-gray-400 mb-2">Need help?</p>
                         <a 
                             href="tel:+254712345678"
@@ -499,13 +499,13 @@ export function Navbar() {
                     </div>
 
                     {/* Mobile CTA Button */}
-                    <div className="mt-auto pt-6 border-t border-white/10 space-y-2">
+                    <div className="mt-auto space-y-2 border-t border-white/10 pt-5">
                         {isAuthenticated ? (
                             <>
                                 <Link
                                     to={authService.isAdmin() ? "/adashboard" : "/dashboard"}
                                     onClick={closeMobileMenu}
-                                    className="flex items-center justify-center gap-3 w-full py-3.5 px-4 bg-emerald-500 text-white text-center rounded-xl font-semibold hover:bg-emerald-600 transition-all active:scale-95"
+                                    className="flex w-full items-center justify-center gap-3 rounded-xl bg-emerald-500 px-4 py-3 text-center font-semibold text-white transition-all hover:bg-emerald-600 active:scale-95"
                                 >
                                     <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
                                         <span className="text-sm font-bold">
@@ -523,7 +523,7 @@ export function Navbar() {
                                         handleLogout();
                                         closeMobileMenu();
                                     }}
-                                    className="block w-full py-3.5 px-4 bg-white/10 text-white text-center rounded-xl font-semibold hover:bg-white/20 transition-all active:scale-95"
+                                    className="block w-full rounded-xl bg-white/10 px-4 py-3 text-center font-semibold text-white transition-all hover:bg-white/20 active:scale-95"
                                 >
                                     Logout
                                 </button>
@@ -531,7 +531,7 @@ export function Navbar() {
                         ) : (
                         <button
                             onClick={() => openAuthModal("login")}
-                            className="block w-full py-3.5 px-4 bg-white text-black text-center rounded-xl font-semibold hover:bg-gray-100 transition-all active:scale-95"
+                            className="block w-full rounded-xl bg-white px-4 py-3 text-center font-semibold text-black transition-all hover:bg-gray-100 active:scale-95"
                         >
                             Login / Register
                         </button>
