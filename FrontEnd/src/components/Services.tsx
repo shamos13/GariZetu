@@ -23,27 +23,29 @@ const SERVICES = [
 
 export function Services() {
     return (
-        <section className="py-12 md:py-14 px-4 md:px-12 bg-black text-white text-center">
-            <div className="max-w-4xl mx-auto space-y-3 mb-8">
-                <h2 className="text-3xl font-bold">Our Services & Benefits</h2>
+        <section className="section-space bg-black text-white text-center">
+            <div className="layout-container">
+            <div className="max-w-4xl mx-auto space-y-2.5 mb-6">
+                <h2 className="text-2xl md:text-[1.75rem] font-bold">Our Services & Benefits</h2>
                 <p className="text-gray-400 text-sm">
                     To make renting easy and hassle-free, we provide a variety of services and advantages. We have you covered
                     with a variety of vehicles and flexible rental terms.
                 </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 max-w-7xl mx-auto px-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 md:gap-6">
                 {SERVICES.map((service) => (
-                    <div key={service.title} className="space-y-4 group">
-                        <div className="mx-auto w-10 h-10 bg-white rounded-full flex items-center justify-center transition-transform group-hover:scale-110">
-                            <service.icon className="text-black" size={24} />
+                    <div key={service.title} className="space-y-3 group">
+                        <div className="mx-auto w-9 h-9 bg-white rounded-full flex items-center justify-center transition-transform group-hover:scale-110">
+                            <service.icon className="text-black" size={20} />
                         </div>
-                        <div className="space-y-3">
-                            <h3 className="text-lg font-bold">{service.title}</h3>
+                        <div className="space-y-2">
+                            <h3 className="text-base font-bold">{service.title}</h3>
                             <p className="text-sm text-gray-400 leading-relaxed">{service.description}</p>
                         </div>
                     </div>
                 ))}
+            </div>
             </div>
         </section>
     )

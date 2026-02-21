@@ -306,10 +306,10 @@ export default function VehiclesPage() {
     };
 
     return (
-        <div className="min-h-screen bg-zinc-100">
+        <div className="bg-zinc-100">
             <Navbar />
 
-            <main className="mx-auto max-w-7xl px-5 pb-14 pt-28 md:px-8 md:pt-32">
+            <main className="layout-container pb-10 pt-20 md:pt-24">
                 <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                     <div>
                         <h1 className="font-serif text-4xl text-zinc-900 md:text-5xl">Our Fleet</h1>

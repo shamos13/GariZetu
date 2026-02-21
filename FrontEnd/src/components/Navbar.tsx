@@ -130,10 +130,10 @@ export function Navbar() {
             {/* Top Bar - Contact Info (hidden on scroll) */}
             <div 
                 className={`hidden md:block border-b border-white/10 overflow-hidden transition-all duration-300 ${
-                    isScrolled ? "h-0 opacity-0" : "h-10 opacity-100"
+                    isScrolled ? "h-0 opacity-0" : "h-8 opacity-100"
                 }`}
             >
-                <div className="max-w-[1920px] mx-auto px-5 md:px-8 lg:px-12 h-10 flex items-center justify-between">
+                <div className="layout-container h-8 flex items-center justify-between">
                     <p className="text-xs text-gray-400">
                         🇰🇪 Kenya's Premier Car Rental Service
                     </p>
@@ -154,8 +154,8 @@ export function Navbar() {
 
             {/* Main Navbar */}
             <div 
-                className={`flex items-center justify-between px-5 md:px-8 lg:px-12 max-w-[1920px] mx-auto transition-all duration-300 ${
-                    isScrolled ? "py-3" : "py-4"
+                className={`layout-container flex items-center justify-between transition-all duration-300 ${
+                    isScrolled ? "py-2.5" : "py-3.5"
                 }`}
             >
                 {/* Logo */}
@@ -173,7 +173,7 @@ export function Navbar() {
                 </Link>
 
                 {/* Desktop Navigation */}
-                <div className="hidden md:flex items-center gap-6 lg:gap-8">
+                <div className="hidden md:flex items-center gap-5 lg:gap-6">
 
                     {/* Home Link */}
                     <Link 
