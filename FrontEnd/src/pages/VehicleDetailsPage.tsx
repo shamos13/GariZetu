@@ -192,6 +192,16 @@ export default function VehicleDetailsPage() {
         reviewCount: c.reviewCount,
     });
 
+    const activeGalleryImage = images[currentImageIndex] ?? {
+        id: -1,
+        url: car?.mainImageUrl ?? "/placeholder-car.jpg",
+        alt: car?.name ?? "Vehicle image",
+    };
+    const activeGalleryCaption = activeGalleryImage.alt?.trim() || car?.name || "Vehicle";
+    const safeDescription = car?.description ?? "";
+    const activeGallerySubCaption =
+        safeDescription.length > 110 ? `${safeDescription.slice(0, 107)}...` : safeDescription;
+
     // ✅ NOW CONDITIONAL RETURNS ARE SAFE - ALL HOOKS CALLED
     // Loading state
     if (isLoading) {
@@ -667,77 +677,93 @@ export default function VehicleDetailsPage() {
 
             {isGalleryModalOpen && (
                 <div
-                    className="fixed inset-0 z-[70] bg-black/90 backdrop-blur-sm p-3 md:p-6"
+                    className="fixed inset-0 z-[80] bg-slate-900/55 backdrop-blur-lg"
                     onClick={closeGalleryModal}
                 >
                     <div
-                        className="mx-auto flex h-full w-full max-w-6xl flex-col"
+                        className="relative h-full w-full"
                         onClick={(event) => event.stopPropagation()}
                     >
-                        <div className="mb-3 flex items-center justify-between">
-                            <p className="text-sm text-white/80">
-                                {currentImageIndex + 1} / {images.length}
-                            </p>
+                        <div className="absolute left-4 top-4 z-20 text-[11px] font-medium tracking-wide text-white/80 md:left-7 md:top-7 md:text-xs">
+                            <span className="font-semibold text-amber-300">
+                                {String(currentImageIndex + 1).padStart(2, "0")}
+                            </span>
+                            <span className="mx-1 text-white/60">
+                                / {String(images.length).padStart(2, "0")}
+                            </span>
+                            <span className="mx-2 text-white/30">|</span>
+                            <span className="uppercase text-white/85">{car.name}</span>
+                        </div>
+
+                        <button
+                            onClick={closeGalleryModal}
+                            className="absolute right-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white backdrop-blur-xl transition-colors hover:bg-white/25 md:right-7 md:top-7"
+                            aria-label="Close gallery"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
+
+                        {images.length > 1 && (
                             <button
-                                onClick={closeGalleryModal}
-                                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-white/15 text-white transition-colors hover:bg-white/25"
-                                aria-label="Close gallery"
+                                onClick={handlePrevImage}
+                                className="absolute left-4 top-1/2 z-20 h-12 w-12 -translate-y-1/2 rounded-full border border-white/25 bg-white/15 text-white backdrop-blur-xl transition-colors hover:bg-white/25 md:left-7"
+                                aria-label="Previous image"
                             >
-                                <X className="h-4 w-4" />
+                                <ChevronLeft className="mx-auto h-5 w-5" />
                             </button>
-                        </div>
+                        )}
 
-                        <div className="relative flex min-h-0 flex-1 items-center justify-center rounded-xl bg-[#0a0a0a]">
-                            <img
-                                src={getImageUrl(images[currentImageIndex].url)}
-                                alt={images[currentImageIndex].alt}
-                                className="h-full w-full object-contain"
-                                onError={(e) => {
-                                    e.currentTarget.src = "/placeholder-car.jpg";
-                                }}
-                            />
+                        {images.length > 1 && (
+                            <button
+                                onClick={handleNextImage}
+                                className="absolute right-4 top-1/2 z-20 h-12 w-12 -translate-y-1/2 rounded-full border border-white/25 bg-white/15 text-white backdrop-blur-xl transition-colors hover:bg-white/25 md:right-7"
+                                aria-label="Next image"
+                            >
+                                <ChevronRight className="mx-auto h-5 w-5" />
+                            </button>
+                        )}
 
-                            {images.length > 1 && (
-                                <>
-                                    <button
-                                        onClick={handlePrevImage}
-                                        className="absolute left-3 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full bg-white/20 text-white transition-colors hover:bg-white/35"
-                                        aria-label="Previous image"
-                                    >
-                                        <ChevronLeft className="mx-auto h-5 w-5" />
-                                    </button>
-                                    <button
-                                        onClick={handleNextImage}
-                                        className="absolute right-3 top-1/2 z-10 h-10 w-10 -translate-y-1/2 rounded-full bg-white/20 text-white transition-colors hover:bg-white/35"
-                                        aria-label="Next image"
-                                    >
-                                        <ChevronRight className="mx-auto h-5 w-5" />
-                                    </button>
-                                </>
-                            )}
-                        </div>
+                        <div className="mx-auto flex h-full w-full max-w-5xl flex-col items-center justify-center px-4 pb-5 pt-16 md:pb-7 md:pt-20">
+                            <div className="w-full max-w-[760px] overflow-hidden bg-black/30">
+                                <img
+                                    src={getImageUrl(activeGalleryImage.url)}
+                                    alt={activeGalleryImage.alt}
+                                    className="h-[50vh] min-h-[280px] max-h-[620px] w-full object-cover md:h-[58vh]"
+                                    onError={(e) => {
+                                        e.currentTarget.src = "/placeholder-car.jpg";
+                                    }}
+                                />
+                            </div>
 
-                        <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-                            {images.map((img, index) => (
-                                <button
-                                    key={`modal-thumb-${img.id}`}
-                                    onClick={() => setCurrentImageIndex(index)}
-                                    className={`relative h-16 w-24 flex-shrink-0 overflow-hidden rounded-md border-2 transition-colors ${
-                                        currentImageIndex === index
-                                            ? "border-white"
-                                            : "border-transparent hover:border-white/50"
-                                    }`}
-                                >
-                                    <img
-                                        src={getImageUrl(img.url)}
-                                        alt={img.alt}
-                                        className="h-full w-full object-cover"
-                                        onError={(e) => {
-                                            e.currentTarget.src = "/placeholder-car.jpg";
-                                        }}
-                                    />
-                                </button>
-                            ))}
+                            <div className="mt-3 text-center md:mt-4">
+                                <p className="text-xl font-semibold text-white/90">{activeGalleryCaption}</p>
+                                <p className="mt-1 text-sm text-white/65">{activeGallerySubCaption}</p>
+                            </div>
+
+                            <div className="mt-4 w-full max-w-[860px] rounded-2xl border border-white/20 bg-white/10 p-2.5 backdrop-blur-2xl">
+                                <div className="flex gap-2 overflow-x-auto pb-1">
+                                    {images.map((img, index) => (
+                                        <button
+                                            key={`modal-thumb-${img.id}`}
+                                            onClick={() => setCurrentImageIndex(index)}
+                                            className={`relative h-14 w-20 flex-shrink-0 overflow-hidden rounded-md border-2 transition-all md:h-16 md:w-24 ${
+                                                currentImageIndex === index
+                                                    ? "border-amber-300 shadow-[0_0_0_1px_rgba(252,211,77,0.35)]"
+                                                    : "border-transparent opacity-80 hover:border-white/55 hover:opacity-100"
+                                            }`}
+                                        >
+                                            <img
+                                                src={getImageUrl(img.url)}
+                                                alt={img.alt}
+                                                className="h-full w-full object-cover"
+                                                onError={(e) => {
+                                                    e.currentTarget.src = "/placeholder-car.jpg";
+                                                }}
+                                            />
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
