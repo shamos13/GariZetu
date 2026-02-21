@@ -1,5 +1,6 @@
 import {useEffect, useMemo, useState} from "react";
 import {Link, useNavigate, useSearchParams} from "react-router-dom";
+import axios from "axios";
 import {
     AlertCircle,
     Calendar,
@@ -24,6 +25,7 @@ import {carService} from "../services/carService";
 import {getImageUrl} from "../lib/ImageUtils";
 import {authService} from "../services/AuthService";
 import {AuthModal} from "../components/AuthModal";
+import {bookingService, type BookingCreateRequest} from "../services/BookingService.ts";
 
 // Pickup locations
 const PICKUP_LOCATIONS = [
@@ -33,6 +35,29 @@ const PICKUP_LOCATIONS = [
     { id: 4, name: "Karen", address: "Karen, Nairobi" },
     { id: 5, name: "Wilson Airport", address: "Wilson Airport, Langata" },
 ];
+
+const formatDateForApi = (date: Date): string => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+};
+
+const getErrorMessage = (error: unknown, fallback: string): string => {
+    if (axios.isAxiosError(error)) {
+        const errorData = error.response?.data as { message?: string } | undefined;
+        const backendMessage = errorData?.message;
+        if (typeof backendMessage === "string" && backendMessage.trim().length > 0) {
+            return backendMessage;
+        }
+    }
+
+    if (error instanceof Error && error.message.trim().length > 0) {
+        return error.message;
+    }
+
+    return fallback;
+};
 
 export default function BookingPage() {
     const [searchParams] = useSearchParams();
@@ -85,6 +110,8 @@ export default function BookingPage() {
         phone: "",
         idNumber: ""
     });
+    const [bookingError, setBookingError] = useState<string | null>(null);
+    const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
 
     // Update auth state when modal closes (in case user logged in)
     useEffect(() => {
@@ -192,17 +219,91 @@ export default function BookingPage() {
         }
     };
 
+    const handleCompleteBooking = async () => {
+        setBookingError(null);
+
+        if (!isAuthenticated) {
+            setBookingError("Please log in to complete your booking.");
+            setStep(2);
+            setIsAuthModalOpen(true);
+            return;
+        }
+
+        if (!car) {
+            setBookingError("Unable to submit booking because vehicle details are missing.");
+            return;
+        }
+
+        if (!pickupDate || !dropoffDate || !pickupLocation) {
+            setBookingError("Please complete date and location details before submitting.");
+            setStep(1);
+            return;
+        }
+
+        const resolvedDropoffLocationId = sameLocation ? pickupLocation : dropoffLocation;
+        const pickupLocationOption = PICKUP_LOCATIONS.find((location) => location.id === pickupLocation);
+        const dropoffLocationOption = resolvedDropoffLocationId
+            ? PICKUP_LOCATIONS.find((location) => location.id === resolvedDropoffLocationId)
+            : null;
+
+        if (!pickupLocationOption) {
+            setBookingError("Please select a valid pick-up location.");
+            setStep(1);
+            return;
+        }
+
+        if (!dropoffLocationOption) {
+            setBookingError("Please select a valid drop-off location.");
+            setStep(1);
+            return;
+        }
+
+        const selectedExtras = [
+            extras.insurance ? "Insurance" : null,
+            extras.gps ? "GPS" : null,
+            extras.childSeat ? "Child Seat" : null,
+            extras.additionalDriver ? "Additional Driver" : null,
+        ].filter(Boolean);
+
+        const specialRequestsParts = [
+            `Pickup time: ${pickupTime}`,
+            `Dropoff time: ${dropoffTime}`,
+            selectedExtras.length > 0 ? `Extras: ${selectedExtras.join(", ")}` : null,
+            guestInfo.phone.trim() ? `Contact phone: ${guestInfo.phone.trim()}` : null,
+            guestInfo.idNumber.trim() ? `ID/Passport: ${guestInfo.idNumber.trim()}` : null,
+        ].filter(Boolean) as string[];
+
+        const payload: BookingCreateRequest = {
+            carId: car.id,
+            pickupDate: formatDateForApi(pickupDate),
+            returnDate: formatDateForApi(dropoffDate),
+            pickupLocation: `${pickupLocationOption.name} - ${pickupLocationOption.address}`,
+            returnLocation: `${dropoffLocationOption.name} - ${dropoffLocationOption.address}`,
+            specialRequests: specialRequestsParts.length > 0 ? specialRequestsParts.join(" | ") : undefined,
+        };
+
+        try {
+            setIsSubmittingBooking(true);
+            await bookingService.create(payload);
+            navigate("/dashboard");
+        } catch (error) {
+            console.error("Failed to create booking:", error);
+            setBookingError(getErrorMessage(error, "Failed to complete booking. Please try again."));
+        } finally {
+            setIsSubmittingBooking(false);
+        }
+    };
+
     // Validation
-    const canProceedStep1 = pickupDate && dropoffDate && pickupLocation;
-    const canProceedStep2 = isAuthenticated || (guestInfo.fullName && guestInfo.email && guestInfo.phone && guestInfo.idNumber);
-    const canProceedStep3 = true;
+    const canProceedStep1 = Boolean(pickupDate && dropoffDate && pickupLocation && (sameLocation || dropoffLocation));
+    const canProceedStep2 = isAuthenticated;
 
     // ✅ LOADING STATE
     if (isLoadingCar) {
         return (
-            <div className="min-h-screen bg-gray-50">
+            <div className="bg-gray-50">
                 <Navbar />
-                <div className="pt-24 pb-12 flex items-center justify-center">
+                <div className="pt-20 pb-10 flex items-center justify-center">
                     <div className="text-center">
                         <div className="w-16 h-16 border-4 border-gray-200 border-t-black rounded-full animate-spin mx-auto mb-4" />
                         <p className="text-gray-600">Loading vehicle details...</p>
@@ -215,9 +316,9 @@ export default function BookingPage() {
     // ✅ NO CAR FOUND
     if (!car) {
         return (
-            <div className="min-h-screen bg-gray-50">
+            <div className="bg-gray-50">
                 <Navbar />
-                <div className="pt-24 pb-12 flex items-center justify-center">
+                <div className="pt-20 pb-10 flex items-center justify-center">
                     <div className="text-center bg-white rounded-2xl p-8 shadow-sm max-w-md mx-4">
                         <AlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                         <h1 className="text-2xl font-bold text-gray-900 mb-2">
@@ -239,13 +340,13 @@ export default function BookingPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="bg-gray-50">
             <Navbar />
 
             {/* Header */}
-            <div className="bg-black pt-32 pb-8">
-                <div className="max-w-6xl mx-auto px-5 md:px-8">
-                    <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Complete Your Booking</h1>
+            <div className="bg-black pb-4 pt-20 md:pt-24">
+                <div className="layout-container">
+                    <h1 className="mb-2 text-xl font-bold text-white md:text-2xl">Complete Your Booking</h1>
                     <p className="text-gray-400">You're booking: {car.name}</p>
                 </div>
             </div>
@@ -253,15 +354,15 @@ export default function BookingPage() {
             {/* Error message if any */}
             {carError && (
                 <div className="bg-yellow-50 border-b border-yellow-200">
-                    <div className="max-w-6xl mx-auto px-5 md:px-8 py-3">
+                    <div className="layout-container py-3">
                         <p className="text-yellow-800 text-sm">{carError} - Showing cached data</p>
                     </div>
                 </div>
             )}
 
             {/* Progress Steps */}
-            <div className="bg-white border-b border-gray-100 sticky top-16 z-40">
-                <div className="max-w-6xl mx-auto px-5 md:px-8 py-4">
+            <div className="sticky top-24 z-40 border-b border-gray-100 bg-white">
+                <div className="layout-container py-3">
                     <div className="flex items-center justify-between max-w-xl">
                         {[
                             { num: 1, label: "Dates & Location" },
@@ -290,16 +391,16 @@ export default function BookingPage() {
                 </div>
             </div>
 
-            <div className="max-w-6xl mx-auto px-5 md:px-8 py-8">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="layout-container py-4 md:py-5">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                     {/* Main Content */}
-                    <div className="lg:col-span-2 space-y-6">
+                    <div className="space-y-5 lg:col-span-2">
                         {/* Step 1: Dates & Location */}
                         {step === 1 && (
                             <>
                                 {/* Pre-selected Dates Confirmation */}
                                 {hasPreselectedDates && pickupDate && dropoffDate && (
-                                    <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-5 mb-6">
+                                    <div className="mb-5 rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
                                         <div className="flex items-start gap-3">
                                             <Check className="w-5 h-5 text-emerald-600 mt-0.5" />
                                             <div className="flex-1">
@@ -316,7 +417,7 @@ export default function BookingPage() {
                                 )}
 
                                 {/* Date Selection */}
-                                <div className="bg-white rounded-2xl p-6 shadow-sm">
+                                <div className="rounded-2xl bg-white p-4 shadow-sm">
                                     <div className="flex items-center justify-between mb-4">
                                         <h2 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                                             <Calendar className="w-5 h-5" />
@@ -329,7 +430,7 @@ export default function BookingPage() {
                                         )}
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                                         {/* Calendar */}
                                         <div>
                                             <BookingCalendar
@@ -410,7 +511,7 @@ export default function BookingPage() {
                                 </div>
 
                                 {/* Location Selection */}
-                                <div className="bg-white rounded-2xl p-6 shadow-sm">
+                                <div className="rounded-2xl bg-white p-4 shadow-sm">
                                     <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                                         <MapPin className="w-5 h-5" />
                                         Pick-up & Drop-off Location
@@ -475,7 +576,7 @@ export default function BookingPage() {
 
                                 {/* Authentication Prompt at Step 1 */}
                                 {!isAuthenticated && canProceedStep1 && (
-                                    <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-5">
+                                    <div className="rounded-2xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50 p-4">
                                         <div className="flex items-center justify-between flex-wrap gap-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center">
@@ -498,7 +599,7 @@ export default function BookingPage() {
                                 )}
 
                                 {/* Extras */}
-                                <div className="bg-white rounded-2xl p-6 shadow-sm">
+                                <div className="rounded-2xl bg-white p-4 shadow-sm">
                                     <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                                         <Shield className="w-5 h-5" />
                                         Add-ons & Extras
@@ -545,10 +646,10 @@ export default function BookingPage() {
 
                         {/* Step 2: Your Details */}
                         {step === 2 && (
-                            <div className="bg-white rounded-2xl p-6 shadow-sm">
+                            <div className="rounded-2xl bg-white p-4 shadow-sm">
                                 <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                                     <User className="w-5 h-5" />
-                                    {isAuthenticated ? "Confirm Your Details" : "Enter Your Details"}
+                                    {isAuthenticated ? "Confirm Your Details" : "Sign In To Continue"}
                                 </h2>
 
                                 {!isAuthenticated && (
@@ -556,9 +657,9 @@ export default function BookingPage() {
                                         <div className="flex items-start gap-3">
                                             <AlertCircle className="w-5 h-5 text-emerald-600 mt-0.5 flex-shrink-0" />
                                             <div className="flex-1">
-                                                <p className="text-sm font-semibold text-emerald-900 mb-1">Not logged in?</p>
+                                                <p className="text-sm font-semibold text-emerald-900 mb-1">Login required</p>
                                                 <p className="text-sm text-emerald-700 mb-3">
-                                                    Log in to save your details and track your bookings, or continue as guest below.
+                                                    Your backend account is required to create and track a booking.
                                                 </p>
                                                 <button
                                                     onClick={() => setIsAuthModalOpen(true)}
@@ -673,7 +774,7 @@ export default function BookingPage() {
 
                         {/* Step 3: Payment */}
                         {step === 3 && (
-                            <div className="bg-white rounded-2xl p-6 shadow-sm">
+                            <div className="rounded-2xl bg-white p-4 shadow-sm">
                                 <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
                                     <CreditCard className="w-5 h-5" />
                                     Payment Method
@@ -746,6 +847,13 @@ export default function BookingPage() {
                             </div>
                         )}
 
+                        {/* Submission Errors */}
+                        {bookingError && (
+                            <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                                <p className="text-sm text-red-700">{bookingError}</p>
+                            </div>
+                        )}
+
                         {/* Navigation Buttons */}
                         <div className="flex items-center justify-between">
                             {step > 1 ? (
@@ -773,9 +881,17 @@ export default function BookingPage() {
                                 </button>
                             ) : (
                                 <button
-                                    className="px-8 py-3 bg-emerald-600 text-white rounded-xl font-semibold hover:bg-emerald-700 transition-colors"
+                                    onClick={handleCompleteBooking}
+                                    disabled={isSubmittingBooking || !isAuthenticated}
+                                    className={`px-8 py-3 rounded-xl font-semibold transition-colors ${
+                                        isSubmittingBooking || !isAuthenticated
+                                            ? "bg-emerald-300 text-white cursor-not-allowed"
+                                            : "bg-emerald-600 text-white hover:bg-emerald-700"
+                                    }`}
                                 >
-                                    Complete Booking - Ksh {pricing.total.toLocaleString()}
+                                    {isSubmittingBooking
+                                        ? "Submitting booking..."
+                                        : `Complete Booking - Ksh ${pricing.total.toLocaleString()}`}
                                 </button>
                             )}
                         </div>
@@ -783,7 +899,7 @@ export default function BookingPage() {
 
                     {/* Sidebar - Booking Summary */}
                     <div className="lg:col-span-1">
-                        <div className="sticky top-36 space-y-6">
+                        <div className="sticky top-24 space-y-4">
                             {/* Car Card */}
                             <div className="bg-white rounded-2xl overflow-hidden shadow-sm">
                                 <div className="aspect-[16/10] bg-gray-100">
@@ -804,7 +920,7 @@ export default function BookingPage() {
                             </div>
 
                             {/* Price Breakdown */}
-                            <div className="bg-white rounded-2xl p-6 shadow-sm">
+                            <div className="rounded-2xl bg-white p-4 shadow-sm">
                                 <h3 className="font-semibold text-gray-900 mb-4">Price Breakdown</h3>
 
                                 {rentalDays > 0 ? (
@@ -858,7 +974,7 @@ export default function BookingPage() {
                             </div>
 
                             {/* Trust Badges */}
-                            <div className="bg-white rounded-2xl p-6 shadow-sm">
+                            <div className="rounded-2xl bg-white p-4 shadow-sm">
                                 <div className="space-y-3">
                                     <div className="flex items-center gap-3 text-sm">
                                         <Shield className="w-5 h-5 text-emerald-500" />

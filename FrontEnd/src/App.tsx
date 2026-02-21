@@ -22,6 +22,7 @@ function App() {
                 <Route path="/contact" element={<ContactPage />} />
                 <Route path="/adashboard" element={<AdminDashboardRoute />} />
                 <Route path="/dashboard" element={<CustomerDashboardRoute />} />
+                <Route path="/dashboard/:section" element={<CustomerDashboardRoute />} />
             </Routes>
         </Layout>
     );

@@ -60,6 +60,7 @@ public class SecurityConfig {
                         // PUBLIC endpoints - anyone can access without token
                         .requestMatchers("/api/v1/auth/**").permitAll()
                         .requestMatchers("/api/v1/cars/**").permitAll()
+                        .requestMatchers("/api/v1/contact/**").permitAll()
 
                         // ADMIN-ONLY endpoints (@PreAuthorize does role checking)
                         .requestMatchers("/api/v1/admin/users/**").authenticated()

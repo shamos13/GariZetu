@@ -1,6 +1,5 @@
-import { ReactNode, useState, useEffect, useRef } from "react";
-import { Search, Bell, ChevronDown, Menu, Home, Car, Calendar, User, LogOut } from "lucide-react";
-import { Button } from "../../../components/ui/button.tsx";
+import { ReactNode, useEffect, useRef, useState } from "react";
+import { Bell, Calendar, ChevronDown, CreditCard, Gift, Heart, History, Home, LogOut, Menu, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../../../services/AuthService.ts";
 import logoImage from "../../../assets/logo.png";
@@ -13,11 +12,25 @@ interface CustomerLayoutProps {
     onBack?: () => void;
 }
 
-const menuItems = [
-    { id: "dashboard", label: "Dashboard", icon: Home, path: "/dashboard" },
-    { id: "profile", label: "My Profile", icon: User, path: "/dashboard/profile" },
-    { id: "bookings", label: "My Bookings", icon: Calendar, path: "/dashboard/bookings" },
-    { id: "vehicles", label: "Browse Vehicles", icon: Car, path: "/vehicles" },
+interface MenuItem {
+    id: string;
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+    targetPage: "dashboard" | "bookings" | "profile";
+    badge?: string;
+}
+
+const primaryMenuItems: MenuItem[] = [
+    { id: "dashboard", label: "Dashboard", icon: Home, targetPage: "dashboard" },
+    { id: "bookings", label: "My Bookings", icon: Calendar, targetPage: "bookings" },
+    { id: "history", label: "Rental History", icon: History, targetPage: "bookings" },
+    { id: "rewards", label: "Rewards", icon: Gift, targetPage: "dashboard", badge: "Gold" },
+    { id: "favorites", label: "Favorites", icon: Heart, targetPage: "dashboard" },
+];
+
+const settingsMenuItems: MenuItem[] = [
+    { id: "profile", label: "Profile", icon: User, targetPage: "profile" },
+    { id: "payments", label: "Payments", icon: CreditCard, targetPage: "profile" },
 ];
 
 export function CustomerLayout({ children, title, currentPage, onNavigate, onBack }: CustomerLayoutProps) {
@@ -43,63 +56,96 @@ export function CustomerLayout({ children, title, currentPage, onNavigate, onBac
     const handleLogout = () => {
         authService.logout();
         navigate("/");
-        window.location.reload(); // Refresh to update navbar
+        window.location.reload();
     };
 
-    const handleNavigate = (item: typeof menuItems[0]) => {
-        if (item.path.startsWith("/dashboard")) {
-            onNavigate(item.id);
-        } else {
-            navigate(item.path);
-        }
+    const handleNavigate = (item: MenuItem) => {
+        onNavigate(item.targetPage);
         setIsMobileMenuOpen(false);
     };
 
+    const userInitial = user?.userName?.charAt(0).toUpperCase() || "U";
+
     return (
-        <div className="min-h-screen bg-[#0a0a0a] text-white">
-            {/* Sidebar */}
-            <aside className={`fixed top-0 left-0 h-full w-[240px] bg-[#141414] border-r border-gray-800 z-50 transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
-                <div className="p-6 h-full flex flex-col">
-                    <div className="flex items-center gap-3 mb-8">
-                        <img src={logoImage} alt="GariZetu" className="w-8 h-8" />
-                        <span className="text-white font-semibold">GariZetu</span>
+        <div className="bg-[#f3f4f6] text-[#111827]">
+            <aside className={`fixed top-0 left-0 h-full w-[250px] bg-[#070a10] border-r border-white/10 z-50 transition-transform duration-300 ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
+                <div className="h-full p-5 md:p-6 flex flex-col">
+                    <div className="flex items-center gap-3 mb-8 pb-7 border-b border-white/10">
+                        <img src={logoImage} alt="GariZetu" className="w-8 h-8 object-contain" />
+                        <span className="text-white font-semibold tracking-wide">GariZetu Drive</span>
                     </div>
 
-                    <nav className="space-y-1 flex-1">
-                        {menuItems.map((item) => {
+                    <nav className="space-y-1">
+                        {primaryMenuItems.map((item) => {
                             const Icon = item.icon;
+                            const isActive = (item.id === "dashboard" && currentPage === "dashboard")
+                                || ((item.id === "bookings" || item.id === "history") && currentPage === "bookings")
+                                || (item.id === "profile" && currentPage === "profile");
+
                             return (
                                 <button
                                     key={item.id}
                                     onClick={() => handleNavigate(item)}
-                                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                                        currentPage === item.id
-                                            ? "bg-white text-black"
-                                            : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl transition-colors ${
+                                        isActive ? "bg-white/10 text-white" : "text-gray-400 hover:bg-white/5 hover:text-white"
                                     }`}
                                 >
-                                    <Icon className="w-5 h-5" />
-                                    <span>{item.label}</span>
+                                    <span className="flex items-center gap-3">
+                                        <Icon className="w-4.5 h-4.5" />
+                                        <span>{item.label}</span>
+                                    </span>
+                                    {item.badge && (
+                                        <span className="text-[10px] uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-400 text-black font-semibold">
+                                            {item.badge}
+                                        </span>
+                                    )}
                                 </button>
                             );
                         })}
                     </nav>
 
-                    {onBack && (
-                        <div className="pt-6 mt-6 border-t border-gray-800">
-                            <Button
+                    <div className="mt-6 pt-6 border-t border-white/10">
+                        <p className="text-[11px] tracking-wider text-gray-500 mb-2 px-3">SETTINGS</p>
+                        <div className="space-y-1">
+                            {settingsMenuItems.map((item) => {
+                                const Icon = item.icon;
+                                const isActive = item.id === "profile" && currentPage === "profile";
+                                return (
+                                    <button
+                                        key={item.id}
+                                        onClick={() => handleNavigate(item)}
+                                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors ${
+                                            isActive ? "bg-white/10 text-white" : "text-gray-400 hover:bg-white/5 hover:text-white"
+                                        }`}
+                                    >
+                                        <Icon className="w-4.5 h-4.5" />
+                                        <span>{item.label}</span>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    <div className="mt-auto pt-6 border-t border-white/10 space-y-2">
+                        {onBack && (
+                            <button
                                 onClick={onBack}
-                                variant="outline"
-                                className="w-full bg-transparent border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white"
+                                className="w-full text-left px-4 py-3 rounded-xl text-gray-300 hover:bg-white/5 transition-colors"
                             >
                                 Back to Site
-                            </Button>
-                        </div>
-                    )}
+                            </button>
+                        )}
+                        <button
+                            onClick={handleLogout}
+                            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
+                        >
+                            <LogOut className="w-4.5 h-4.5" />
+                            <span>Log Out</span>
+                        </button>
+                    </div>
                 </div>
             </aside>
 
-            {/* Mobile menu overlay */}
             {isMobileMenuOpen && (
                 <div
                     className="fixed inset-0 bg-black/50 z-40 lg:hidden"
@@ -107,82 +153,77 @@ export function CustomerLayout({ children, title, currentPage, onNavigate, onBac
                 />
             )}
 
-            {/* Main content */}
-            <div className="lg:ml-[240px]">
-                {/* Header */}
-                <header className="sticky top-0 z-30 bg-[#0a0a0a] border-b border-gray-800">
-                    <div className="flex items-center justify-between px-6 py-4">
+            <div className="lg:ml-[250px]">
+                <header className="sticky top-0 z-30 bg-[#f8f8fa]/95 backdrop-blur-sm border-b border-gray-200">
+                    <div className="flex items-center justify-between px-5 py-3.5 md:px-6">
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={() => setIsMobileMenuOpen(true)}
-                                className="lg:hidden text-white"
+                                className="lg:hidden text-gray-800"
                             >
                                 <Menu className="w-6 h-6" />
                             </button>
-                            <h1 className="text-white text-xl font-semibold">{title}</h1>
+                            <div>
+                                <h1 className="text-[#111827] text-xl md:text-2xl font-semibold">Welcome back, {user?.userName || "Member"}</h1>
+                                <p className="text-sm text-gray-500">
+                                    {title === "Dashboard" ? "Manage your premium fleet experience." : title}
+                                </p>
+                            </div>
                         </div>
 
                         <div className="flex items-center gap-4">
-                            {/* Search */}
-                            <div className="hidden md:flex items-center gap-2 bg-[#1a1a1a] rounded-lg px-4 py-2 min-w-[300px]">
-                                <Search className="w-4 h-4 text-gray-500" />
-                                <input
-                                    type="text"
-                                    placeholder="Search vehicles..."
-                                    className="bg-transparent border-none outline-none text-sm text-white placeholder:text-gray-500 w-full"
-                                />
-                            </div>
-
-                            {/* Notifications */}
-                            <button 
-                                onClick={() => navigate("/dashboard/bookings")}
-                                className="relative p-2 hover:bg-gray-800 rounded-lg transition-colors"
+                            <button
+                                onClick={() => onNavigate("bookings")}
+                                className="relative p-2 hover:bg-gray-200 rounded-lg transition-colors"
+                                aria-label="Notifications"
                             >
-                                <Bell className="w-5 h-5 text-gray-400" />
-                                <span className="absolute top-1 right-1 w-2 h-2 bg-emerald-500 rounded-full"></span>
+                                <Bell className="w-5 h-5 text-gray-600" />
+                                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
                             </button>
 
-                            {/* Profile */}
+                            <div className="h-8 w-px bg-gray-300" />
+
                             <div className="relative" ref={profileRef}>
                                 <button
                                     onClick={() => setIsProfileOpen(!isProfileOpen)}
-                                    className="flex items-center gap-2 p-2 hover:bg-gray-800 rounded-lg transition-colors"
+                                    className="flex items-center gap-3 p-1.5 hover:bg-gray-200 rounded-lg transition-colors"
                                 >
-                                    <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center">
-                                        <span className="text-sm font-semibold text-white">
-                                            {user?.userName?.charAt(0).toUpperCase() || "U"}
-                                        </span>
+                                    <div className="text-right hidden md:block leading-tight">
+                                        <p className="text-sm text-[#111827] font-semibold">{user?.userName || "User"}</p>
+                                        <p className="text-xs text-gray-500">Premium Member</p>
                                     </div>
-                                    <span className="hidden md:inline text-sm text-white">{user?.userName || "User"}</span>
-                                    <ChevronDown className="w-4 h-4 text-gray-400" />
+                                    <div className="w-9 h-9 bg-gradient-to-br from-amber-200 to-amber-300 rounded-full flex items-center justify-center border border-amber-400/30">
+                                        <span className="text-sm font-semibold text-white">{userInitial}</span>
+                                    </div>
+                                    <ChevronDown className="w-4 h-4 text-gray-500" />
                                 </button>
 
                                 {isProfileOpen && (
-                                    <div className="absolute right-0 mt-2 w-48 bg-[#1a1a1a] border border-gray-800 rounded-lg shadow-lg py-2">
-                                        <button 
+                                    <div className="absolute right-0 mt-2 w-52 bg-white border border-gray-200 rounded-xl shadow-lg py-2">
+                                        <button
                                             onClick={() => {
                                                 onNavigate("profile");
                                                 setIsProfileOpen(false);
                                             }}
-                                            className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-800 flex items-center gap-2"
+                                            className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                                         >
                                             <User className="w-4 h-4" />
                                             Profile
                                         </button>
-                                        <button 
+                                        <button
                                             onClick={() => {
-                                                navigate("/vehicles");
+                                                onNavigate("bookings");
                                                 setIsProfileOpen(false);
                                             }}
-                                            className="w-full px-4 py-2 text-left text-sm text-gray-300 hover:bg-gray-800 flex items-center gap-2"
+                                            className="w-full px-4 py-2.5 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
                                         >
-                                            <Car className="w-4 h-4" />
-                                            Browse Vehicles
+                                            <Calendar className="w-4 h-4" />
+                                            My Bookings
                                         </button>
-                                        <hr className="my-2 border-gray-800" />
-                                        <button 
+                                        <hr className="my-2 border-gray-200" />
+                                        <button
                                             onClick={handleLogout}
-                                            className="w-full px-4 py-2 text-left text-sm text-red-400 hover:bg-gray-800 flex items-center gap-2"
+                                            className="w-full px-4 py-2.5 text-left text-sm text-red-500 hover:bg-gray-100 flex items-center gap-2"
                                         >
                                             <LogOut className="w-4 h-4" />
                                             Logout
@@ -194,13 +235,11 @@ export function CustomerLayout({ children, title, currentPage, onNavigate, onBac
                     </div>
                 </header>
 
-                {/* Content */}
-                <main className="p-6 min-h-[calc(100vh-80px)]">
+                <main className="p-5 md:p-6">
                     {children}
                 </main>
 
-                {/* Footer */}
-                <footer className="border-t border-gray-800 px-6 py-4">
+                <footer className="border-t border-gray-200 px-5 py-3 md:px-6">
                     <p className="text-gray-500 text-sm text-center">© 2025 GariZetu. All rights reserved.</p>
                 </footer>
             </div>

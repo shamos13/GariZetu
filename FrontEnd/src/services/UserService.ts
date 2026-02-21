@@ -3,13 +3,15 @@ import {api} from "../lib/api";
 // User type matching backend response
 
 export interface User {
-    userID: number;
+    userId: number;
     userName: string;
     email: string;
     phoneNumber: string | null;
     userRole: "ADMIN" | "CUSTOMER";
+    status: "ACTIVE" | "BLOCKED" | "DELETED";
+    lastLogin: string | null;
     createdAt: string;
-    UpdatedAt: string;
+    updatedAt: string;
 }
 
 /**
@@ -23,7 +25,7 @@ export const userService = {
 
     getAllUsers: async (): Promise<User[]> => {
         try {
-            const response = await api.get<User[]>("/admin/users");
+            const response = await api.get<User[]>("/admin/users/allusers");
             return response.data;
         } catch (error) {
             console.error("Failed to fetch users:", error);

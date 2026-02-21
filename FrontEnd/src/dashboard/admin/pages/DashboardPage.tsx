@@ -6,14 +6,11 @@ import {
     TrendingUp, 
     TrendingDown,
     CarFront,
-    Wrench,
     Users
 } from "lucide-react";
 import { 
     LineChart, 
     Line, 
-    BarChart, 
-    Bar, 
     PieChart, 
     Pie, 
     Cell,
@@ -80,12 +77,39 @@ export function DashboardPage() {
 
     // Format date
     const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
+        let date: Date;
+        if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+            const [year, month, day] = dateString.split("-").map(Number);
+            date = new Date(year, month - 1, day);
+        } else {
+            date = new Date(dateString);
+        }
+
+        if (Number.isNaN(date.getTime())) {
+            return dateString;
+        }
+
         return date.toLocaleDateString("en-US", {
             year: "numeric",
             month: "short",
             day: "numeric",
         });
+    };
+
+    const getStatusClass = (status: Booking["status"]) => {
+        switch (status) {
+            case "PENDING":
+                return "bg-amber-500/20 text-amber-400 border border-amber-500/30";
+            case "CONFIRMED":
+                return "bg-blue-500/20 text-blue-400 border border-blue-500/30";
+            case "ACTIVE":
+                return "bg-violet-500/20 text-violet-400 border border-violet-500/30";
+            case "COMPLETED":
+                return "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+            case "CANCELLED":
+            default:
+                return "bg-red-500/20 text-red-400 border border-red-500/30";
+        }
     };
 
     // Prepare pie chart data
@@ -100,7 +124,7 @@ export function DashboardPage() {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center min-h-[400px]">
+            <div className="flex min-h-[280px] items-center justify-center">
                 <div className="text-center">
                     <div className="w-12 h-12 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
                     <p className="text-gray-400">Loading dashboard...</p>
@@ -189,7 +213,7 @@ export function DashboardPage() {
                                     borderRadius: '8px',
                                     color: '#fff'
                                 }}
-                                formatter={(value: number) => formatCurrency(value)}
+                                formatter={(value) => formatCurrency(Number(value ?? 0))}
                             />
                             <Legend wrapperStyle={{ color: '#9ca3af' }} />
                             <Line 
@@ -214,7 +238,7 @@ export function DashboardPage() {
                                 cx="50%"
                                 cy="50%"
                                 labelLine={false}
-                                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                                label={({ name, percent = 0 }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                                 outerRadius={100}
                                 fill="#8884d8"
                                 dataKey="value"
@@ -312,13 +336,7 @@ export function DashboardPage() {
                                         </td>
                                         <td className="py-4 px-4">
                                             <span
-                                                className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${
-                                                    booking.status === "ACTIVE"
-                                                        ? "bg-blue-500/20 text-blue-400 border border-blue-500/30"
-                                                        : booking.status === "COMPLETED"
-                                                        ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                                                        : "bg-red-500/20 text-red-400 border border-red-500/30"
-                                                }`}
+                                                className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${getStatusClass(booking.status)}`}
                                             >
                                                 {booking.status}
                                             </span>
