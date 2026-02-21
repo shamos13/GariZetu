@@ -11,10 +11,10 @@ const brands = [
 
 export function CategorySections() {
     return (
-        <section className="py-12 md:py-14 px-4 md:px-12 bg-white max-w-7xl mx-auto">
-            <div className="max-w-7xl mx-auto">
+        <section className="section-space bg-white">
+            <div className="layout-container">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between mb-5">
                     <h2 className="text-xl font-bold tracking-tight">Rent by Brands</h2>
                     <button className="hidden md:flex items-center gap-2 text-sm font-semibold hover:gap-3 transition-all">
                         View all <ArrowRight className="w-4 h-4" />
@@ -22,11 +22,11 @@ export function CategorySections() {
                 </div>
 
                 {/* Brand Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                     {brands.map((brand) => (
                         <div
                             key={brand.name}
-                            className="flex flex-col items-center justify-center p-4 md:p-5 bg-gray-50 rounded-2xl hover:bg-gray-100 transition-colors cursor-pointer group"
+                            className="flex flex-col items-center justify-center p-3.5 md:p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer group"
                         >
                             {/* Logo Container */}
                             <div className="w-10 h-10 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">

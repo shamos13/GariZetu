@@ -60,10 +60,10 @@ export function AdminLayout({ children, title, currentPage, onNavigate, onBack }
     };
 
     return (
-        <div className="min-h-screen bg-[#0a0a0a] text-white">
+        <div className="bg-[#0a0a0a] text-white">
             {/* Sidebar */}
             <aside className={`fixed top-0 left-0 h-full w-[240px] bg-[#141414] border-r border-gray-800 z-50 transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
-                <div className="p-6 h-full flex flex-col">
+                <div className="h-full p-5 md:p-6 flex flex-col">
                     <div className="flex items-center gap-3 mb-8">
                         <img src={logoImage} alt="GariZetu" className="w-8 h-8" />
                         <span className="text-white">GariZetu</span>
@@ -127,7 +127,7 @@ export function AdminLayout({ children, title, currentPage, onNavigate, onBack }
             <div className="lg:ml-[240px]">
                 {/* Header */}
                 <header className="sticky top-0 z-30 bg-[#0a0a0a] border-b border-gray-800">
-                    <div className="flex items-center justify-between px-6 py-4">
+                    <div className="flex items-center justify-between px-5 py-3.5 md:px-6">
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={() => setIsMobileMenuOpen(true)}
@@ -198,12 +198,12 @@ export function AdminLayout({ children, title, currentPage, onNavigate, onBack }
                 </header>
 
                 {/* Content */}
-                <main className="p-6 min-h-[calc(100vh-80px)]">
+                <main className="p-5 md:p-6">
                     {children}
                 </main>
 
                 {/* Footer */}
-                <footer className="border-t border-gray-800 px-6 py-4">
+                <footer className="border-t border-gray-800 px-5 py-3 md:px-6">
                     <p className="text-gray-500 text-sm text-center">© 2025 GariZetu. All rights reserved.</p>
                 </footer>
             </div>

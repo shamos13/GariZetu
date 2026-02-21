@@ -468,7 +468,7 @@ export function CarManagementPage({ cars, onAdd, onEdit, onDelete, onStatusChang
                         <button
                             type="button"
                             onClick={onAdd}
-                            className="group flex min-h-[430px] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-700 bg-[#121212] p-6 text-center transition-colors hover:border-gray-500 hover:bg-[#161616]"
+                            className="group flex min-h-[320px] flex-col items-center justify-center rounded-2xl border border-dashed border-gray-700 bg-[#121212] p-6 text-center transition-colors hover:border-gray-500 hover:bg-[#161616]"
                         >
                             <span className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#1e1e1e] text-gray-300 transition-colors group-hover:bg-[#262626] group-hover:text-white">
                                 <Plus className="h-6 w-6" />
