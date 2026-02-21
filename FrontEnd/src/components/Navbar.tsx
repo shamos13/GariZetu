@@ -1,6 +1,6 @@
-import {useEffect, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {Link, useLocation, useNavigate} from "react-router-dom";
-import {ChevronDown, Phone, User, LogOut} from "lucide-react";
+import {Bell, ChevronDown, LogOut, Phone, User} from "lucide-react";
 import {AuthModal} from "./AuthModal";
 import {authService} from "../services/AuthService.ts";
 import {toast} from "sonner";
@@ -13,6 +13,8 @@ export function Navbar() {
     const [authMode, setAuthMode] = useState<"login" | "signup">("login");
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [user, setUser] = useState(authService.getUser());
+    const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+    const profileMenuRef = useRef<HTMLDivElement>(null);
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -70,9 +72,25 @@ export function Navbar() {
 
     // Close mobile menu on route change
     useEffect(() => {
-        setIsMobileMenuOpen(false);
-        setIsVehiclesOpen(false);
+        const frame = window.requestAnimationFrame(() => {
+            setIsMobileMenuOpen(false);
+            setIsVehiclesOpen(false);
+            setIsProfileMenuOpen(false);
+        });
+
+        return () => window.cancelAnimationFrame(frame);
     }, [location.pathname]);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
+                setIsProfileMenuOpen(false);
+            }
+        };
+
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
 
     const toggleMobileMenu = () => {
         setIsMobileMenuOpen(!isMobileMenuOpen);
@@ -90,6 +108,15 @@ export function Navbar() {
             return location.pathname.startsWith("/vehicles");
         }
         return location.pathname === path;
+    };
+
+    const getUserInitials = () => {
+        if (!user?.userName) return "U";
+        const parts = user.userName.trim().split(/\s+/);
+        if (parts.length >= 2) {
+            return `${parts[0].charAt(0)}${parts[1].charAt(0)}`.toUpperCase();
+        }
+        return user.userName.charAt(0).toUpperCase();
     };
 
     return (
@@ -147,21 +174,6 @@ export function Navbar() {
 
                 {/* Desktop Navigation */}
                 <div className="hidden md:flex items-center gap-6 lg:gap-8">
-
-                    {/* Temporary Admin Dashboard Link (visible to all) */}
-                    <Link
-                        to="/adashboard"
-                        className={`relative transition-colors text-sm lg:text-base font-medium ${
-                            isActive("/adashboard")
-                                ? "text-white"
-                                : "text-white/70 hover:text-white"
-                        }`}
-                    >
-                        Admin Dashboard
-                        {isActive("/adashboard") && (
-                            <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-white rounded-full"/>
-                        )}
-                    </Link>
 
                     {/* Home Link */}
                     <Link 
@@ -262,28 +274,64 @@ export function Navbar() {
                     </Link>
 
                     {isAuthenticated ? (
-                        <div className="ml-2 flex items-center gap-3">
-                            {/* Profile Circle – admins go to /adashboard, customers to /dashboard */}
-                            <Link
-                                to={authService.isAdmin() ? "/adashboard" : "/dashboard"}
-                                className="relative w-10 h-10 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-semibold hover:scale-110 transition-all duration-200 hover:shadow-lg hover:shadow-emerald-500/50 cursor-pointer"
-                                title={authService.isAdmin() ? "Admin Dashboard" : "Dashboard"}
-                            >
-                                <span className="text-sm">
-                                    {user?.userName 
-                                        ? user.userName.trim().split(/\s+/).length >= 2
-                                            ? (user.userName.trim().split(/\s+/)[0].charAt(0) + user.userName.trim().split(/\s+/)[1].charAt(0)).toUpperCase()
-                                            : user.userName.charAt(0).toUpperCase()
-                                        : "U"}
-                                </span>
-                            </Link>
+                        <div className="ml-2 flex items-center gap-4">
                             <button
-                                onClick={handleLogout}
-                                className="px-4 py-2.5 bg-white/10 text-white rounded-full text-sm lg:text-base font-semibold hover:bg-white/20 transition-all duration-200 flex items-center gap-2"
+                                className="relative text-white/80 hover:text-white transition-colors"
+                                aria-label="Notifications"
                             >
-                                <LogOut className="w-4 h-4" />
-                                Logout
+                                <Bell className="w-5 h-5" />
+                                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-black" />
                             </button>
+
+                            <div className="h-8 w-px bg-white/20" />
+
+                            <div className="relative" ref={profileMenuRef}>
+                                <button
+                                    onClick={() => setIsProfileMenuOpen((prev) => !prev)}
+                                    className="flex items-center gap-3 text-left"
+                                >
+                                    <div className="hidden lg:block leading-tight">
+                                        <p className="text-white font-semibold text-sm">{user?.userName || "User"}</p>
+                                        <p className="text-gray-400 text-xs">{authService.isAdmin() ? "Admin" : "Member"}</p>
+                                    </div>
+
+                                    <div className="w-11 h-11 rounded-full border-2 border-white/20 bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-white font-semibold">
+                                        {getUserInitials()}
+                                    </div>
+
+                                    <ChevronDown
+                                        className={`w-4 h-4 text-gray-400 transition-transform ${isProfileMenuOpen ? "rotate-180" : ""}`}
+                                    />
+                                </button>
+
+                                {isProfileMenuOpen && (
+                                    <div className="absolute right-0 mt-3 w-52 bg-[#121212] border border-white/10 rounded-xl shadow-xl py-2">
+                                        <Link
+                                            to={authService.isAdmin() ? "/adashboard" : "/dashboard"}
+                                            onClick={() => setIsProfileMenuOpen(false)}
+                                            className="block px-4 py-2.5 text-sm text-white hover:bg-white/5 transition-colors"
+                                        >
+                                            {authService.isAdmin() ? "Admin Dashboard" : "Dashboard"}
+                                        </Link>
+                                        {!authService.isAdmin() && (
+                                            <Link
+                                                to="/dashboard/bookings"
+                                                onClick={() => setIsProfileMenuOpen(false)}
+                                                className="block px-4 py-2.5 text-sm text-white hover:bg-white/5 transition-colors"
+                                            >
+                                                My Bookings
+                                            </Link>
+                                        )}
+                                        <button
+                                            onClick={handleLogout}
+                                            className="w-full text-left px-4 py-2.5 text-sm text-red-400 hover:bg-white/5 transition-colors flex items-center gap-2"
+                                        >
+                                            <LogOut className="w-4 h-4" />
+                                            Logout
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     ) : (
                     <button
@@ -342,21 +390,6 @@ export function Navbar() {
                 <div className="flex flex-col h-full pt-20 pb-6 px-6">
                     {/* Mobile Nav Links */}
                     <div className="flex flex-col space-y-1">
-                        {/* Admin Dashboard Link (Temporary - visible to all) */}
-                        <Link
-                            to="/adashboard"
-                            onClick={closeMobileMenu}
-                            className={`py-3 transition-colors font-medium flex items-center gap-2 ${
-                                isActive("/adashboard") ? "text-white" : "text-white/70"
-                            }`}
-                        >
-                            <User className="w-5 h-5" />
-                            Admin Dashboard
-                            {isActive("/adashboard") && (
-                                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />
-                            )}
-                        </Link>
-
                         {/* Home Link */}
                         <Link
                             to="/"
