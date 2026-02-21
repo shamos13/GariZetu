@@ -55,24 +55,24 @@ export function Footer() {
     return (
         <footer className="bg-black text-white">
             {/* Main Footer */}
-            <div className="max-w-7xl mx-auto px-5 md:px-8 pt-10 pb-6">
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6 mb-8">
+            <div className="layout-container pt-8 pb-5">
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-5 mb-6">
                     {/* Brand Column */}
                     <div className="col-span-2">
-                        <Link to="/" className="inline-block mb-3">
+                        <Link to="/" className="inline-block mb-2.5">
                             <img 
                                 src="/src/assets/logo.png" 
                                 alt="GariZetu" 
                                 className="h-8 w-auto"
                             />
                         </Link>
-                        <p className="text-gray-400 text-sm mb-4 max-w-xs">
+                        <p className="text-gray-400 text-sm mb-3 max-w-xs">
                             Kenya's premier car rental service. Quality vehicles, transparent pricing, 
                             and exceptional service since 2016.
                         </p>
                         
                         {/* Contact Info */}
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                             <a 
                                 href="tel:+254759064318"
                                 className="flex items-center gap-3 text-gray-400 hover:text-white transition-colors group"
@@ -96,8 +96,8 @@ export function Footer() {
 
                     {/* Company */}
                     <div>
-                        <h3 className="font-semibold text-white mb-3">Company</h3>
-                        <ul className="space-y-2">
+                        <h3 className="font-semibold text-white mb-2.5">Company</h3>
+                        <ul className="space-y-1.5">
                             {FOOTER_LINKS.company.map((link) => (
                                 <li key={link.label}>
                                     <Link 
@@ -113,8 +113,8 @@ export function Footer() {
 
                     {/* Vehicles */}
                     <div>
-                        <h3 className="font-semibold text-white mb-3">Vehicles</h3>
-                        <ul className="space-y-2">
+                        <h3 className="font-semibold text-white mb-2.5">Vehicles</h3>
+                        <ul className="space-y-1.5">
                             {FOOTER_LINKS.vehicles.map((link) => (
                                 <li key={link.label}>
                                     <Link 
@@ -130,8 +130,8 @@ export function Footer() {
 
                     {/* Support */}
                     <div>
-                        <h3 className="font-semibold text-white mb-3">Support</h3>
-                        <ul className="space-y-2">
+                        <h3 className="font-semibold text-white mb-2.5">Support</h3>
+                        <ul className="space-y-1.5">
                             {FOOTER_LINKS.support.map((link) => (
                                 <li key={link.label}>
                                     <Link 
@@ -147,8 +147,8 @@ export function Footer() {
 
                     {/* Legal */}
                     <div>
-                        <h3 className="font-semibold text-white mb-3">Legal</h3>
-                        <ul className="space-y-2">
+                        <h3 className="font-semibold text-white mb-2.5">Legal</h3>
+                        <ul className="space-y-1.5">
                             {FOOTER_LINKS.legal.map((link) => (
                                 <li key={link.label}>
                                     <Link 
@@ -164,8 +164,8 @@ export function Footer() {
                 </div>
 
                 {/* Social & Newsletter */}
-                <div className="border-t border-white/10 pt-6 mb-6">
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="border-t border-white/10 pt-5 mb-5">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-4">
                         {/* Social Links */}
                         <div className="flex items-center gap-3">
                             {SOCIAL_LINKS.map((social) => (
@@ -187,7 +187,7 @@ export function Footer() {
                             href="https://wa.me/254712345678?text=Hello GariZetu, I'd like to inquire about car rental."
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-full text-white font-medium transition-all hover:scale-105"
+                            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-full text-white font-medium transition-all hover:scale-105"
                         >
                             <MessageCircle className="w-4 h-4" />
                             Chat on WhatsApp
@@ -196,7 +196,7 @@ export function Footer() {
                 </div>
 
                 {/* Bottom Bar */}
-                <div className="border-t border-white/10 pt-5 flex flex-col md:flex-row items-center justify-between gap-3">
+                <div className="border-t border-white/10 pt-4 flex flex-col md:flex-row items-center justify-between gap-3">
                     <p className="text-sm text-gray-400">
                         © {currentYear} GariZetu. All rights reserved.
                     </p>

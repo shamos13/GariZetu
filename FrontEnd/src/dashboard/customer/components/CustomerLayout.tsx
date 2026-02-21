@@ -67,9 +67,9 @@ export function CustomerLayout({ children, title, currentPage, onNavigate, onBac
     const userInitial = user?.userName?.charAt(0).toUpperCase() || "U";
 
     return (
-        <div className="min-h-screen bg-[#f3f4f6] text-[#111827]">
+        <div className="bg-[#f3f4f6] text-[#111827]">
             <aside className={`fixed top-0 left-0 h-full w-[250px] bg-[#070a10] border-r border-white/10 z-50 transition-transform duration-300 ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
-                <div className="p-6 h-full flex flex-col">
+                <div className="h-full p-5 md:p-6 flex flex-col">
                     <div className="flex items-center gap-3 mb-8 pb-7 border-b border-white/10">
                         <img src={logoImage} alt="GariZetu" className="w-8 h-8 object-contain" />
                         <span className="text-white font-semibold tracking-wide">GariZetu Drive</span>
@@ -155,7 +155,7 @@ export function CustomerLayout({ children, title, currentPage, onNavigate, onBac
 
             <div className="lg:ml-[250px]">
                 <header className="sticky top-0 z-30 bg-[#f8f8fa]/95 backdrop-blur-sm border-b border-gray-200">
-                    <div className="flex items-center justify-between px-6 lg:px-8 py-4">
+                    <div className="flex items-center justify-between px-5 py-3.5 md:px-6">
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={() => setIsMobileMenuOpen(true)}
@@ -164,7 +164,7 @@ export function CustomerLayout({ children, title, currentPage, onNavigate, onBac
                                 <Menu className="w-6 h-6" />
                             </button>
                             <div>
-                                <h1 className="text-[#111827] text-2xl font-semibold">Welcome back, {user?.userName || "Member"}</h1>
+                                <h1 className="text-[#111827] text-xl md:text-2xl font-semibold">Welcome back, {user?.userName || "Member"}</h1>
                                 <p className="text-sm text-gray-500">
                                     {title === "Dashboard" ? "Manage your premium fleet experience." : title}
                                 </p>
@@ -235,11 +235,11 @@ export function CustomerLayout({ children, title, currentPage, onNavigate, onBac
                     </div>
                 </header>
 
-                <main className="p-6 lg:p-8 min-h-[calc(100vh-80px)]">
+                <main className="p-5 md:p-6">
                     {children}
                 </main>
 
-                <footer className="border-t border-gray-200 px-6 lg:px-8 py-4">
+                <footer className="border-t border-gray-200 px-5 py-3 md:px-6">
                     <p className="text-gray-500 text-sm text-center">© 2025 GariZetu. All rights reserved.</p>
                 </footer>
             </div>

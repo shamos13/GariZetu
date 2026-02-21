@@ -82,12 +82,13 @@ export function FeaturedCollection() {
     };
 
     return (
-        <section className="py-12 md:py-14 px-4 md:px-12 bg-white max-w-7xl mx-auto">
-            <div className="text-center space-y-3 mb-8">
+        <section className="section-space bg-white">
+            <div className="layout-container">
+            <div className="text-center space-y-2.5 mb-6">
                 <p className="text-sm font-medium text-emerald-600 uppercase tracking-wider">
                     Featured Collection
                 </p>
-                <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
+                <h2 className="text-2xl md:text-[1.75rem] font-bold text-gray-900">
                     Our Impressive Collection of Cars
                 </h2>
                 <p className="text-gray-500 max-w-2xl mx-auto">
@@ -96,12 +97,12 @@ export function FeaturedCollection() {
             </div>
 
             {/* Category Pills */}
-            <div className="flex flex-wrap justify-center gap-2.5 mb-8">
+            <div className="flex flex-wrap justify-center gap-2 mb-6">
                 {CATEGORIES.map((cat, i) => (
                     <button
                         key={cat}
                         onClick={() => setActiveCategory(i)}
-                        className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-300 ${
+                        className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-300 ${
                             activeCategory === i 
                                 ? "bg-black text-white shadow-lg shadow-black/20 scale-105" 
                                 : "bg-gray-100 text-gray-600 hover:bg-gray-200 hover:scale-105"
@@ -113,7 +114,7 @@ export function FeaturedCollection() {
             </div>
 
             {/* Cars Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 {CARS.map((car, index) => (
                     <div
                         key={car.id}
@@ -171,13 +172,13 @@ export function FeaturedCollection() {
                             </div>
 
                             {/* Name */}
-                            <h3 className="text-lg font-bold text-gray-900 group-hover:text-black transition-colors">
+                            <h3 className="text-base md:text-lg font-bold text-gray-900 group-hover:text-black transition-colors">
                                 {car.name}
                             </h3>
 
                             {/* Price */}
                             <div className="flex items-baseline gap-1">
-                                <span className="text-xl font-bold text-gray-900">
+                                <span className="text-lg md:text-xl font-bold text-gray-900">
                                     Ksh {car.price.toLocaleString()}
                                 </span>
                                 <span className="text-gray-400 text-sm">/day</span>
@@ -224,14 +225,15 @@ export function FeaturedCollection() {
             </div>
 
             {/* See All CTA */}
-            <div className="mt-10 flex justify-center">
+            <div className="mt-8 flex justify-center">
                 <Link 
                     to="/vehicles"
-                    className="group bg-black text-white px-7 py-3 rounded-xl font-bold flex items-center gap-3 hover:bg-zinc-800 hover:shadow-xl hover:shadow-black/20 transition-all duration-300 hover:gap-4"
+                    className="group bg-black text-white px-6 py-2.5 rounded-xl font-semibold flex items-center gap-2.5 hover:bg-zinc-800 hover:shadow-xl hover:shadow-black/20 transition-all duration-300 hover:gap-3"
                 >
                     See all Cars 
                     <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                 </Link>
+            </div>
             </div>
 
             {/* Car Details Modal */}

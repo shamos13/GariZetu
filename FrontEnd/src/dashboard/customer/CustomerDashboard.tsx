@@ -8,6 +8,7 @@ import { ArrowRight, Calendar, Car as CarIcon, CheckCircle2, Clock3, CreditCard,
 import { Button } from "../../components/ui/button.tsx";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card.tsx";
 import { bookingService, type Booking, type BookingStatus } from "../../services/BookingService.ts";
+import { getImageUrl } from "../../lib/ImageUtils.ts";
 
 interface CustomerDashboardProps {
     onBack: () => void;
@@ -206,7 +207,7 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="relative rounded-2xl overflow-hidden bg-black min-h-[260px]">
                                     <img
-                                        src={featuredCar?.mainImageUrl || "/porsche-cayenne-black.jpg"}
+                                        src={getImageUrl(featuredCar?.mainImageUrl || "/porsche-cayenne-black.jpg")}
                                         alt={featuredCar?.name || "Booked Vehicle"}
                                         className="w-full h-full object-cover"
                                     />
@@ -277,16 +278,19 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                                 {recommendedCars.map((car) => (
                                     <div key={car.id} className="rounded-3xl border border-gray-200 bg-white overflow-hidden">
                                         <div className="h-40 overflow-hidden">
-                                            <img src={car.mainImageUrl} alt={car.name} className="w-full h-full object-cover" />
+                                            <img src={getImageUrl(car.mainImageUrl)} alt={car.name} className="w-full h-full object-cover" />
                                         </div>
                                         <div className="p-4">
                                             <h4 className="text-[#111827] text-xl font-semibold">{car.make} {car.model}</h4>
                                             <p className="text-xs text-gray-500 mt-1">{car.transmission} • {car.seatingCapacity} seats • {car.bodyType}</p>
-                                            <div className="mt-4 flex items-center justify-between">
-                                                <p className="text-2xl font-semibold text-[#111827]">KES {car.dailyPrice.toLocaleString()}<span className="text-sm text-gray-500">/day</span></p>
+                                            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                                                <p className="text-2xl font-semibold text-[#111827] leading-none">
+                                                    KES {car.dailyPrice.toLocaleString()}
+                                                    <span className="ml-1 text-sm text-gray-500 font-normal">/day</span>
+                                                </p>
                                                 <button
-                                                    onClick={() => navigate(`/vehicles/${car.id}`)}
-                                                    className="text-sm text-gray-700 hover:text-black"
+                                                    onClick={() => navigate(`/booking?carId=${car.id}`)}
+                                                    className="inline-flex items-center justify-center rounded-xl bg-[#111827] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-black sm:shrink-0"
                                                 >
                                                     Book Now
                                                 </button>
