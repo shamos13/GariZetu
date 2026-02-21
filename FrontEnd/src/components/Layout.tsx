@@ -18,7 +18,7 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
     return (
-        <div className="font-sans antialiased min-h-screen">
+        <div className="font-sans antialiased">
             <ScrollToTop />
             {children}
             <WhatsAppButton />

@@ -14,6 +14,11 @@ export const getImageUrl = (relativeUrl: string| null | undefined): string => {
         return `${BASE_URL}${relativeUrl}`;
     }
 
+    // Backend upload static paths (e.g. /uploads/uuid.jpg)
+    if (relativeUrl.startsWith("/uploads/")) {
+        return `${BASE_URL}${relativeUrl}`;
+    }
+
     // Frontend public assets (e.g. /nissan-maxima-white.jpg)
     if (relativeUrl.startsWith("/")) {
         return relativeUrl;

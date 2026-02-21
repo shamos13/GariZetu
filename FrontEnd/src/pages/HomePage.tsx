@@ -11,7 +11,7 @@ import {Footer} from "../components/Footer.tsx";
 
 export default function HomePage() {
     return (
-        <div className="min-h-screen">
+        <div>
             <Navbar/>
             <HeroSection/>
             <BookingForm/>
