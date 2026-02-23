@@ -55,6 +55,7 @@ public class CarMapper {
         carResponseDTO.setDailyPrice(car.getDailyPrice());
         carResponseDTO.setSeatingCapacity(car.getSeatingCapacity());
         carResponseDTO.setMainImageUrl(car.getMainImageUrl());
+        carResponseDTO.setGalleryImageUrls(car.getGalleryImageUrls());
         carResponseDTO.setDescription(car.getDescription());
         carResponseDTO.setCarStatus(car.getCarStatus());
         carResponseDTO.setTransmissionType(car.getTransmissionType());

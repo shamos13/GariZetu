@@ -52,7 +52,16 @@ api.interceptors.request.use(
         if (token) {
             // Add the Authorization header
             // The format MUST be: "Bearer <token>" - this is the JWT standard
-            config.headers.Authorization = `Bearer ${token}`;
+            if (!config.headers) {
+                config.headers = {} as any;
+            }
+
+            // Axios v1 uses AxiosHeaders with a .set() API
+            if (typeof (config.headers as any).set === "function") {
+                (config.headers as any).set("Authorization", `Bearer ${token}`);
+            } else {
+                (config.headers as any).Authorization = `Bearer ${token}`;
+            }
 
             console.log("🔐 Request interceptor: Token attached to request");
         } else {

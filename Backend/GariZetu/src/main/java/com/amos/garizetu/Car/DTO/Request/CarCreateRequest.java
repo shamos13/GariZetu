@@ -63,6 +63,9 @@ public class CarCreateRequest {
     // Can be blank
     private MultipartFile image;
 
+    // Optional gallery images
+    private List<MultipartFile> galleryImages;
+
     //Website Display Fields
     @Size(min =10, max = 1000, message = "Description must be between 10 and 1000 characters")
     private String description;

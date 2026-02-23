@@ -27,6 +27,7 @@ export type CarFormData = {
     featureName: string[];
     // Optional existing image URL (used when editing)
     mainImageUrl?: string;
+    galleryImageUrls?: string[];
 }
 
 interface Feature {
@@ -38,7 +39,7 @@ interface Feature {
 
 interface CarFormProps {
     car?: CarFormData;
-    onSubmit: (car: CarFormData, image: File | null) => void | Promise<void>;
+    onSubmit: (car: CarFormData, image: File | null, galleryImages: File[]) => void | Promise<void>;
     onCancel: () => void;
 }
 
@@ -61,6 +62,7 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         description: car.description || "",
         featureName: car.featureName || [],
         hasImage: !!car.mainImageUrl,
+        galleryImageUrls: car.galleryImageUrls || [],
     } : null;
 
     const [formData, setFormData] = useState<CarFormData>({
@@ -80,11 +82,18 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         description: car?.description || "",
         featureName: car?.featureName || [],
         mainImageUrl: car?.mainImageUrl,
+        galleryImageUrls: car?.galleryImageUrls || [],
     });
 
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(
         car?.mainImageUrl ? getImageUrl(car.mainImageUrl) : null
+    );
+    const [selectedGalleryImages, setSelectedGalleryImages] = useState<File[]>([]);
+    const [galleryPreviews, setGalleryPreviews] = useState<string[]>([]);
+    const existingGalleryPreviews = useMemo(
+        () => car?.galleryImageUrls?.map(getImageUrl) || [],
+        [car?.galleryImageUrls]
     );
 
     // Features state
@@ -113,6 +122,9 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         if (fieldName === 'mainImageUrl') {
             return selectedImage !== null; // Image changed if a new file is selected
         }
+        if (fieldName === 'galleryImageUrls') {
+            return selectedGalleryImages.length > 0;
+        }
         
         return currentValue !== originalValue;
     };
@@ -124,7 +136,8 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         const fields: (keyof CarFormData)[] = [
             'make', 'registrationNumber', 'vehicleModel', 'year', 'engineCapacity',
             'colour', 'mileage', 'dailyPrice', 'seatingCapacity', 'carStatus',
-            'transmissionType', 'fuelType', 'bodyType', 'description', 'featureName', 'mainImageUrl'
+            'transmissionType', 'fuelType', 'bodyType', 'description', 'featureName', 'mainImageUrl',
+            'galleryImageUrls'
         ];
         
         return fields.filter(field => isFieldDirty(field)).length;
@@ -271,7 +284,7 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
             featureName: selectedFeatures
         };
 
-        onSubmit(dataToSubmit, selectedImage);
+        onSubmit(dataToSubmit, selectedImage, selectedGalleryImages);
     };
 
     const handleChange = (field: keyof CarFormData, value: string | number | string[]) => {
@@ -305,6 +318,44 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
             setImagePreview(previewUrl);
         }
     };
+
+    const handleGalleryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+
+        if (files.length === 0) {
+            return;
+        }
+
+        const invalidFile = files.find((file) => !file.type.startsWith("image"));
+        if (invalidFile) {
+            alert("Please select only image files");
+            return;
+        }
+
+        const maxSize = 10 * 1024 * 1024;
+        const oversized = files.find((file) => file.size > maxSize);
+        if (oversized) {
+            alert("Each image must be less than 10mb");
+            return;
+        }
+
+        setSelectedGalleryImages(files);
+        const previews = files.map((file) => URL.createObjectURL(file));
+        setGalleryPreviews(previews);
+    };
+
+    const handleClearGallery = () => {
+        setSelectedGalleryImages([]);
+        setGalleryPreviews([]);
+        const fileInput = document.getElementById('galleryImages') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+    };
+
+    useEffect(() => {
+        return () => {
+            galleryPreviews.forEach((url) => URL.revokeObjectURL(url));
+        };
+    }, [galleryPreviews]);
 
     const handleClearImage = () => {
         setSelectedImage(null);
@@ -428,6 +479,63 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                         />
                     </label>
                 )}
+            </div>
+
+            {/* Gallery Upload */}
+            <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                    <Label htmlFor="galleryImages" className="text-gray-300">Gallery Images</Label>
+                    {isFieldDirty('galleryImageUrls') && (
+                        <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">Modified</span>
+                    )}
+                </div>
+
+                {(galleryPreviews.length > 0 || existingGalleryPreviews.length > 0) && (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        {(galleryPreviews.length > 0 ? galleryPreviews : existingGalleryPreviews).map((url, index) => (
+                            <div key={`${url}-${index}`} className="relative">
+                                <img
+                                    src={url}
+                                    alt={`Gallery preview ${index + 1}`}
+                                    className="h-28 w-full rounded-lg border border-gray-700 object-cover"
+                                />
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                <div className="flex flex-wrap gap-2">
+                    <label
+                        htmlFor="galleryImages"
+                        className="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-gray-300 hover:border-gray-500 hover:bg-[#141414] transition-colors cursor-pointer"
+                    >
+                        <Upload className="h-4 w-4" />
+                        {galleryPreviews.length > 0 ? "Replace Gallery" : "Upload Gallery"}
+                    </label>
+                    {(galleryPreviews.length > 0 || selectedGalleryImages.length > 0) && (
+                        <button
+                            type="button"
+                            onClick={handleClearGallery}
+                            className="inline-flex items-center gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300 hover:bg-red-500/20 transition-colors"
+                        >
+                            <X className="h-4 w-4" />
+                            Clear Selection
+                        </button>
+                    )}
+                </div>
+
+                <input
+                    id="galleryImages"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={handleGalleryChange}
+                    className="hidden"
+                    multiple
+                />
+
+                <p className="text-xs text-gray-500">
+                    Optional. You can upload multiple images to show in the vehicle gallery.
+                </p>
             </div>
 
             {/* Basic Details Grid */}

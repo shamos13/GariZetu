@@ -21,11 +21,11 @@ spring:
     multipart:
       enabled: true
       max-file-size: 10MB
-      max-request-size: 10MB
+      max-request-size: 25MB
 
 file:
   upload:
-    directory: /home/cfreak97/Desktop/GariZetu_Project/uploads
+    directory: ${FILE_UPLOAD_DIR:${user.home}/garizetu/uploads}
 
 cloudinary:
   cloud-name: "dicnb9x6z"
@@ -35,4 +35,3 @@ cloudinary:
 jwt:
   secret: "garizetu-super-secret-key-change-this-in-production-minimum-32-characters-required"
   expiration: 86400000
-

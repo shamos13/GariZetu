@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -39,6 +40,10 @@ public class Car {
     private double dailyPrice;
     private int seatingCapacity;
     private String mainImageUrl;//Added a url to upload images
+    @ElementCollection
+    @CollectionTable(name = "car_gallery_images", joinColumns = @JoinColumn(name = "car_id"))
+    @Column(name = "image_url")
+    private List<String> galleryImageUrls = new ArrayList<>();
     private String description; // To store the description of the car
 
 

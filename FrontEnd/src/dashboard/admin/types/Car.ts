@@ -15,6 +15,7 @@ export interface Car {
     dailyPrice: number;
     seatingCapacity: number;
     mainImageUrl: string;
+    galleryImageUrls?: string[];
     carStatus: CarStatus;
     transmissionType: TransmissionType;
     fuelType: FuelType;
