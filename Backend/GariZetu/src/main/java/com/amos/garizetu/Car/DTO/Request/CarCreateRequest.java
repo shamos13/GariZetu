@@ -2,6 +2,7 @@ package com.amos.garizetu.Car.DTO.Request;
 
 import com.amos.garizetu.Car.Enums.BodyType;
 import com.amos.garizetu.Car.Enums.CarStatus;
+import com.amos.garizetu.Car.Enums.FeaturedCategory;
 import com.amos.garizetu.Car.Enums.FuelType;
 import com.amos.garizetu.Car.Enums.TransmissionType;
 import jakarta.validation.constraints.*;
@@ -59,6 +60,8 @@ public class CarCreateRequest {
 
     @NotNull(message = "Car Status is required")
     private CarStatus carStatus;
+
+    private FeaturedCategory featuredCategory;
 
     // Can be blank
     private MultipartFile image;

@@ -6,6 +6,7 @@ import com.amos.garizetu.Car.DTO.Response.CarResponseDTO;
 import com.amos.garizetu.Car.Entity.Car;
 import com.amos.garizetu.Car.Entity.Feature;
 import com.amos.garizetu.Car.Enums.CarStatus;
+import com.amos.garizetu.Car.Enums.FeaturedCategory;
 import com.amos.garizetu.Repository.CarRepository;
 import com.amos.garizetu.Car.mapper.CarMapper;
 import lombok.RequiredArgsConstructor;
@@ -71,6 +72,11 @@ public class CarService {
         //Business rule 3: New cars should default to available if not Specified
         if (car.getCarStatus()==null){
             car.setCarStatus(CarStatus.AVAILABLE);
+        }
+
+        // Business rule 4: Featured category defaults to Popular Car.
+        if (car.getFeaturedCategory() == null) {
+            car.setFeaturedCategory(FeaturedCategory.POPULAR_CAR);
         }
 
         //Processing Features
@@ -199,6 +205,10 @@ public class CarService {
 
         if (updateDTO.getBodyType() != null) {
             car.setBodyType(updateDTO.getBodyType());
+        }
+
+        if (updateDTO.getFeaturedCategory() != null) {
+            car.setFeaturedCategory(updateDTO.getFeaturedCategory());
         }
 
         if (updateDTO.getDescription() != null) {

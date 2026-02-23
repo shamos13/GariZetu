@@ -2,10 +2,9 @@ import React, {useEffect, useState, useMemo} from "react";
 import {Button} from "../../../components/ui/button";
 import {Input} from "../../../components/ui/input";
 import {Label} from "../../../components/ui/label";
-import {CarStatus, FuelType, TransmissionType, BodyType} from "../types/Car.ts";
+import {CarStatus, FuelType, TransmissionType, BodyType, FeaturedCategory} from "../types/Car.ts";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "../../../components/ui/select.tsx";
 import {Plus, Upload, X, Search, Check} from "lucide-react";
-import axios from "axios";
 import { getImageUrl } from "../../../lib/ImageUtils.ts";
 import { api } from "../../../lib/api.ts";
 
@@ -23,6 +22,7 @@ export type CarFormData = {
     transmissionType: TransmissionType;
     fuelType: FuelType;
     bodyType: BodyType;
+    featuredCategory: FeaturedCategory;
     description: string;
     featureName: string[];
     // Optional existing image URL (used when editing)
@@ -59,6 +59,7 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         transmissionType: car.transmissionType,
         fuelType: car.fuelType,
         bodyType: car.bodyType,
+        featuredCategory: car.featuredCategory || "Popular Car",
         description: car.description || "",
         featureName: car.featureName || [],
         hasImage: !!car.mainImageUrl,
@@ -79,6 +80,7 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         transmissionType: car?.transmissionType || "AUTOMATIC",
         fuelType: car?.fuelType || "PETROL",
         bodyType: car?.bodyType || "SEDAN",
+        featuredCategory: car?.featuredCategory || "Popular Car",
         description: car?.description || "",
         featureName: car?.featureName || [],
         mainImageUrl: car?.mainImageUrl,
@@ -136,7 +138,7 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         const fields: (keyof CarFormData)[] = [
             'make', 'registrationNumber', 'vehicleModel', 'year', 'engineCapacity',
             'colour', 'mileage', 'dailyPrice', 'seatingCapacity', 'carStatus',
-            'transmissionType', 'fuelType', 'bodyType', 'description', 'featureName', 'mainImageUrl',
+            'transmissionType', 'fuelType', 'bodyType', 'featuredCategory', 'description', 'featureName', 'mainImageUrl',
             'galleryImageUrls'
         ];
         
@@ -864,6 +866,30 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                             <SelectItem value="AVAILABLE">Available</SelectItem>
                             <SelectItem value="RENTED">Rented</SelectItem>
                             <SelectItem value="MAINTENANCE">Maintenance</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                <div>
+                    <div className="flex items-center gap-2 mb-1">
+                        <Label htmlFor="featuredCategory" className="text-gray-300">Featured Category</Label>
+                        {isFieldDirty('featuredCategory') && (
+                            <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">Modified</span>
+                        )}
+                    </div>
+                    <Select
+                        value={formData.featuredCategory}
+                        onValueChange={(value) => handleChange("featuredCategory", value as FeaturedCategory)}
+                    >
+                        <SelectTrigger id="featuredCategory" className={`bg-[#0a0a0a] ${getFieldBorderClass('featuredCategory')} text-white`}>
+                            <SelectValue placeholder="Select featured category" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#1a1a1a] border-gray-700 text-white">
+                            <SelectItem value="Popular Car">Popular Car</SelectItem>
+                            <SelectItem value="Luxury Car">Luxury Car</SelectItem>
+                            <SelectItem value="Vintage Car">Vintage Car</SelectItem>
+                            <SelectItem value="Family Car">Family Car</SelectItem>
+                            <SelectItem value="Off-Road Car">Off-Road Car</SelectItem>
                         </SelectContent>
                     </Select>
                 </div>

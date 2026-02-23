@@ -2,6 +2,12 @@ export type CarStatus = "AVAILABLE" | "RENTED" | "MAINTENANCE";
 export type FuelType = "PETROL" | "DIESEL" | "ELECTRIC" | "HYBRID";
 export type TransmissionType = "MANUAL" | "AUTOMATIC";
 export type BodyType = "SUV" | "SEDAN" | "HATCHBACK" | "COUPE" | "VAN" | "MINIVAN" | "TRUCK";
+export type FeaturedCategory =
+    | "Popular Car"
+    | "Luxury Car"
+    | "Vintage Car"
+    | "Family Car"
+    | "Off-Road Car";
 
 export interface Car {
     carId: number;
@@ -20,6 +26,7 @@ export interface Car {
     transmissionType: TransmissionType;
     fuelType: FuelType;
     bodyType: BodyType;
+    featuredCategory: FeaturedCategory;
     description: string;
     featureName: string[];
     // Backend may also return a features array with rich objects
@@ -48,6 +55,7 @@ export interface CarCreateRequest {
     fuelType: FuelType;
     carStatus: CarStatus;
     bodyType: BodyType;
+    featuredCategory: FeaturedCategory;
     description?: string;
     featureName?: string[];
 }

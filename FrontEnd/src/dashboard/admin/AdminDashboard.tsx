@@ -85,6 +85,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
             formData.append("fuelType", carData.fuelType);
             formData.append("carStatus", carData.carStatus);
             formData.append("bodyType", carData.bodyType);
+            formData.append("featuredCategory", carData.featuredCategory);
 
             // ✅ FIXED: Append description only if it exists
             if (carData.description) {
@@ -161,6 +162,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                 transmissionType: carData.transmissionType,
                 fuelType: carData.fuelType,
                 bodyType: carData.bodyType,
+                featuredCategory: carData.featuredCategory,
                 description: carData.description,
                 featureName: carData.featureName,
             };
@@ -225,16 +227,6 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                 return "Dashboard";
         }
     };
-
-    // Refresh cars list manually
-    const refreshCars = useCallback(() => {
-        adminCarService.getAll()
-            .then((data) => {
-                setCars(data);
-                setCarsLoaded(true);
-            })
-            .catch(console.error);
-    }, []);
 
     const renderPage = () => {
         switch (currentPage) {

@@ -3,6 +3,7 @@ package com.amos.garizetu.Car.Entity;
 import com.amos.garizetu.Booking.Entity.Booking;
 import com.amos.garizetu.Car.Enums.BodyType;
 import com.amos.garizetu.Car.Enums.CarStatus;
+import com.amos.garizetu.Car.Enums.FeaturedCategory;
 import com.amos.garizetu.Car.Enums.FuelType;
 import com.amos.garizetu.Car.Enums.TransmissionType;
 import jakarta.persistence.*;
@@ -63,6 +64,10 @@ public class Car {
     @Enumerated(EnumType.STRING)
     @Column(name = "body_type")
     private BodyType bodyType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "featured_category")
+    private FeaturedCategory featuredCategory;
 
     // Implementing the many to many relationship
     @ManyToMany(cascade = {CascadeType.PERSIST ,CascadeType.MERGE})

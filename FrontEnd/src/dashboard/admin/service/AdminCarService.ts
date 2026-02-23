@@ -4,6 +4,7 @@ import type {
     BodyType,
     Car as BackendCar,
     CarStatus,
+    FeaturedCategory,
     FuelType,
     TransmissionType,
 } from "../types/Car";
@@ -71,6 +72,7 @@ export const adminCarService = {
             transmissionType?: TransmissionType;
             fuelType?: FuelType;
             bodyType?: BodyType;
+            featuredCategory?: FeaturedCategory;
             description?: string;
             featureName?: string[];
         },

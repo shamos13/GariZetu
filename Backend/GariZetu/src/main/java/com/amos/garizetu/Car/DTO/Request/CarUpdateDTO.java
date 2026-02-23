@@ -2,6 +2,7 @@ package com.amos.garizetu.Car.DTO.Request;
 
 import com.amos.garizetu.Car.Enums.BodyType;
 import com.amos.garizetu.Car.Enums.CarStatus;
+import com.amos.garizetu.Car.Enums.FeaturedCategory;
 import com.amos.garizetu.Car.Enums.FuelType;
 import com.amos.garizetu.Car.Enums.TransmissionType;
 import lombok.Data;
@@ -28,6 +29,7 @@ public class CarUpdateDTO {
     private TransmissionType transmissionType;
     private FuelType fuelType;
     private BodyType bodyType;
+    private FeaturedCategory featuredCategory;
     private String description;
     private List<String> featureName;
 }
