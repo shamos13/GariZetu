@@ -1,6 +1,17 @@
 import { api } from "../lib/api.ts";
 
-export type BookingStatus = "PENDING" | "CONFIRMED" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+export type BookingStatus =
+    | "PENDING_PAYMENT"
+    | "PENDING"
+    | "ADMIN_NOTIFIED"
+    | "CONFIRMED"
+    | "ACTIVE"
+    | "COMPLETED"
+    | "CANCELLED"
+    | "EXPIRED"
+    | "REJECTED";
+
+export type PaymentStatus = "UNPAID" | "PAID" | "FAILED" | "SIMULATED_PAID" | "REFUNDED";
 
 export interface Booking {
     bookingId: number;
@@ -23,6 +34,14 @@ export interface Booking {
     returnLocation: string;
     specialRequests: string | null;
     bookingStatus: BookingStatus;
+    paymentStatus: PaymentStatus | null;
+    paymentReference: string | null;
+    paymentMethod: string | null;
+    paymentSimulatedAt: string | null;
+    paymentExpiresAt: string | null;
+    adminNotifiedAt: string | null;
+    adminNotificationRead: boolean;
+    adminNotificationReadAt: string | null;
     createdAt: string;
     updatedAt: string;
 }
@@ -40,15 +59,24 @@ export interface BookingUpdateRequest {
     bookingStatus?: BookingStatus;
     returnLocation?: string;
     specialRequests?: string;
+    refundAmount?: number;
+}
+
+export interface BookingPaymentSimulationRequest {
+    paymentMethod?: string;
+    paymentSuccessful?: boolean;
 }
 
 export interface BookingStats {
     totalBookings: number;
     pendingCount: number;
+    adminNotifiedCount: number;
     confirmedCount: number;
     activeCount: number;
     completedCount: number;
     cancelledCount: number;
+    expiredCount: number;
+    rejectedCount: number;
     overdueCount: number;
 }
 
@@ -73,6 +101,11 @@ export const bookingService = {
         return response.data;
     },
 
+    simulatePayment: async (bookingId: number, payload: BookingPaymentSimulationRequest = {}): Promise<Booking> => {
+        const response = await api.post<Booking>(`/bookings/${bookingId}/simulate-payment`, payload);
+        return response.data;
+    },
+
     cancel: async (bookingId: number, reason?: string): Promise<Booking> => {
         const params = reason ? { reason } : undefined;
         const response = await api.delete<Booking>(`/bookings/${bookingId}`, { params });
@@ -92,6 +125,18 @@ export const bookingService = {
 
     getCarBookings: async (carId: number): Promise<Booking[]> => {
         const response = await api.get<Booking[]>(`/bookings/admin/car/${carId}`);
+        return response.data;
+    },
+
+    getAdminNotifications: async (includeRead = false): Promise<Booking[]> => {
+        const response = await api.get<Booking[]>("/bookings/admin/notifications", {
+            params: { includeRead },
+        });
+        return response.data;
+    },
+
+    markAdminNotificationRead: async (bookingId: number): Promise<Booking> => {
+        const response = await api.patch<Booking>(`/bookings/admin/notifications/${bookingId}/read`);
         return response.data;
     },
 };

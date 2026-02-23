@@ -9,13 +9,22 @@ import { Button } from "../../components/ui/button.tsx";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card.tsx";
 import { bookingService, type Booking, type BookingStatus } from "../../services/BookingService.ts";
 import { getImageUrl } from "../../lib/ImageUtils.ts";
+import { getErrorMessage } from "../../lib/errorUtils.ts";
 
 interface CustomerDashboardProps {
     onBack: () => void;
     initialPage?: string;
 }
 
-const ACTIVE_BOOKING_STATUSES: BookingStatus[] = ["PENDING", "CONFIRMED", "ACTIVE"];
+const ACTIVE_BOOKING_STATUSES: BookingStatus[] = [
+    "PENDING_PAYMENT",
+    "PENDING",
+    "ADMIN_NOTIFIED",
+    "CONFIRMED",
+    "ACTIVE",
+];
+const PAYMENT_ALLOWED_STATUSES: BookingStatus[] = ["PENDING_PAYMENT", "PENDING"];
+const CANCELLABLE_STATUSES: BookingStatus[] = ["PENDING_PAYMENT", "PENDING", "ADMIN_NOTIFIED", "CONFIRMED"];
 
 export default function CustomerDashboard({ onBack, initialPage = "dashboard" }: CustomerDashboardProps) {
     const [currentPage, setCurrentPage] = useState(initialPage);
@@ -24,6 +33,8 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
     const [isLoadingCars, setIsLoadingCars] = useState(true);
     const [isLoadingBookings, setIsLoadingBookings] = useState(true);
     const [bookingsError, setBookingsError] = useState<string | null>(null);
+    const [bookingActionMessage, setBookingActionMessage] = useState<string | null>(null);
+    const [processingBookingId, setProcessingBookingId] = useState<number | null>(null);
     const navigate = useNavigate();
     const user = authService.getUser();
     const isAuthenticated = authService.isAuthenticated();
@@ -35,6 +46,9 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
             setCars(fetchedCars.slice(0, 6)); // Show only 6 cars in dashboard
         } catch (error) {
             console.error("Failed to fetch cars:", error);
+            setBookingActionMessage((previous) =>
+                previous ?? getErrorMessage(error, "Unable to load recommended vehicles right now.")
+            );
         } finally {
             setIsLoadingCars(false);
         }
@@ -55,7 +69,7 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
             setBookings(fetchedBookings);
         } catch (error) {
             console.error("Failed to fetch customer bookings:", error);
-            setBookingsError("Unable to load bookings right now.");
+            setBookingsError(getErrorMessage(error, "Unable to load bookings right now."));
         } finally {
             setIsLoadingBookings(false);
         }
@@ -70,6 +84,15 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
     useEffect(() => {
         setCurrentPage(initialPage);
     }, [initialPage]);
+
+    useEffect(() => {
+        const bookingNotice = sessionStorage.getItem("garizetu_booking_notice");
+        if (!bookingNotice) {
+            return;
+        }
+        setBookingActionMessage(bookingNotice);
+        sessionStorage.removeItem("garizetu_booking_notice");
+    }, []);
 
     const getPageTitle = () => {
         switch (currentPage) {
@@ -139,17 +162,83 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
 
     const getBookingBadgeClass = (status: BookingStatus): string => {
         switch (status) {
+            case "PENDING_PAYMENT":
             case "PENDING":
                 return "bg-amber-500/20 text-amber-400 border border-amber-500/30";
+            case "ADMIN_NOTIFIED":
+                return "bg-orange-500/20 text-orange-400 border border-orange-500/30";
             case "CONFIRMED":
                 return "bg-blue-500/20 text-blue-400 border border-blue-500/30";
             case "ACTIVE":
                 return "bg-violet-500/20 text-violet-400 border border-violet-500/30";
             case "COMPLETED":
                 return "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+            case "EXPIRED":
+                return "bg-slate-500/20 text-slate-300 border border-slate-500/30";
+            case "REJECTED":
+                return "bg-rose-500/20 text-rose-400 border border-rose-500/30";
             case "CANCELLED":
             default:
                 return "bg-red-500/20 text-red-400 border border-red-500/30";
+        }
+    };
+
+    const getStatusLabel = (status: BookingStatus): string => {
+        if (status === "PENDING_PAYMENT" || status === "PENDING") {
+            return "Pending Payment";
+        }
+        return status.replaceAll("_", " ");
+    };
+
+    const canSimulatePayment = (status: BookingStatus): boolean => PAYMENT_ALLOWED_STATUSES.includes(status);
+
+    const canCancelBooking = (status: BookingStatus): boolean => CANCELLABLE_STATUSES.includes(status);
+
+    const getFeaturedBookingCaption = (status: BookingStatus): string => {
+        switch (status) {
+            case "PENDING_PAYMENT":
+            case "PENDING":
+                return "Awaiting Payment";
+            case "ADMIN_NOTIFIED":
+                return "Awaiting Admin Review";
+            case "ACTIVE":
+                return "On Trip";
+            case "CONFIRMED":
+                return "Ready for Pickup";
+            case "EXPIRED":
+                return "Payment Window Expired";
+            default:
+                return status.replaceAll("_", " ");
+        }
+    };
+
+    const handleSimulatePayment = async (bookingId: number) => {
+        try {
+            setProcessingBookingId(bookingId);
+            setBookingActionMessage(null);
+            await bookingService.simulatePayment(bookingId, { paymentMethod: "M_PESA" });
+            await fetchBookings();
+            setBookingActionMessage("Payment completed and booking confirmed.");
+        } catch (error) {
+            console.error("Failed to simulate payment:", error);
+            setBookingActionMessage(getErrorMessage(error, "Could not process payment. Please try again."));
+        } finally {
+            setProcessingBookingId(null);
+        }
+    };
+
+    const handleCancelBooking = async (bookingId: number) => {
+        try {
+            setProcessingBookingId(bookingId);
+            setBookingActionMessage(null);
+            await bookingService.cancel(bookingId, "Cancelled by customer");
+            await fetchBookings();
+            setBookingActionMessage("Booking cancelled successfully.");
+        } catch (error) {
+            console.error("Failed to cancel booking:", error);
+            setBookingActionMessage(getErrorMessage(error, "Could not cancel booking. Please try again."));
+        } finally {
+            setProcessingBookingId(null);
         }
     };
 
@@ -212,7 +301,7 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                                         className="w-full h-full object-cover"
                                     />
                                     <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-emerald-500 text-white text-xs font-semibold">
-                                        {featuredBooking.bookingStatus === "ACTIVE" ? "On Trip" : "Ready for Pickup"}
+                                        {getFeaturedBookingCaption(featuredBooking.bookingStatus)}
                                     </span>
                                 </div>
 
@@ -505,6 +594,12 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                     <CardDescription>Your rental history and upcoming reservations</CardDescription>
                 </CardHeader>
                 <CardContent>
+                    {bookingActionMessage && (
+                        <div className="mb-4 rounded-lg border border-gray-700 bg-[#1f1f1f] px-4 py-3 text-sm text-gray-200">
+                            {bookingActionMessage}
+                        </div>
+                    )}
+
                     {!isAuthenticated ? (
                         <div className="text-center py-10">
                             <p className="text-gray-400 mb-4">Log in to view your booking history.</p>
@@ -556,6 +651,10 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                                             <p className="text-xs text-gray-500 mt-1">
                                                 Pick-up: {booking.pickupLocation}
                                             </p>
+                                            <p className="text-xs text-gray-500 mt-1">
+                                                Payment: {booking.paymentStatus || "UNPAID"}
+                                                {booking.paymentReference ? ` (${booking.paymentReference})` : ""}
+                                            </p>
                                         </div>
 
                                         <div className="text-left md:text-right space-y-2">
@@ -563,9 +662,39 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                                                 KES {booking.totalPrice.toLocaleString()}
                                             </p>
                                             <span className={`inline-flex px-3 py-1 rounded-full text-xs font-semibold ${getBookingBadgeClass(booking.bookingStatus)}`}>
-                                                {booking.bookingStatus}
+                                                {getStatusLabel(booking.bookingStatus)}
                                             </span>
                                         </div>
+                                    </div>
+
+                                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                                        {canSimulatePayment(booking.bookingStatus) && (
+                                            <button
+                                                onClick={() => void handleSimulatePayment(booking.bookingId)}
+                                                disabled={processingBookingId === booking.bookingId}
+                                                className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
+                                                    processingBookingId === booking.bookingId
+                                                        ? "bg-emerald-400/40 text-white cursor-not-allowed"
+                                                        : "bg-emerald-500 text-white hover:bg-emerald-600"
+                                                }`}
+                                            >
+                                                {processingBookingId === booking.bookingId ? "Processing..." : "Complete Payment"}
+                                            </button>
+                                        )}
+
+                                        {canCancelBooking(booking.bookingStatus) && (
+                                            <button
+                                                onClick={() => void handleCancelBooking(booking.bookingId)}
+                                                disabled={processingBookingId === booking.bookingId}
+                                                className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
+                                                    processingBookingId === booking.bookingId
+                                                        ? "bg-red-400/40 text-white cursor-not-allowed"
+                                                        : "bg-red-500 text-white hover:bg-red-600"
+                                                }`}
+                                            >
+                                                {processingBookingId === booking.bookingId ? "Processing..." : "Cancel Booking"}
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
                             ))}

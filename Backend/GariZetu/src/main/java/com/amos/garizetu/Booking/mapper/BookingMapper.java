@@ -54,6 +54,14 @@ public class BookingMapper {
 
         // Status and timestamps
         dto.setBookingStatus(booking.getBookingStatus());
+        dto.setPaymentStatus(booking.getPaymentStatus());
+        dto.setPaymentReference(booking.getPaymentReference());
+        dto.setPaymentMethod(booking.getPaymentMethod());
+        dto.setPaymentSimulatedAt(booking.getPaymentSimulatedAt());
+        dto.setPaymentExpiresAt(booking.getPaymentExpiresAt());
+        dto.setAdminNotifiedAt(booking.getAdminNotifiedAt());
+        dto.setAdminNotificationRead(booking.isAdminNotificationRead());
+        dto.setAdminNotificationReadAt(booking.getAdminNotificationReadAt());
         dto.setCreatedAt(booking.getCreatedAt());
         dto.setUpdatedAt(booking.getUpdatedAt());
 

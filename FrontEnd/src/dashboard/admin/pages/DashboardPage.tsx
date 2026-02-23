@@ -100,18 +100,32 @@ export function DashboardPage() {
 
     const getStatusClass = (status: Booking["status"]) => {
         switch (status) {
+            case "PENDING_PAYMENT":
             case "PENDING":
                 return "bg-amber-500/20 text-amber-400 border border-amber-500/30";
+            case "ADMIN_NOTIFIED":
+                return "bg-orange-500/20 text-orange-400 border border-orange-500/30";
             case "CONFIRMED":
                 return "bg-blue-500/20 text-blue-400 border border-blue-500/30";
             case "ACTIVE":
                 return "bg-violet-500/20 text-violet-400 border border-violet-500/30";
             case "COMPLETED":
                 return "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+            case "REJECTED":
+                return "bg-rose-500/20 text-rose-400 border border-rose-500/30";
+            case "EXPIRED":
+                return "bg-slate-500/20 text-slate-300 border border-slate-500/30";
             case "CANCELLED":
             default:
                 return "bg-red-500/20 text-red-400 border border-red-500/30";
         }
+    };
+
+    const getStatusLabel = (status: Booking["status"]) => {
+        if (status === "PENDING_PAYMENT" || status === "PENDING") {
+            return "Pending Payment";
+        }
+        return status.replaceAll("_", " ");
     };
 
     // Prepare pie chart data
@@ -349,7 +363,7 @@ export function DashboardPage() {
                                             <span
                                                 className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium ${getStatusClass(booking.status)}`}
                                             >
-                                                {booking.status}
+                                                {getStatusLabel(booking.status)}
                                             </span>
                                         </td>
                                     </tr>

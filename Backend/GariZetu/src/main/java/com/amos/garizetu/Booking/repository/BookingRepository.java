@@ -3,11 +3,13 @@ package com.amos.garizetu.Booking.repository;
 import com.amos.garizetu.Booking.Entity.Booking;
 import com.amos.garizetu.Booking.Enums.BookingStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Repository
@@ -16,9 +18,22 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     // ========= BASIC QUERIES ==========
     List<Booking> findByUserUserId(Long userId);
 
+    List<Booking> findByUserUserIdOrderByCreatedAtDesc(Long userId);
+
     List<Booking> findByCarCarId(Long carId);
 
     List<Booking> findByBookingStatus(BookingStatus bookingStatus);
+
+    List<Booking> findByBookingStatusOrderByCreatedAtDesc(BookingStatus bookingStatus);
+
+    @Query("SELECT b FROM Booking b WHERE COALESCE(b.adminNotificationRead, false) = false " +
+            "AND b.adminNotifiedAt IS NOT NULL " +
+            "ORDER BY b.adminNotifiedAt DESC")
+    List<Booking> findUnreadAdminNotifications();
+
+    @Query("SELECT b FROM Booking b WHERE b.adminNotifiedAt IS NOT NULL " +
+            "ORDER BY b.adminNotifiedAt DESC")
+    List<Booking> findAllAdminNotifications();
 
     List<Booking> findByUserUserIdAndBookingStatus(Long userId, BookingStatus status);
 
@@ -33,37 +48,35 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     // ========== COMPLEX QUERY: AVAILABILITY CHECK ==========
 
     /**
-     * Find CONFLICTING bookings for a car during date range
-     *
-     * Purpose: Check if car is available for requested dates
-     *
-     * Logic:
-     * - Only look at active bookings (exclude COMPLETED/CANCELLED)
-     * - Check if date ranges overlap:
-     *   Existing: Mon-Fri
-     *   Request:   Tue-Wed  → CONFLICT (overlap)
-     *   Request:   Sat-Sun  → OK (no overlap)
-     *
-     * Implementation: A booking overlaps if:
-     * - Existing pickup < requested return (existing starts before request ends)
-     * - AND existing return > requested pickup (existing ends after request starts)
-     *
-     * SQL:
-     * SELECT * FROM bookings
-     * WHERE car_id = :carId
-     *   AND booking_status NOT IN ('COMPLETED', 'CANCELLED')
-     *   AND pickup_date < :returnDate
-     *   AND return_date > :pickupDate
+     * Find bookings that block a new reservation:
+     * - CONFIRMED / ACTIVE always block
+     * - valid PENDING_PAYMENT bookings block only before payment expiry
      */
     @Query("SELECT b FROM Booking b WHERE b.car.carId = :carId " +
-            "AND b.bookingStatus NOT IN ('COMPLETED', 'CANCELLED') " +
+            "AND (" +
+            "b.bookingStatus IN ('CONFIRMED', 'ACTIVE', 'ADMIN_NOTIFIED') " +
+            "OR (" +
+            "b.bookingStatus IN ('PENDING_PAYMENT', 'PENDING') " +
+            "AND b.paymentStatus IN ('UNPAID', 'FAILED') " +
+            "AND b.paymentExpiresAt IS NOT NULL " +
+            "AND b.paymentExpiresAt > :asOf" +
+            ")" +
+            ") " +
             "AND b.pickupDate < :returnDate " +
             "AND b.returnDate > :pickupDate")
     List<Booking> findConflictingBookings(
             @Param("carId") Long carId,
             @Param("pickupDate") LocalDate pickupDate,
-            @Param("returnDate") LocalDate returnDate
+            @Param("returnDate") LocalDate returnDate,
+            @Param("asOf") LocalDateTime asOf
     );
+
+    @Query("SELECT b FROM Booking b WHERE " +
+            "b.bookingStatus IN ('PENDING_PAYMENT', 'PENDING') " +
+            "AND b.paymentStatus IN ('UNPAID', 'FAILED') " +
+            "AND b.paymentExpiresAt IS NOT NULL " +
+            "AND b.paymentExpiresAt <= :asOf")
+    List<Booking> findExpiredPendingPaymentBookings(@Param("asOf") LocalDateTime asOf);
 
     // ========== TEMPORAL QUERIES ==========
 
@@ -114,6 +127,8 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
      */
     long countByBookingStatus(BookingStatus status);
 
+    long countByBookingStatusIn(List<BookingStatus> statuses);
+
     /**
      * Count bookings for a car
      * Use: Car details page - "This car has 12 total bookings"
@@ -127,4 +142,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
      * SQL: SELECT COUNT(*) FROM bookings WHERE user_id = :userId
      */
     long countByUserUserId(Long userId);
+
+    List<Booking> findAllByOrderByCreatedAtDesc();
+
+    @Modifying
+    @Query(value = "UPDATE bookings SET admin_notification_read = FALSE WHERE admin_notification_read IS NULL", nativeQuery = true)
+    int backfillNullAdminNotificationRead();
 }

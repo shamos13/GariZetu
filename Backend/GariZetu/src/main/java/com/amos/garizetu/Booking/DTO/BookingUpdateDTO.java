@@ -12,10 +12,6 @@ public class BookingUpdateDTO {
 
     private BookingStatus bookingStatus;
     private String returnLocation;
-    private String specialRequest;
+    private String specialRequests;
     private Double refundAmount;
-
-    public String getSpecialRequests() {
-        return specialRequest;
-    }
 }

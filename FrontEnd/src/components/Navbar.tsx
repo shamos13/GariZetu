@@ -3,6 +3,7 @@ import {Link, useLocation, useNavigate} from "react-router-dom";
 import {Bell, ChevronDown, LogOut, Phone, User} from "lucide-react";
 import {AuthModal} from "./AuthModal";
 import {authService} from "../services/AuthService.ts";
+import { AUTH_CHANGED_EVENT } from "../lib/authEvents.ts";
 import {toast} from "sonner";
 
 export function Navbar() {
@@ -18,18 +19,28 @@ export function Navbar() {
     const location = useLocation();
     const navigate = useNavigate();
 
-    // Check authentication status
+    // Keep auth state synced with localStorage changes (same tab + cross-tab)
     useEffect(() => {
         const checkAuth = () => {
             const authenticated = authService.isAuthenticated();
             setIsAuthenticated(authenticated);
             setUser(authService.getUser());
         };
+
         checkAuth();
-        // Listen for storage changes (when login/logout happens in other tabs)
-        window.addEventListener('storage', checkAuth);
-        return () => window.removeEventListener('storage', checkAuth);
-    }, [location]);
+        window.addEventListener("storage", checkAuth);
+        window.addEventListener(AUTH_CHANGED_EVENT, checkAuth as EventListener);
+
+        return () => {
+            window.removeEventListener("storage", checkAuth);
+            window.removeEventListener(AUTH_CHANGED_EVENT, checkAuth as EventListener);
+        };
+    }, []);
+
+    useEffect(() => {
+        setIsAuthenticated(authService.isAuthenticated());
+        setUser(authService.getUser());
+    }, [location.pathname]);
 
     const handleLogout = () => {
         authService.logout();

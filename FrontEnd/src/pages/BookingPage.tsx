@@ -1,6 +1,5 @@
 import {useEffect, useMemo, useState} from "react";
 import {Link, useNavigate, useSearchParams} from "react-router-dom";
-import axios from "axios";
 import {
     AlertCircle,
     Calendar,
@@ -24,8 +23,10 @@ import {Car as CarType, CARS_DATA} from "../data/cars";
 import {carService} from "../services/carService";
 import {getImageUrl} from "../lib/ImageUtils";
 import {authService} from "../services/AuthService";
+import { AUTH_CHANGED_EVENT } from "../lib/authEvents.ts";
 import {AuthModal} from "../components/AuthModal";
 import {bookingService, type BookingCreateRequest} from "../services/BookingService.ts";
+import { getErrorMessage, isForbiddenError, isUnauthorizedError } from "../lib/errorUtils.ts";
 
 // Pickup locations
 const PICKUP_LOCATIONS = [
@@ -41,22 +42,6 @@ const formatDateForApi = (date: Date): string => {
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
-};
-
-const getErrorMessage = (error: unknown, fallback: string): string => {
-    if (axios.isAxiosError(error)) {
-        const errorData = error.response?.data as { message?: string } | undefined;
-        const backendMessage = errorData?.message;
-        if (typeof backendMessage === "string" && backendMessage.trim().length > 0) {
-            return backendMessage;
-        }
-    }
-
-    if (error instanceof Error && error.message.trim().length > 0) {
-        return error.message;
-    }
-
-    return fallback;
 };
 
 export default function BookingPage() {
@@ -113,21 +98,24 @@ export default function BookingPage() {
     const [bookingError, setBookingError] = useState<string | null>(null);
     const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
 
-    // Update auth state when modal closes (in case user logged in)
+    // Keep auth state synchronized with login/logout in same tab and other tabs.
     useEffect(() => {
-        if (!isAuthModalOpen) {
-            // Check auth state after modal closes
-            const checkAuth = () => {
-                setAuthState({
-                    isAuthenticated: authService.isAuthenticated(),
-                    user: authService.getUser()
-                });
-            };
-            // Small delay to ensure localStorage is updated
-            const timeoutId = setTimeout(checkAuth, 100);
-            return () => clearTimeout(timeoutId);
-        }
-    }, [isAuthModalOpen]);
+        const syncAuthState = () => {
+            setAuthState({
+                isAuthenticated: authService.isAuthenticated(),
+                user: authService.getUser()
+            });
+        };
+
+        syncAuthState();
+        window.addEventListener("storage", syncAuthState);
+        window.addEventListener(AUTH_CHANGED_EVENT, syncAuthState as EventListener);
+
+        return () => {
+            window.removeEventListener("storage", syncAuthState);
+            window.removeEventListener(AUTH_CHANGED_EVENT, syncAuthState as EventListener);
+        };
+    }, []);
     
     // Update guest info when user logs in
     useEffect(() => {
@@ -147,6 +135,7 @@ export default function BookingPage() {
         childSeat: false,
         additionalDriver: false
     });
+    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"M_PESA" | "CARD">("M_PESA");
 
     // ✅ FETCH CAR DATA ON MOUNT
     useEffect(() => {
@@ -165,7 +154,7 @@ export default function BookingPage() {
                 setCar(fetchedCar);
             } catch (error) {
                 console.error("Failed to fetch car:", error);
-                setCarError("Failed to load vehicle details");
+                setCarError(getErrorMessage(error, "Failed to load vehicle details."));
 
                 // Fallback to CARS_DATA
                 const fallbackCar = CARS_DATA.find(c => c.id === Number(carId));
@@ -222,10 +211,9 @@ export default function BookingPage() {
     const handleCompleteBooking = async () => {
         setBookingError(null);
 
-        if (!isAuthenticated) {
-            setBookingError("Please log in to complete your booking.");
-            setStep(2);
-            setIsAuthModalOpen(true);
+        const hasLiveSession = authService.isAuthenticated();
+        if (!hasLiveSession) {
+            setBookingError("You are not logged in. Please sign in from the top menu, then try your booking again.");
             return;
         }
 
@@ -282,13 +270,50 @@ export default function BookingPage() {
             specialRequests: specialRequestsParts.length > 0 ? specialRequestsParts.join(" | ") : undefined,
         };
 
+        let createdBookingId: number | null = null;
+
         try {
             setIsSubmittingBooking(true);
-            await bookingService.create(payload);
-            navigate("/dashboard");
+            const createdBooking = await bookingService.create(payload);
+            createdBookingId = createdBooking.bookingId;
+            await bookingService.simulatePayment(createdBooking.bookingId, {
+                paymentMethod: selectedPaymentMethod,
+            });
+            navigate("/dashboard/bookings");
         } catch (error) {
+            if (createdBookingId !== null) {
+                const recoveryMessage = getErrorMessage(
+                    error,
+                    "Booking was created, but payment was not completed. Retry payment from My Bookings."
+                );
+                sessionStorage.setItem("garizetu_booking_notice", recoveryMessage);
+                navigate("/dashboard/bookings");
+                return;
+            }
+
+            const resolvedMessage = getErrorMessage(error, "Failed to complete booking. Please try again.");
+
+            if (isUnauthorizedError(error)) {
+                const normalized = resolvedMessage.toLowerCase();
+                const looksLikeSessionIssue =
+                    normalized.includes("token")
+                    || normalized.includes("session")
+                    || normalized.includes("unauthorized")
+                    || normalized.includes("authentication");
+
+                setBookingError(
+                    looksLikeSessionIssue
+                        ? "Your session may have expired. Please sign in again from the top menu, then retry the booking."
+                        : resolvedMessage
+                );
+                return;
+            }
+            if (isForbiddenError(error)) {
+                setBookingError("Your account does not have permission to create this booking (403). Please contact support if this is unexpected.");
+                return;
+            }
             console.error("Failed to create booking:", error);
-            setBookingError(getErrorMessage(error, "Failed to complete booking. Please try again."));
+            setBookingError(resolvedMessage);
         } finally {
             setIsSubmittingBooking(false);
         }
@@ -785,7 +810,14 @@ export default function BookingPage() {
                                 <div className="space-y-4">
                                     {/* Payment Options */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <button className="p-4 border-2 border-black bg-gray-50 rounded-xl text-left">
+                                        <button
+                                            onClick={() => setSelectedPaymentMethod("M_PESA")}
+                                            className={`p-4 border-2 rounded-xl text-left transition-colors ${
+                                                selectedPaymentMethod === "M_PESA"
+                                                    ? "border-black bg-gray-50"
+                                                    : "border-gray-200 hover:border-gray-300"
+                                            }`}
+                                        >
                                             <div className="flex items-center gap-3">
                                                 <div className="w-12 h-8 bg-green-600 rounded flex items-center justify-center text-white text-xs font-bold">
                                                     M-PESA
@@ -797,7 +829,14 @@ export default function BookingPage() {
                                             </div>
                                         </button>
 
-                                        <button className="p-4 border-2 border-gray-200 hover:border-gray-300 rounded-xl text-left transition-colors">
+                                        <button
+                                            onClick={() => setSelectedPaymentMethod("CARD")}
+                                            className={`p-4 border-2 rounded-xl text-left transition-colors ${
+                                                selectedPaymentMethod === "CARD"
+                                                    ? "border-black bg-gray-50"
+                                                    : "border-gray-200 hover:border-gray-300"
+                                            }`}
+                                        >
                                             <div className="flex items-center gap-3">
                                                 <CreditCard className="w-8 h-8 text-gray-600" />
                                                 <div>
@@ -809,15 +848,25 @@ export default function BookingPage() {
                                     </div>
 
                                     {/* M-Pesa Instructions */}
-                                    <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
-                                        <h3 className="font-medium text-green-900 mb-2">M-Pesa Payment</h3>
-                                        <ol className="text-sm text-green-800 space-y-1">
-                                            <li>1. Click "Complete Booking" below</li>
-                                            <li>2. You will receive an STK push on your phone</li>
-                                            <li>3. Enter your M-Pesa PIN to complete payment</li>
-                                            <li>4. Wait for confirmation SMS</li>
-                                        </ol>
-                                    </div>
+                                    {selectedPaymentMethod === "M_PESA" ? (
+                                        <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
+                                            <h3 className="font-medium text-green-900 mb-2">M-Pesa Payment</h3>
+                                            <ol className="text-sm text-green-800 space-y-1">
+                                                <li>1. Click "Complete Booking" below</li>
+                                                <li>2. Payment is simulated for now</li>
+                                                <li>3. The booking moves to admin review instantly</li>
+                                            </ol>
+                                        </div>
+                                    ) : (
+                                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                                            <h3 className="font-medium text-blue-900 mb-2">Card Payment</h3>
+                                            <ol className="text-sm text-blue-800 space-y-1">
+                                                <li>1. Click "Complete Booking" below</li>
+                                                <li>2. Card payment is simulated for now</li>
+                                                <li>3. The booking is sent to admin for confirmation</li>
+                                            </ol>
+                                        </div>
+                                    )}
 
                                     {/* Summary */}
                                     <div className="p-4 bg-gray-50 rounded-xl">

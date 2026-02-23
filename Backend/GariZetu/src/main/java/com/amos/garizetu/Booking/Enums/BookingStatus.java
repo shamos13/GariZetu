@@ -1,10 +1,15 @@
 package com.amos.garizetu.Booking.Enums;
 
 public enum BookingStatus {
-    PENDING,
+    PENDING_PAYMENT,
     CONFIRMED,
     ACTIVE,
     COMPLETED,
-    CANCELLED
+    CANCELLED,
+    EXPIRED,
 
+    // Legacy values kept for backward compatibility with existing records.
+    PENDING,
+    ADMIN_NOTIFIED,
+    REJECTED
 }
