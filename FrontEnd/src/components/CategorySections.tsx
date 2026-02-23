@@ -22,11 +22,11 @@ export function CategorySections() {
                 </div>
 
                 {/* Brand Grid */}
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                <div className="-mx-3 flex snap-x snap-mandatory gap-3 overflow-x-auto px-3 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 lg:grid-cols-6">
                     {brands.map((brand) => (
                         <div
                             key={brand.name}
-                            className="group flex cursor-pointer flex-col items-center justify-center rounded-xl bg-gray-50 p-3.5 transition-colors hover:bg-gray-100 md:p-4"
+                            className="group flex min-w-[8.75rem] shrink-0 snap-start cursor-pointer flex-col items-center justify-center rounded-xl bg-gray-50 p-3.5 transition-colors hover:bg-gray-100 sm:min-w-0 md:p-4"
                         >
                             {/* Logo Container */}
                             <div className="w-10 h-10 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">

@@ -20,9 +20,12 @@ export function BodyType() {
                     </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                <div className="-mx-3 flex snap-x snap-mandatory gap-3 overflow-x-auto px-3 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 lg:grid-cols-6">
                     {bodyTypes.map((type) => (
-                        <div key={type.name} className="group flex cursor-pointer flex-col items-center justify-center rounded-xl bg-gray-50/50 p-4 transition-all hover:bg-gray-100/80 md:p-5">
+                        <div
+                            key={type.name}
+                            className="group flex min-w-[8.75rem] shrink-0 snap-start cursor-pointer flex-col items-center justify-center rounded-xl bg-gray-50/50 p-4 transition-all hover:bg-gray-100/80 sm:min-w-0 md:p-5"
+                        >
                             <type.icon className="w-8 h-8 text-gray-600 mb-2.5 group-hover:text-black group-hover:scale-110 transition-all" strokeWidth={1.5} />
                             <span className="text-sm font-medium text-gray-700 text-center">{type.name}</span>
                         </div>
