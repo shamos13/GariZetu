@@ -35,12 +35,26 @@ const settingsMenuItems: SidebarMenuItem[] = [
     { id: "logout", label: "Log Out", icon: LogOut, action: "logout" },
 ];
 
+const ACTIVE_SIDEBAR_ITEM_BY_PAGE: Record<string, string> = {
+    dashboard: "dashboard",
+    bookings: "bookings",
+    profile: "profile",
+};
+
+const getSidebarButtonClasses = (isActive: boolean): string =>
+    `w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+        isActive
+            ? "bg-white text-black"
+            : "bg-transparent text-gray-400 hover:bg-gray-800 hover:text-white"
+    }`;
+
 export function CustomerLayout({ children, title, currentPage, onNavigate, onBack }: CustomerLayoutProps) {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const profileRef = useRef<HTMLDivElement>(null);
     const navigate = useNavigate();
     const user = authService.getUser();
+    const activeSidebarItem = ACTIVE_SIDEBAR_ITEM_BY_PAGE[currentPage] ?? "dashboard";
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -111,17 +125,14 @@ export function CustomerLayout({ children, title, currentPage, onNavigate, onBac
                             <div className="mt-3 space-y-1.5">
                                 {mainMenuItems.map((item) => {
                                     const Icon = item.icon;
-                                    const isActive = item.id === currentPage;
+                                    const isActive = item.id === activeSidebarItem;
 
                                     return (
                                         <button
                                             key={item.id}
                                             onClick={() => handleSidebarItemClick(item)}
-                                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                                                isActive
-                                                    ? "bg-white text-black"
-                                                    : "text-gray-400 hover:bg-gray-800 hover:text-white"
-                                            }`}
+                                            className={getSidebarButtonClasses(isActive)}
+                                            aria-current={isActive ? "page" : undefined}
                                         >
                                             <Icon className="w-5 h-5 flex-shrink-0" />
                                             <span className="flex-1 text-left text-sm whitespace-nowrap">{item.label}</span>
@@ -143,17 +154,14 @@ export function CustomerLayout({ children, title, currentPage, onNavigate, onBac
                             <div className="mt-3 space-y-1.5">
                             {settingsMenuItems.map((item) => {
                                 const Icon = item.icon;
-                                const isActive = item.id === currentPage;
+                                const isActive = item.action !== "logout" && item.id === activeSidebarItem;
 
                                 return (
                                     <button
                                         key={item.id}
                                         onClick={() => handleSidebarItemClick(item)}
-                                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                                            isActive
-                                                ? "bg-white text-black"
-                                                : "text-gray-400 hover:bg-gray-800 hover:text-white"
-                                        }`}
+                                        className={getSidebarButtonClasses(isActive)}
+                                        aria-current={isActive ? "page" : undefined}
                                     >
                                         <Icon className="w-5 h-5 flex-shrink-0" />
                                         <span className="text-left text-sm whitespace-nowrap">{item.label}</span>
