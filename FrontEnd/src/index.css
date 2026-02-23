@@ -200,15 +200,15 @@ html {
 
 @layer components {
   .layout-container {
-    @apply mx-auto w-full max-w-[1200px] px-4 md:px-6;
+    @apply mx-auto w-full max-w-[1200px] px-3 sm:px-4 md:px-6;
   }
 
   .section-space {
-    @apply py-8 md:py-10;
+    @apply py-7 sm:py-8 md:py-10;
   }
 
   .section-space-sm {
-    @apply py-6 md:py-8;
+    @apply py-5 sm:py-6 md:py-8;
   }
 
   .section-stack {

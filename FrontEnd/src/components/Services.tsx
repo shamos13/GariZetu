@@ -25,8 +25,8 @@ export function Services() {
     return (
         <section className="section-space bg-black text-white text-center">
             <div className="layout-container">
-            <div className="max-w-4xl mx-auto space-y-2.5 mb-6">
-                <h2 className="text-2xl md:text-[1.75rem] font-bold">Our Services & Benefits</h2>
+            <div className="mb-6 mx-auto max-w-4xl space-y-2.5">
+                <h2 className="text-[1.65rem] font-bold sm:text-2xl md:text-[1.75rem]">Our Services & Benefits</h2>
                 <p className="text-gray-400 text-sm">
                     To make renting easy and hassle-free, we provide a variety of services and advantages. We have you covered
                     with a variety of vehicles and flexible rental terms.

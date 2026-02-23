@@ -383,7 +383,7 @@ export function Navbar() {
 
             {/* Mobile Menu Panel */}
             <div
-                className={`md:hidden fixed top-0 right-0 h-full w-[280px] bg-black z-40 transform transition-transform duration-300 ease-out shadow-2xl ${
+                className={`md:hidden fixed top-0 right-0 h-full w-[85vw] max-w-[340px] bg-black z-40 transform transition-transform duration-300 ease-out shadow-2xl ${
                     isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
                 }`}
             >
