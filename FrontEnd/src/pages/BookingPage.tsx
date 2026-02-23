@@ -347,7 +347,7 @@ export default function BookingPage() {
             <div className="bg-black pb-4 pt-20 md:pt-24">
                 <div className="layout-container">
                     <h1 className="mb-2 text-xl font-bold text-white md:text-2xl">Complete Your Booking</h1>
-                    <p className="text-gray-400">You're booking: {car.name}</p>
+                    <p className="text-sm text-gray-400 md:text-base">You're booking: {car.name}</p>
                 </div>
             </div>
 
@@ -361,32 +361,34 @@ export default function BookingPage() {
             )}
 
             {/* Progress Steps */}
-            <div className="sticky top-24 z-40 border-b border-gray-100 bg-white">
+            <div className="sticky top-14 z-40 border-b border-gray-100 bg-white md:top-24">
                 <div className="layout-container py-3">
-                    <div className="flex items-center justify-between max-w-xl">
-                        {[
-                            { num: 1, label: "Dates & Location" },
-                            { num: 2, label: "Your Details" },
-                            { num: 3, label: "Payment" }
-                        ].map((s, i) => (
-                            <div key={s.num} className="flex items-center">
-                                <div className={`flex items-center gap-2 ${step >= s.num ? "text-black" : "text-gray-400"}`}>
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                                        step > s.num
-                                            ? "bg-emerald-500 text-white"
-                                            : step === s.num
-                                                ? "bg-black text-white"
-                                                : "bg-gray-200 text-gray-500"
-                                    }`}>
-                                        {step > s.num ? <Check className="w-4 h-4" /> : s.num}
+                    <div className="overflow-x-auto">
+                        <div className="flex min-w-[520px] items-center justify-between pr-3">
+                            {[
+                                { num: 1, label: "Dates & Location" },
+                                { num: 2, label: "Your Details" },
+                                { num: 3, label: "Payment" }
+                            ].map((s, i) => (
+                                <div key={s.num} className="flex items-center">
+                                    <div className={`flex items-center gap-2 ${step >= s.num ? "text-black" : "text-gray-400"}`}>
+                                        <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
+                                            step > s.num
+                                                ? "bg-emerald-500 text-white"
+                                                : step === s.num
+                                                    ? "bg-black text-white"
+                                                    : "bg-gray-200 text-gray-500"
+                                        }`}>
+                                            {step > s.num ? <Check className="w-4 h-4" /> : s.num}
+                                        </div>
+                                        <span className="text-xs font-medium sm:text-sm">{s.label}</span>
                                     </div>
-                                    <span className="hidden sm:block text-sm font-medium">{s.label}</span>
+                                    {i < 2 && (
+                                        <div className={`mx-2 h-0.5 w-12 sm:w-20 ${step > s.num ? "bg-emerald-500" : "bg-gray-200"}`} />
+                                    )}
                                 </div>
-                                {i < 2 && (
-                                    <div className={`w-12 sm:w-20 h-0.5 mx-2 ${step > s.num ? "bg-emerald-500" : "bg-gray-200"}`} />
-                                )}
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>

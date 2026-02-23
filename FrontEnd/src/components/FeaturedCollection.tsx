@@ -84,11 +84,11 @@ export function FeaturedCollection() {
     return (
         <section className="section-space bg-white">
             <div className="layout-container">
-            <div className="text-center space-y-2.5 mb-6">
+            <div className="mb-6 space-y-2.5 text-center">
                 <p className="text-sm font-medium text-emerald-600 uppercase tracking-wider">
                     Featured Collection
                 </p>
-                <h2 className="text-2xl md:text-[1.75rem] font-bold text-gray-900">
+                <h2 className="text-[1.65rem] font-bold text-gray-900 sm:text-2xl md:text-[1.75rem]">
                     Our Impressive Collection of Cars
                 </h2>
                 <p className="text-gray-500 max-w-2xl mx-auto">
@@ -97,12 +97,12 @@ export function FeaturedCollection() {
             </div>
 
             {/* Category Pills */}
-            <div className="flex flex-wrap justify-center gap-2 mb-6">
+            <div className="mb-6 flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:justify-center sm:overflow-visible">
                 {CATEGORIES.map((cat, i) => (
                     <button
                         key={cat}
                         onClick={() => setActiveCategory(i)}
-                        className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-all duration-300 ${
+                        className={`shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium transition-all duration-300 ${
                             activeCategory === i 
                                 ? "bg-black text-white shadow-lg shadow-black/20 scale-105" 
                                 : "bg-gray-100 text-gray-600 hover:bg-gray-200 hover:scale-105"
@@ -114,7 +114,7 @@ export function FeaturedCollection() {
             </div>
 
             {/* Cars Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                 {CARS.map((car, index) => (
                     <div
                         key={car.id}

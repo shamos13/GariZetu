@@ -14,19 +14,19 @@ export function CategorySections() {
         <section className="section-space bg-white">
             <div className="layout-container">
                 {/* Header */}
-                <div className="flex items-center justify-between mb-5">
-                    <h2 className="text-xl font-bold tracking-tight">Rent by Brands</h2>
+                <div className="mb-5 flex items-center justify-between gap-3">
+                    <h2 className="text-lg font-bold tracking-tight sm:text-xl">Rent by Brands</h2>
                     <button className="hidden md:flex items-center gap-2 text-sm font-semibold hover:gap-3 transition-all">
                         View all <ArrowRight className="w-4 h-4" />
                     </button>
                 </div>
 
                 {/* Brand Grid */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
                     {brands.map((brand) => (
                         <div
                             key={brand.name}
-                            className="flex flex-col items-center justify-center p-3.5 md:p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer group"
+                            className="group flex cursor-pointer flex-col items-center justify-center rounded-xl bg-gray-50 p-3.5 transition-colors hover:bg-gray-100 md:p-4"
                         >
                             {/* Logo Container */}
                             <div className="w-10 h-10 flex items-center justify-center mb-2 group-hover:scale-105 transition-transform">
@@ -36,8 +36,15 @@ export function CategorySections() {
                                     className="w-full h-full object-contain"
                                 />
                             </div>
+                            <p className="text-xs font-medium text-gray-600 text-center">{brand.name}</p>
                         </div>
                     ))}
+                </div>
+
+                <div className="mt-4 md:hidden">
+                    <button className="inline-flex items-center gap-2 text-sm font-semibold text-gray-700">
+                        View all brands <ArrowRight className="w-4 h-4" />
+                    </button>
                 </div>
             </div>
 
