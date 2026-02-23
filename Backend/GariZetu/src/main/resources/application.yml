@@ -2,6 +2,13 @@ server:
   port: ${PORT:8080}
 
 spring:
+  config:
+    import:
+      # Support running from project root, backend module root, or IDE custom cwd.
+      - optional:file:.env[.properties]
+      - optional:file:./Backend/GariZetu/.env[.properties]
+      - optional:file:../.env[.properties]
+
   application:
     name: GariZetu
 
