@@ -490,8 +490,8 @@ export function UserManagementPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="overflow-x-auto relative">
-                        <table className="w-full">
+                    <div className="relative -mx-1 overflow-x-auto px-1">
+                        <table className="w-full min-w-[900px]">
                             <thead>
                                 <tr className="border-b border-gray-800">
                                     <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">User</th>

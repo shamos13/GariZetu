@@ -214,17 +214,17 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
             case "dashboard":
                 return "Dashboard";
             case "cars":
-                return "Cars";
+                return "Fleet Management";
             case "bookings":
                 return "Bookings";
             case "users":
-                return "Users";
+                return "Customers";
             case "payments":
                 return "Payments";
             case "reports":
-                return "Reports";
+                return "Analytics";
             case "settings":
-                return "Settings";
+                return "Configuration";
             default:
                 return "Dashboard";
         }

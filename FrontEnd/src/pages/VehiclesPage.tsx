@@ -324,7 +324,7 @@ export default function VehiclesPage() {
             <main className="layout-container pb-10 pt-20 md:pt-24">
                 <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                     <div>
-                        <h1 className="font-serif text-3xl text-zinc-900 sm:text-4xl md:text-5xl">Our Fleet</h1>
+                        <h1 className="text-3xl text-zinc-900 sm:text-4xl md:text-5xl">Our Fleet</h1>
                         <p className="mt-2 text-sm text-zinc-600">
                             Explore our premium collection of luxury vehicles.
                         </p>

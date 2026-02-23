@@ -37,6 +37,35 @@ interface Feature {
     featureCategory: string;
 }
 
+const normalizeFeatureName = (value: string) => value.trim().toLowerCase();
+
+type CarFeatureLike = {
+    featureName?: string;
+    name?: string;
+    available?: boolean;
+};
+
+type CarFormInputData = CarFormData & {
+    features?: CarFeatureLike[];
+};
+
+const extractCarFeatureNames = (car?: CarFormInputData): string[] => {
+    if (!car) {
+        return [];
+    }
+
+    const fromFeatureName = (car.featureName || [])
+        .map((feature) => feature.trim())
+        .filter((feature) => feature.length > 0);
+
+    const fromFeatureObjects = (car.features || [])
+        .filter((feature) => feature.available !== false)
+        .map((feature) => (feature.featureName ?? feature.name ?? "").trim())
+        .filter((feature) => feature.length > 0);
+
+    return Array.from(new Set([...fromFeatureName, ...fromFeatureObjects]));
+};
+
 type PendingGalleryImage = {
     id: string;
     file: File;
@@ -50,7 +79,7 @@ export type GallerySubmitPayload = {
 };
 
 interface CarFormProps {
-    car?: CarFormData;
+    car?: CarFormInputData;
     onSubmit: (
         car: CarFormData,
         image: File | null,
@@ -60,6 +89,8 @@ interface CarFormProps {
 }
 
 export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
+    const initialCarFeatureNames = useMemo(() => extractCarFeatureNames(car), [car]);
+
     // Store original values for dirty tracking (only when editing)
     const originalValues = car ? {
         make: car.make,
@@ -77,7 +108,7 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         bodyType: car.bodyType,
         featuredCategory: car.featuredCategory || "Popular Car",
         description: car.description || "",
-        featureName: car.featureName || [],
+        featureName: initialCarFeatureNames,
         hasImage: !!car.mainImageUrl,
         galleryImageUrls: car.galleryImageUrls || [],
     } : null;
@@ -98,7 +129,7 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         bodyType: car?.bodyType || "SEDAN",
         featuredCategory: car?.featuredCategory || "Popular Car",
         description: car?.description || "",
-        featureName: car?.featureName || [],
+        featureName: initialCarFeatureNames,
         mainImageUrl: car?.mainImageUrl,
         galleryImageUrls: car?.galleryImageUrls || [],
     });
@@ -123,11 +154,22 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
 
     // Features state
     const [availableFeatures, setAvailableFeatures] = useState<Feature[]>([]);
-    const [selectedFeatures, setSelectedFeatures] = useState<string[]>(car?.featureName || []);
+    const [selectedFeatures, setSelectedFeatures] = useState<string[]>(initialCarFeatureNames);
     const [featureSearch, setFeatureSearch] = useState("");
     const [isLoadingFeatures, setIsLoadingFeatures] = useState(false);
     const [isCreatingFeature, setIsCreatingFeature] = useState(false);
     const [showFeatureDropdown, setShowFeatureDropdown] = useState(false);
+    const selectedFeatureNameSet = useMemo(
+        () => new Set(selectedFeatures.map((feature) => normalizeFeatureName(feature))),
+        [selectedFeatures]
+    );
+    const sortedAvailableFeatures = useMemo(
+        () =>
+            [...availableFeatures].sort((a, b) =>
+                a.featureName.localeCompare(b.featureName, undefined, { sensitivity: "base" })
+            ),
+        [availableFeatures]
+    );
 
     // Helper function to check if a field is dirty (changed from original)
     const isFieldDirty = (fieldName: keyof CarFormData): boolean => {
@@ -235,7 +277,7 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
     const exactMatch = useMemo(() => {
         if (!featureSearch.trim()) return null;
         return availableFeatures.find(f => 
-            f.featureName.toLowerCase() === featureSearch.trim().toLowerCase()
+            normalizeFeatureName(f.featureName) === normalizeFeatureName(featureSearch)
         );
     }, [availableFeatures, featureSearch]);
 
@@ -243,6 +285,18 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
     const createNewFeature = async (featureName: string) => {
         try {
             setIsCreatingFeature(true);
+            const normalizedFeatureName = normalizeFeatureName(featureName);
+            const existingFeature = availableFeatures.find(
+                (feature) => normalizeFeatureName(feature.featureName) === normalizedFeatureName
+            );
+
+            if (existingFeature) {
+                addFeature(existingFeature.featureName);
+                setFeatureSearch("");
+                setShowFeatureDropdown(false);
+                return;
+            }
+
             // Note: This endpoint needs to be created in backend: POST /api/v1/features
             // For now, we'll add it to the list locally and it will be created when car is saved
             const newFeature: Feature = {
@@ -252,14 +306,14 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                 featureCategory: "CUSTOM"
             };
             setAvailableFeatures(prev => [...prev, newFeature]);
-            toggleFeature(featureName.trim());
+            addFeature(featureName.trim());
             setFeatureSearch("");
             setShowFeatureDropdown(false);
         } catch (error) {
             console.error("Failed to create feature:", error);
             alert("Failed to create feature. It will be added when you save the car.");
             // Still add it locally
-            toggleFeature(featureName.trim());
+            addFeature(featureName.trim());
             setFeatureSearch("");
         } finally {
             setIsCreatingFeature(false);
@@ -449,12 +503,16 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
     };
 
     // Feature handlers
-    const toggleFeature = (featureName: string) => {
-        if (selectedFeatures.includes(featureName)) {
-            setSelectedFeatures(selectedFeatures.filter(f => f !== featureName));
-        } else {
-            setSelectedFeatures([...selectedFeatures, featureName]);
+    const addFeature = (featureName: string) => {
+        const trimmed = featureName.trim();
+        if (!trimmed) return;
+
+        const normalized = normalizeFeatureName(trimmed);
+        if (selectedFeatureNameSet.has(normalized)) {
+            return;
         }
+
+        setSelectedFeatures((prev) => [...prev, trimmed]);
     };
 
     const handleFeatureInputChange = (value: string) => {
@@ -466,7 +524,7 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
     };
 
     const handleSelectFeature = (featureName: string) => {
-        toggleFeature(featureName);
+        addFeature(featureName);
         setFeatureSearch("");
         setShowFeatureDropdown(false);
     };
@@ -476,13 +534,13 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         if (!trimmed) {
             return;
         }
-        if (selectedFeatures.includes(trimmed)) {
+        if (selectedFeatureNameSet.has(normalizeFeatureName(trimmed))) {
             alert("This feature is already selected");
             return;
         }
         if (exactMatch) {
             // Feature exists, just select it
-            handleSelectFeature(trimmed);
+            handleSelectFeature(exactMatch.featureName);
             return;
         }
         // Create new feature
@@ -490,7 +548,10 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
     };
 
     const removeFeature = (featureName: string) => {
-        setSelectedFeatures(selectedFeatures.filter(f => f !== featureName));
+        const normalized = normalizeFeatureName(featureName);
+        setSelectedFeatures((prev) =>
+            prev.filter((feature) => normalizeFeatureName(feature) !== normalized)
+        );
     };
 
     const descriptionLength = formData.description.length;
@@ -1097,12 +1158,15 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                             ) : filteredFeatures.length > 0 ? (
                                 <>
                                     {filteredFeatures.slice(0, 10).map((feature) => {
-                                        const isSelected = selectedFeatures.includes(feature.featureName);
+                                        const isSelected = selectedFeatureNameSet.has(
+                                            normalizeFeatureName(feature.featureName)
+                                        );
                                         return (
                                             <button
                                                 key={feature.featureId}
                                                 type="button"
                                                 onClick={() => handleSelectFeature(feature.featureName)}
+                                                disabled={isSelected}
                                                 className={`w-full text-left px-4 py-3 hover:bg-gray-800 transition-colors flex items-center justify-between ${
                                                     isSelected
                                                         ? "bg-emerald-500/20 border-l-2 border-emerald-500"
@@ -1168,32 +1232,79 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                     )}
                 </div>
 
-                {/* Selected features display */}
-                {selectedFeatures.length > 0 && (
-                    <div>
-                        <Label className="text-gray-300 text-sm mb-2 block">
-                            Selected Features ({selectedFeatures.length})
-                        </Label>
-                        <div className="flex flex-wrap gap-2">
-                            {selectedFeatures.map((feature) => (
-                                <div
-                                    key={feature}
-                                    className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/40 rounded-full text-sm text-emerald-300"
-                                >
-                                    <Check className="w-3 h-3 text-emerald-400" />
-                                    <span>{feature}</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => removeFeature(feature)}
-                                        className="hover:text-red-400 transition-colors ml-1"
+                {/* Features currently available on this car */}
+                <div>
+                    <Label className="text-gray-300 text-sm mb-2 block">
+                        Features on This Car ({selectedFeatures.length})
+                    </Label>
+                    <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-700 bg-[#0a0a0a] p-3">
+                        {selectedFeatures.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {selectedFeatures.map((feature) => (
+                                    <div
+                                        key={`selected-${feature}`}
+                                        className="flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/20 px-3 py-1.5 text-sm text-emerald-300"
                                     >
-                                        <X className="w-3 h-3" />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
+                                        <Check className="h-3 w-3 text-emerald-400" />
+                                        <span>{feature}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => removeFeature(feature)}
+                                            className="ml-1 text-emerald-200 transition-colors hover:text-red-400"
+                                            title="Remove feature from this car"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-gray-500">No features assigned to this car yet.</p>
+                        )}
                     </div>
-                )}
+                </div>
+
+                {/* Always-visible available features list */}
+                <div>
+                    <Label className="text-gray-300 text-sm mb-2 block">
+                        Available Features ({sortedAvailableFeatures.length})
+                    </Label>
+                    <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-700 bg-[#0a0a0a] p-3">
+                        {isLoadingFeatures ? (
+                            <div className="text-sm text-gray-400">Loading features...</div>
+                        ) : sortedAvailableFeatures.length === 0 ? (
+                            <div className="text-sm text-gray-500">No features available yet.</div>
+                        ) : (
+                            <div className="flex flex-wrap gap-2">
+                                {sortedAvailableFeatures.map((feature) => {
+                                    const isSelected = selectedFeatureNameSet.has(
+                                        normalizeFeatureName(feature.featureName)
+                                    );
+
+                                    return (
+                                        <button
+                                            key={`available-${feature.featureId}`}
+                                            type="button"
+                                            onClick={() => handleSelectFeature(feature.featureName)}
+                                            disabled={isSelected}
+                                            className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                                                isSelected
+                                                    ? "cursor-not-allowed border-emerald-500/40 bg-emerald-500/20 text-emerald-300"
+                                                    : "border-gray-600 bg-[#141414] text-gray-300 hover:border-emerald-400 hover:text-emerald-300"
+                                            }`}
+                                            title={isSelected ? "Already selected" : "Add feature"}
+                                        >
+                                            {isSelected ? "Added: " : ""}{feature.featureName}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500">
+                        Existing features are shown here so admins can pick from them and avoid duplicate custom entries.
+                    </p>
+                </div>
             </div>
 
             {/* Form Actions */}
