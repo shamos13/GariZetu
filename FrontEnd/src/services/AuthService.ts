@@ -1,4 +1,5 @@
 import { api } from "../lib/api.ts";
+import { emitAuthChanged } from "../lib/authEvents.ts";
 
 /**
  * Authentication Service
@@ -52,6 +53,19 @@ export interface LoginResponse {
 const TOKEN_KEY = "garizetu_token";
 const USER_KEY = "garizetu_user";
 
+const normalizeToken = (token: string | null): string | null => {
+    if (!token) {
+        return null;
+    }
+
+    const trimmedToken = token.trim();
+    if (!trimmedToken || trimmedToken === "undefined" || trimmedToken === "null") {
+        return null;
+    }
+
+    return trimmedToken;
+};
+
 /**
  * Save authentication data to localStorage
  *
@@ -60,8 +74,13 @@ const USER_KEY = "garizetu_user";
  * - So we can include the token in future API requests
  */
 const saveAuthData = (loginResponse: LoginResponse): void => {
+    const token = normalizeToken(loginResponse.token);
+    if (!token) {
+        throw new Error("Authentication token was not provided. Please log in again.");
+    }
+
     // Save the JWT token
-    localStorage.setItem(TOKEN_KEY, loginResponse.token);
+    localStorage.setItem(TOKEN_KEY, token);
 
     // Save user info (everything except the token)
     // We convert it to JSON string because localStorage only stores strings
@@ -72,6 +91,7 @@ const saveAuthData = (loginResponse: LoginResponse): void => {
         role: loginResponse.role,
     };
     localStorage.setItem(USER_KEY, JSON.stringify(userInfo));
+    emitAuthChanged();
 };
 
 /**
@@ -81,7 +101,14 @@ const saveAuthData = (loginResponse: LoginResponse): void => {
  * Returns null if user is not logged in.
  */
 const getToken = (): string | null => {
-    return localStorage.getItem(TOKEN_KEY);
+    const storedToken = normalizeToken(localStorage.getItem(TOKEN_KEY));
+
+    if (!storedToken) {
+        // Ensure stale/invalid token values do not keep the app in a false-authenticated state.
+        localStorage.removeItem(TOKEN_KEY);
+    }
+
+    return storedToken;
 };
 
 /**
@@ -111,6 +138,7 @@ const getUser = (): Omit<LoginResponse, "token"> | null => {
 const clearAuthData = (): void => {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
+    emitAuthChanged();
 };
 
 /**
@@ -121,7 +149,7 @@ const clearAuthData = (): void => {
  * the backend will reject expired tokens automatically.
  */
 const isAuthenticated = (): boolean => {
-    return getToken() !== null;
+    return Boolean(getToken());
 };
 
 /**

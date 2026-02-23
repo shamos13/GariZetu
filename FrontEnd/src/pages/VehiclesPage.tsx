@@ -22,7 +22,20 @@ import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { carService } from "../services/carService";
 import { getImageUrl } from "../lib/ImageUtils.ts";
-import { BodyType, Car, CARS_DATA, FuelType, TransmissionType } from "../data/cars";
+import {
+    BodyType,
+    Car,
+    FeaturedCategory,
+    FuelType,
+    TransmissionType,
+} from "../data/cars";
+import {
+    formatTimeRemaining,
+    getAvailabilityClassName,
+    getAvailabilityLabel,
+    getCarAvailabilityStatus,
+    isCarBookable,
+} from "../lib/carAvailability.ts";
 
 type SortOption = "recommended" | "price-asc" | "price-desc" | "newest";
 type PageNumber = number | "...";
@@ -43,7 +56,15 @@ const BODY_TYPE_ORDER: BodyType[] = [
     "Coupe",
     "Convertible",
     "Van",
+    "Minivan",
     "Truck",
+];
+const FEATURED_CATEGORY_ORDER: FeaturedCategory[] = [
+    "Popular Car",
+    "Luxury Car",
+    "Vintage Car",
+    "Family Car",
+    "Off-Road Car",
 ];
 
 function parseSortOption(value: string | null): SortOption {
@@ -55,6 +76,10 @@ function parseSortOption(value: string | null): SortOption {
 
 function isBodyType(value: string | null): value is BodyType {
     return BODY_TYPE_ORDER.includes(value as BodyType);
+}
+
+function isFeaturedCategory(value: string | null): value is FeaturedCategory {
+    return FEATURED_CATEGORY_ORDER.includes(value as FeaturedCategory);
 }
 
 function buildPageNumbers(currentPage: number, totalPages: number): PageNumber[] {
@@ -76,11 +101,13 @@ function buildPageNumbers(currentPage: number, totalPages: number): PageNumber[]
 export default function VehiclesPage() {
     const [searchParams, setSearchParams] = useSearchParams();
     const initialBodyTypeParam = searchParams.get("bodyType");
+    const initialMakeParam = searchParams.get("make");
+    const initialFeaturedCategoryParam = searchParams.get("featuredCategory");
 
     const [searchQuery, setSearchQuery] = useState(searchParams.get("q") ?? "");
     const [showFilters, setShowFilters] = useState(false);
     const [sortBy, setSortBy] = useState<SortOption>(parseSortOption(searchParams.get("sort")));
-    const [cars, setCars] = useState<Car[]>(CARS_DATA);
+    const [cars, setCars] = useState<Car[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
@@ -91,16 +118,27 @@ export default function VehiclesPage() {
     const [selectedBodyType, setSelectedBodyType] = useState<BodyType | "all">(
         isBodyType(initialBodyTypeParam) ? initialBodyTypeParam : "all"
     );
-    const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+    const [selectedBrands, setSelectedBrands] = useState<string[]>(
+        initialMakeParam ? [initialMakeParam] : []
+    );
+    const [selectedFeaturedCategory, setSelectedFeaturedCategory] = useState<FeaturedCategory | "all">(
+        isFeaturedCategory(initialFeaturedCategoryParam) ? initialFeaturedCategoryParam : "all"
+    );
     const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
         const q = searchParams.get("q") ?? "";
         const bodyTypeParam = searchParams.get("bodyType");
+        const makeParam = searchParams.get("make");
+        const featuredCategoryParam = searchParams.get("featuredCategory");
         const sortParam = searchParams.get("sort");
 
         setSearchQuery(q);
         setSelectedBodyType(isBodyType(bodyTypeParam) ? bodyTypeParam : "all");
+        setSelectedBrands(makeParam ? [makeParam] : []);
+        setSelectedFeaturedCategory(
+            isFeaturedCategory(featuredCategoryParam) ? featuredCategoryParam : "all"
+        );
         setSortBy(parseSortOption(sortParam));
     }, [searchParams]);
 
@@ -111,15 +149,11 @@ export default function VehiclesPage() {
                 setError(null);
 
                 const fetchedCars = await carService.getAll();
-                if (fetchedCars.length > 0) {
-                    setCars(fetchedCars);
-                } else {
-                    setCars(CARS_DATA);
-                }
+                setCars(fetchedCars);
             } catch (fetchError) {
                 console.error("Error fetching cars:", fetchError);
-                setError("Failed to load live vehicles. Showing sample fleet.");
-                setCars(CARS_DATA);
+                setError("Failed to load vehicles from the database. Please try again.");
+                setCars([]);
             } finally {
                 setIsLoading(false);
             }
@@ -155,6 +189,11 @@ export default function VehiclesPage() {
     const bodyTypeOptions = useMemo(() => {
         const fromCars = new Set(cars.map((car) => car.bodyType));
         return BODY_TYPE_ORDER.filter((type) => fromCars.has(type));
+    }, [cars]);
+
+    const featuredCategoryOptions = useMemo(() => {
+        const fromCars = new Set(cars.map((car) => car.featuredCategory));
+        return FEATURED_CATEGORY_ORDER.filter((category) => fromCars.has(category));
     }, [cars]);
 
     const seatOptions = useMemo(
@@ -202,6 +241,13 @@ export default function VehiclesPage() {
                 return false;
             }
 
+            if (
+                selectedFeaturedCategory !== "all"
+                && car.featuredCategory !== selectedFeaturedCategory
+            ) {
+                return false;
+            }
+
             return true;
         });
 
@@ -220,8 +266,8 @@ export default function VehiclesPage() {
             case "recommended":
             default:
                 sorted.sort((a, b) => {
-                    const aAvailableScore = a.status === "available" ? 1 : 0;
-                    const bAvailableScore = b.status === "available" ? 1 : 0;
+                    const aAvailableScore = isCarBookable(a) ? 1 : 0;
+                    const bAvailableScore = isCarBookable(b) ? 1 : 0;
                     if (aAvailableScore !== bAvailableScore) {
                         return bAvailableScore - aAvailableScore;
                     }
@@ -240,6 +286,7 @@ export default function VehiclesPage() {
         selectedSeats,
         selectedBodyType,
         selectedBrands,
+        selectedFeaturedCategory,
         sortBy,
     ]);
 
@@ -256,6 +303,7 @@ export default function VehiclesPage() {
         selectedSeats,
         selectedBodyType,
         selectedBrands,
+        selectedFeaturedCategory,
     ]);
 
     useEffect(() => {
@@ -263,6 +311,17 @@ export default function VehiclesPage() {
             setCurrentPage(totalPages);
         }
     }, [currentPage, totalPages]);
+
+    useEffect(() => {
+        if (!showFilters) return;
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [showFilters]);
 
     const pagedCars = useMemo(() => {
         const start = (currentPage - 1) * CARS_PER_PAGE;
@@ -282,7 +341,9 @@ export default function VehiclesPage() {
         selectedSeats !== "all",
         selectedBodyType !== "all",
         selectedBrands.length > 0,
+        selectedFeaturedCategory !== "all",
     ].filter(Boolean).length;
+    const bookableCarsCount = filteredCars.filter((car) => isCarBookable(car)).length;
 
     const clearFilters = () => {
         setSearchQuery("");
@@ -292,8 +353,10 @@ export default function VehiclesPage() {
         setSelectedSeats("all");
         setSelectedBodyType("all");
         setSelectedBrands([]);
+        setSelectedFeaturedCategory("all");
         setSortBy("recommended");
         setCurrentPage(1);
+        setShowFilters(false);
         setSearchParams({});
     };
 
@@ -312,17 +375,17 @@ export default function VehiclesPage() {
             <main className="layout-container pb-10 pt-20 md:pt-24">
                 <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                     <div>
-                        <h1 className="font-serif text-4xl text-zinc-900 md:text-5xl">Our Fleet</h1>
+                        <h1 className="text-3xl text-zinc-900 sm:text-4xl md:text-5xl">Our Fleet</h1>
                         <p className="mt-2 text-sm text-zinc-600">
                             Explore our premium collection of luxury vehicles.
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                         <button
                             type="button"
                             onClick={() => setShowFilters((current) => !current)}
-                            className="inline-flex items-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 lg:hidden"
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 sm:w-auto lg:hidden"
                         >
                             <SlidersHorizontal className="h-4 w-4" />
                             Filters
@@ -333,7 +396,7 @@ export default function VehiclesPage() {
                             )}
                         </button>
 
-                        <div className="inline-flex items-center gap-2 rounded-xl border border-zinc-300 bg-white px-3 py-2">
+                        <div className="inline-flex w-full items-center justify-between gap-2 rounded-xl border border-zinc-300 bg-white px-3 py-2 sm:w-auto">
                             <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                                 Sort by:
                             </span>
@@ -361,8 +424,31 @@ export default function VehiclesPage() {
                     </div>
                 )}
 
+                {showFilters && (
+                    <button
+                        type="button"
+                        aria-label="Close filters"
+                        className="fixed inset-0 z-30 bg-black/45 backdrop-blur-sm lg:hidden"
+                        onClick={() => setShowFilters(false)}
+                    />
+                )}
+
                 <section className="grid gap-6 lg:grid-cols-[270px_minmax(0,1fr)]">
-                    <aside className={`${showFilters ? "block" : "hidden lg:block"} space-y-4`}>
+                    <aside
+                        className={`fixed inset-y-0 left-0 z-40 w-[88vw] max-w-xs space-y-4 overflow-y-auto border-r border-zinc-200 bg-zinc-100 p-4 shadow-xl transition-transform duration-300 lg:static lg:z-auto lg:w-auto lg:max-w-none lg:translate-x-0 lg:border-r-0 lg:bg-transparent lg:p-0 lg:shadow-none ${
+                            showFilters ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+                        }`}
+                    >
+                        <div className="flex items-center justify-between lg:hidden">
+                            <p className="text-base font-semibold text-zinc-900">Filters</p>
+                            <button
+                                type="button"
+                                onClick={() => setShowFilters(false)}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-700"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
                         <FilterCard
                             title="Price Range (Daily)"
                             action={
@@ -456,6 +542,36 @@ export default function VehiclesPage() {
                             </div>
                         </FilterCard>
 
+                        <FilterCard title="Featured Category">
+                            <div className="space-y-2">
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedFeaturedCategory("all")}
+                                    className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                                        selectedFeaturedCategory === "all"
+                                            ? "border-black bg-black text-white"
+                                            : "border-zinc-300 bg-zinc-50 text-zinc-600 hover:bg-zinc-100"
+                                    }`}
+                                >
+                                    All categories
+                                </button>
+                                {featuredCategoryOptions.map((category) => (
+                                    <button
+                                        type="button"
+                                        key={category}
+                                        onClick={() => setSelectedFeaturedCategory(category)}
+                                        className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                                            selectedFeaturedCategory === category
+                                                ? "border-black bg-black text-white"
+                                                : "border-zinc-300 bg-zinc-50 text-zinc-600 hover:bg-zinc-100"
+                                        }`}
+                                    >
+                                        {category}
+                                    </button>
+                                ))}
+                            </div>
+                        </FilterCard>
+
                         <FilterCard title="Specifications">
                             <div className="space-y-4">
                                 <div>
@@ -525,10 +641,21 @@ export default function VehiclesPage() {
                                         <option value="Diesel">Diesel</option>
                                         <option value="Electric">Electric</option>
                                         <option value="Hybrid">Hybrid</option>
+                                        <option value="Plug-In Hybrid">Plug-In Hybrid</option>
                                     </select>
                                 </div>
                             </div>
                         </FilterCard>
+
+                        <div className="pb-2 lg:hidden">
+                            <button
+                                type="button"
+                                onClick={() => setShowFilters(false)}
+                                className="inline-flex h-10 w-full items-center justify-center rounded-xl bg-black text-sm font-medium text-white"
+                            >
+                                View Results
+                            </button>
+                        </div>
                     </aside>
 
                     <div className="space-y-4">
@@ -566,6 +693,12 @@ export default function VehiclesPage() {
                                             onClear={() => toggleBrand(brand)}
                                         />
                                     ))}
+                                    {selectedFeaturedCategory !== "all" && (
+                                        <FilterChip
+                                            label={selectedFeaturedCategory}
+                                            onClear={() => setSelectedFeaturedCategory("all")}
+                                        />
+                                    )}
 
                                     {activeFiltersCount === 0 && (
                                         <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs text-zinc-600">
@@ -585,8 +718,8 @@ export default function VehiclesPage() {
                                 </div>
 
                                 <span className="text-sm text-zinc-500">
-                                    {filteredCars.length} vehicle
-                                    {filteredCars.length === 1 ? "" : "s"} available
+                                    {bookableCarsCount} of {filteredCars.length} vehicle
+                                    {filteredCars.length === 1 ? "" : "s"} available now
                                 </span>
                             </div>
 
@@ -621,11 +754,10 @@ export default function VehiclesPage() {
                         ) : filteredCars.length > 0 ? (
                             <>
                                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                                    {pagedCars.map((car, index) => (
+                                    {pagedCars.map((car) => (
                                         <FleetVehicleCard
                                             key={car.id}
                                             car={car}
-                                            cardIndex={(currentPage - 1) * CARS_PER_PAGE + index}
                                         />
                                     ))}
                                 </div>
@@ -737,12 +869,37 @@ function FilterChip({ label, onClear }: FilterChipProps) {
 
 interface FleetVehicleCardProps {
     car: Car;
-    cardIndex: number;
 }
 
-function FleetVehicleCard({ car, cardIndex }: FleetVehicleCardProps) {
-    const badge = getBadge(car, cardIndex);
-    const primaryActionLabel = car.status === "available" && car.dailyPrice >= 20000 ? "Rent Now" : "View Details";
+function FleetVehicleCard({ car }: FleetVehicleCardProps) {
+    const availabilityStatus = getCarAvailabilityStatus(car);
+    const canBookNow = isCarBookable(car);
+    const [availabilityTick, setAvailabilityTick] = useState(0);
+
+    const softLockCountdown = useMemo(() => {
+        void availabilityTick;
+        if (availabilityStatus !== "soft_locked") {
+            return null;
+        }
+        return formatTimeRemaining(car.softLockExpiresAt);
+    }, [availabilityStatus, car.softLockExpiresAt, availabilityTick]);
+
+    useEffect(() => {
+        if (availabilityStatus !== "soft_locked" || !car.softLockExpiresAt) {
+            return;
+        }
+
+        const timer = window.setInterval(() => {
+            setAvailabilityTick((value) => value + 1);
+        }, 1000);
+
+        return () => window.clearInterval(timer);
+    }, [availabilityStatus, car.softLockExpiresAt]);
+
+    const badgeLabel = availabilityStatus === "soft_locked" && softLockCountdown
+        ? `Soft Lock ${softLockCountdown}`
+        : getAvailabilityLabel(availabilityStatus);
+    const primaryActionLabel = canBookNow ? "Rent Now" : "View Details";
 
     return (
         <article className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
@@ -756,11 +913,9 @@ function FleetVehicleCard({ car, cardIndex }: FleetVehicleCardProps) {
                             event.currentTarget.src = "/placeholder-car.jpg";
                         }}
                     />
-                    {badge && (
-                        <span className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${badge.className}`}>
-                            {badge.label}
-                        </span>
-                    )}
+                    <span className={`absolute left-2 top-2 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${getAvailabilityClassName(availabilityStatus)}`}>
+                        {badgeLabel}
+                    </span>
                 </div>
             </Link>
 
@@ -786,7 +941,7 @@ function FleetVehicleCard({ car, cardIndex }: FleetVehicleCardProps) {
                 <Link
                     to={`/vehicles/${car.id}`}
                     className={`inline-flex h-9 w-full items-center justify-center rounded-full border text-sm font-medium transition-colors ${
-                        primaryActionLabel === "Rent Now"
+                        canBookNow
                             ? "border-black bg-black text-white hover:bg-zinc-800"
                             : "border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50"
                     }`}
@@ -820,26 +975,6 @@ function compactMileage(mileage: string): string {
     }
 
     return `${(numericValue / 1000).toFixed(1)}k`;
-}
-
-function getBadge(car: Car, cardIndex: number) {
-    if (car.status === "rented") {
-        return { label: "Booked", className: "bg-zinc-900 text-white" };
-    }
-
-    if (car.dailyPrice >= 25000 || car.rating >= 4.8) {
-        return { label: "Premium", className: "bg-zinc-900 text-white" };
-    }
-
-    if (car.fuelType === "Electric" || car.fuelType === "Hybrid") {
-        return { label: "Eco", className: "bg-emerald-500 text-white" };
-    }
-
-    if (cardIndex % 3 === 1) {
-        return { label: "Popular", className: "bg-amber-400 text-zinc-900" };
-    }
-
-    return null;
 }
 
 function getBodyTypeIcon(bodyType: BodyType) {

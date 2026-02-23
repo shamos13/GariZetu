@@ -46,6 +46,7 @@ import {
 } from "../../../components/ui/alert-dialog.tsx";
 import { Input } from "../../../components/ui/input.tsx";
 import { Label } from "../../../components/ui/label.tsx";
+import { getAdminActionErrorMessage } from "../../../lib/adminErrorUtils.ts";
 
 export function UserManagementPage() {
     const [users, setUsers] = useState<User[]>([]);
@@ -133,15 +134,7 @@ export function UserManagementPage() {
                 status: err.response?.status,
                 data: err.response?.data
             });
-
-            // Provide more specific error messages
-            if (err.response?.status === 401) {
-                toast.error("Authentication failed. Please log in again.");
-            } else if (err.response?.status === 403) {
-                toast.error("Access denied. Admin privileges required.");
-            } else {
-                toast.error("Failed to load user data");
-            }
+            toast.error(getAdminActionErrorMessage(err, "Failed to load user data."));
         } finally {
             setIsLoading(false);
         }
@@ -160,6 +153,7 @@ export function UserManagementPage() {
                 setUsers(results);
             } catch (err) {
                 console.error("Search failed:", err);
+                toast.error(getAdminActionErrorMessage(err, "Failed to search users."));
             }
         } else if (query.length === 0) {
             fetchData();
@@ -187,8 +181,7 @@ export function UserManagementPage() {
                     await fetchData();
                 } catch (err: any) {
                     console.error("Failed to block user:", err);
-                    const errorMessage = err.response?.data?.message || err.message || "Failed to block user";
-                    toast.error(errorMessage);
+                    toast.error(getAdminActionErrorMessage(err, "Failed to block user."));
                 } finally {
                     setActionLoading(null);
                 }
@@ -217,8 +210,7 @@ export function UserManagementPage() {
                     await fetchData();
                 } catch (err: any) {
                     console.error("Failed to unblock user:", err);
-                    const errorMessage = err.response?.data?.message || err.message || "Failed to unblock user";
-                    toast.error(errorMessage);
+                    toast.error(getAdminActionErrorMessage(err, "Failed to unblock user."));
                 } finally {
                     setActionLoading(null);
                 }
@@ -247,8 +239,7 @@ export function UserManagementPage() {
                     await fetchData();
                 } catch (err: any) {
                     console.error("Failed to change user role:", err);
-                    const errorMessage = err.response?.data?.message || err.message || "Failed to change user role";
-                    toast.error(errorMessage);
+                    toast.error(getAdminActionErrorMessage(err, "Failed to change user role."));
                 } finally {
                     setActionLoading(null);
                 }
@@ -284,8 +275,7 @@ export function UserManagementPage() {
                     await fetchData();
                 } catch (err: any) {
                     console.error("Failed to delete user:", err);
-                    const errorMessage = err.response?.data?.message || err.message || "Failed to delete user";
-                    toast.error(errorMessage);
+                    toast.error(getAdminActionErrorMessage(err, "Failed to delete user."));
                 } finally {
                     setActionLoading(null);
                 }
@@ -327,8 +317,7 @@ export function UserManagementPage() {
             await fetchData();
         } catch (err: any) {
             console.error("Failed to update user:", err);
-            const errorMessage = err.response?.data?.message || err.message || "Failed to update user";
-            toast.error(errorMessage);
+            toast.error(getAdminActionErrorMessage(err, "Failed to update user."));
         } finally {
             setActionLoading(null);
         }
@@ -490,8 +479,8 @@ export function UserManagementPage() {
                     </div>
                 </CardHeader>
                 <CardContent>
-                    <div className="overflow-x-auto relative">
-                        <table className="w-full">
+                    <div className="relative -mx-1 overflow-x-auto px-1">
+                        <table className="w-full min-w-[900px]">
                             <thead>
                                 <tr className="border-b border-gray-800">
                                     <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">User</th>

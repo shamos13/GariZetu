@@ -18,7 +18,6 @@ import java.util.Map;
 @RequestMapping("/api/v1/admin/users")
 @RequiredArgsConstructor
 @Slf4j
-@CrossOrigin(origins = "http://localhost:5173")
 public class UserAdminController {
 
     private final UserService userService;

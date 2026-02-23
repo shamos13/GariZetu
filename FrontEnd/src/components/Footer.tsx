@@ -55,10 +55,10 @@ export function Footer() {
     return (
         <footer className="bg-black text-white">
             {/* Main Footer */}
-            <div className="layout-container pt-8 pb-5">
-                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-5 mb-6">
+            <div className="layout-container pb-5 pt-8">
+                <div className="mb-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-6">
                     {/* Brand Column */}
-                    <div className="col-span-2">
+                    <div className="sm:col-span-2">
                         <Link to="/" className="inline-block mb-2.5">
                             <img 
                                 src="/src/assets/logo.png" 
@@ -165,7 +165,7 @@ export function Footer() {
 
                 {/* Social & Newsletter */}
                 <div className="border-t border-white/10 pt-5 mb-5">
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="flex flex-col items-start justify-between gap-4 md:flex-row md:items-center">
                         {/* Social Links */}
                         <div className="flex items-center gap-3">
                             {SOCIAL_LINKS.map((social) => (
@@ -187,7 +187,7 @@ export function Footer() {
                             href="https://wa.me/254712345678?text=Hello GariZetu, I'd like to inquire about car rental."
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 rounded-full text-white font-medium transition-all hover:scale-105"
+                            className="flex w-full items-center justify-center gap-2 rounded-full bg-emerald-500 px-4 py-2.5 text-white font-medium transition-all hover:scale-105 hover:bg-emerald-600 sm:w-auto"
                         >
                             <MessageCircle className="w-4 h-4" />
                             Chat on WhatsApp
@@ -196,12 +196,12 @@ export function Footer() {
                 </div>
 
                 {/* Bottom Bar */}
-                <div className="border-t border-white/10 pt-4 flex flex-col md:flex-row items-center justify-between gap-3">
-                    <p className="text-sm text-gray-400">
+                <div className="flex flex-col items-start justify-between gap-3 border-t border-white/10 pt-4 md:flex-row md:items-center">
+                    <p className="text-sm text-gray-400 text-left">
                         © {currentYear} GariZetu. All rights reserved.
                     </p>
                     
-                    <div className="flex items-center gap-6 text-sm text-gray-400">
+                    <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400 sm:gap-6">
                         <span>🇰🇪 Made in Kenya</span>
                         <button
                             onClick={scrollToTop}

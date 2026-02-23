@@ -18,23 +18,33 @@ public class BookingMapper {
         }
 
         BookingResponseDTO dto = new BookingResponseDTO();
+        Car car = booking.getCar();
+        User user = booking.getUser();
 
         // Booking identifiers
         dto.setBookingId(booking.getBookingId());
-        dto.setCarId(booking.getCar().getCarId());
-        dto.setUserId(booking.getUser().getUserId());
+        if (car != null) {
+            dto.setCarId(car.getCarId());
+        }
+        if (user != null) {
+            dto.setUserId(user.getUserId());
+        }
 
         // Car details (from related Car entity)
-        dto.setCarMake(booking.getCar().getMake());
-        dto.setCarModel(booking.getCar().getVehicleModel());
-        dto.setRegistrationNumber(booking.getCar().getRegistrationNumber());
-        dto.setColour(booking.getCar().getColour());
-        dto.setCarYear(booking.getCar().getYear());
+        if (car != null) {
+            dto.setCarMake(car.getMake());
+            dto.setCarModel(car.getVehicleModel());
+            dto.setRegistrationNumber(car.getRegistrationNumber());
+            dto.setColour(car.getColour());
+            dto.setCarYear(car.getYear());
+        }
 
         // User details (from related User entity)
-        dto.setUserName(booking.getUser().getUserName());
-        dto.setUserEmail(booking.getUser().getEmail());
-        dto.setPhoneNumber(booking.getUser().getPhoneNumber());
+        if (user != null) {
+            dto.setUserName(user.getUserName());
+            dto.setUserEmail(user.getEmail());
+            dto.setPhoneNumber(user.getPhoneNumber());
+        }
 
         // Booking dates
         dto.setPickupDate(booking.getPickupDate());
@@ -54,6 +64,14 @@ public class BookingMapper {
 
         // Status and timestamps
         dto.setBookingStatus(booking.getBookingStatus());
+        dto.setPaymentStatus(booking.getPaymentStatus());
+        dto.setPaymentReference(booking.getPaymentReference());
+        dto.setPaymentMethod(booking.getPaymentMethod());
+        dto.setPaymentSimulatedAt(booking.getPaymentSimulatedAt());
+        dto.setPaymentExpiresAt(booking.getPaymentExpiresAt());
+        dto.setAdminNotifiedAt(booking.getAdminNotifiedAt());
+        dto.setAdminNotificationRead(booking.isAdminNotificationRead());
+        dto.setAdminNotificationReadAt(booking.getAdminNotificationReadAt());
         dto.setCreatedAt(booking.getCreatedAt());
         dto.setUpdatedAt(booking.getUpdatedAt());
 

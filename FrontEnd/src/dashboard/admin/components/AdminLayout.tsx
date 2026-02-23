@@ -1,5 +1,18 @@
 import { ReactNode, useState, useEffect, useRef } from "react";
-import { Search, Bell, ChevronDown, Menu} from "lucide-react";
+import {
+    Search,
+    Bell,
+    ChevronDown,
+    Menu,
+    LayoutGrid,
+    CarFront,
+    CalendarDays,
+    Users,
+    BarChart3,
+    Settings,
+    LogOut,
+    type LucideIcon,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "../../../components/ui/button.tsx";
 import { authService } from "../../../services/AuthService.ts";
@@ -10,20 +23,39 @@ interface AdminLayoutProps {
     title: string;
     currentPage: string;
     onNavigate: (page: string) => void;
+    bookingNotificationCount?: number;
     onBack?: () => void;
 }
 
-const menuItems = [
-    { id: "dashboard", label: "Dashboard", icon: "M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" },
-    { id: "cars", label: "Cars", icon: "M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" },
-    { id: "bookings", label: "Bookings", icon: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" },
-    { id: "users", label: "Users", icon: "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" },
-    { id: "payments", label: "Payments", icon: "M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" },
-    { id: "reports", label: "Reports", icon: "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" },
-    { id: "settings", label: "Settings", icon: "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" },
+type SidebarMenuItem = {
+    id: string;
+    label: string;
+    icon: LucideIcon;
+    badge?: string;
+    action?: "navigate" | "logout";
+};
+
+const mainMenuItems: SidebarMenuItem[] = [
+    { id: "dashboard", label: "Dashboard", icon: LayoutGrid },
+    { id: "cars", label: "Fleet Management", icon: CarFront },
+    { id: "bookings", label: "Bookings", icon: CalendarDays },
+    { id: "users", label: "Customers", icon: Users },
+    { id: "reports", label: "Analytics", icon: BarChart3 },
 ];
 
-export function AdminLayout({ children, title, currentPage, onNavigate, onBack }: AdminLayoutProps) {
+const settingsMenuItems: SidebarMenuItem[] = [
+    { id: "settings", label: "Configuration", icon: Settings },
+    { id: "logout", label: "Log Out", icon: LogOut, action: "logout" },
+];
+
+export function AdminLayout({
+    children,
+    title,
+    currentPage,
+    onNavigate,
+    bookingNotificationCount = 0,
+    onBack,
+}: AdminLayoutProps) {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const profileRef = useRef<HTMLDivElement>(null);
@@ -43,10 +75,32 @@ export function AdminLayout({ children, title, currentPage, onNavigate, onBack }
         };
     }, []);
 
+    useEffect(() => {
+        const previousOverflow = document.body.style.overflow;
+        if (isMobileMenuOpen) {
+            document.body.style.overflow = "hidden";
+        }
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [isMobileMenuOpen]);
+
     const handleLogout = () => {
         authService.logout();
         navigate("/");
         window.location.reload();
+    };
+
+    const handleSidebarItemClick = (item: SidebarMenuItem) => {
+        if (item.action === "logout") {
+            handleLogout();
+            return;
+        }
+
+        onNavigate(item.id);
+        setIsMobileMenuOpen(false);
+        setIsProfileOpen(false);
     };
 
     // Get user initials for avatar
@@ -60,9 +114,9 @@ export function AdminLayout({ children, title, currentPage, onNavigate, onBack }
     };
 
     return (
-        <div className="bg-[#0a0a0a] text-white">
+        <div className="min-h-screen overflow-x-hidden bg-[#0a0a0a] text-white font-sans">
             {/* Sidebar */}
-            <aside className={`fixed top-0 left-0 h-full w-[240px] bg-[#141414] border-r border-gray-800 z-50 transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+            <aside className={`fixed top-0 left-0 h-full w-[240px] overflow-y-auto bg-[#141414] border-r border-gray-800 z-50 transition-transform duration-300 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
                 <div className="h-full p-5 md:p-6 flex flex-col">
                     <div className="flex items-center gap-3 mb-8">
                         <img src={logoImage} alt="GariZetu" className="w-8 h-8" />
@@ -70,26 +124,78 @@ export function AdminLayout({ children, title, currentPage, onNavigate, onBack }
                     </div>
 
                     <nav className="space-y-1 flex-1">
-                        {menuItems.map((item) => (
-                            <button
-                                key={item.id}
-                                onClick={() => {
-                                    onNavigate(item.id);
-                                    setIsMobileMenuOpen(false);
-                                }}
-                                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                                    currentPage === item.id
-                                        ? "bg-white text-black"
-                                        : "text-gray-400 hover:bg-gray-800 hover:text-white"
-                                }`}
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={item.icon} />
-                                </svg>
-                                <span>{item.label}</span>
-                            </button>
-                        ))}
+                        <div className="mb-6">
+                            <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+                                Main Menu
+                            </p>
+                            <div className="mt-3 space-y-1.5">
+                                {mainMenuItems.map((item) => {
+                                    const Icon = item.icon;
+                                    const isActive = currentPage === item.id;
+                                    const badgeValue = item.id === "bookings" && bookingNotificationCount > 0
+                                        ? bookingNotificationCount.toString()
+                                        : item.badge;
+
+                                    return (
+                                        <button
+                                            key={item.id}
+                                            onClick={() => handleSidebarItemClick(item)}
+                                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                                                isActive
+                                                    ? "bg-white text-black"
+                                                    : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                                            }`}
+                                        >
+                                            <Icon className="w-5 h-5 flex-shrink-0" />
+                                            <span className="flex-1 text-left text-sm whitespace-nowrap">{item.label}</span>
+                                            {badgeValue && (
+                                                <span className="inline-flex items-center justify-center rounded-full bg-amber-400 px-2 py-0.5 text-[11px] font-semibold text-black">
+                                                    {badgeValue}
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        <div>
+                            <p className="px-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-gray-500">
+                                Settings
+                            </p>
+                            <div className="mt-3 space-y-1.5">
+                                {settingsMenuItems.map((item) => {
+                                    const Icon = item.icon;
+                                    const isActive = item.action !== "logout" && currentPage === item.id;
+
+                                    return (
+                                        <button
+                                            key={item.id}
+                                            onClick={() => handleSidebarItemClick(item)}
+                                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                                                isActive
+                                                    ? "bg-white text-black"
+                                                    : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                                            }`}
+                                        >
+                                            <Icon className="w-5 h-5 flex-shrink-0" />
+                                            <span className="text-left text-sm whitespace-nowrap">{item.label}</span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
                     </nav>
+
+                    {onBack && (
+                        <Button
+                            onClick={onBack}
+                            variant="outline"
+                            className="w-full mt-4 bg-transparent border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white"
+                        >
+                            Back to Site
+                        </Button>
+                    )}
 
                     {/* User Profile Section */}
                     <div className="pt-6 mt-6 border-t border-gray-800">
@@ -102,15 +208,6 @@ export function AdminLayout({ children, title, currentPage, onNavigate, onBack }
                                 <p className="text-xs text-gray-400 truncate">{user?.email || "admin@garizetu.com"}</p>
                             </div>
                         </div>
-                        {onBack && (
-                            <Button
-                                onClick={onBack}
-                                variant="outline"
-                                className="w-full mt-3 bg-transparent border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white"
-                            >
-                                Back to Site
-                            </Button>
-                        )}
                     </div>
                 </div>
             </aside>
@@ -124,10 +221,10 @@ export function AdminLayout({ children, title, currentPage, onNavigate, onBack }
             )}
 
             {/* Main content */}
-            <div className="lg:ml-[240px]">
+            <div className="lg:ml-[240px] min-h-screen flex flex-col">
                 {/* Header */}
                 <header className="sticky top-0 z-30 bg-[#0a0a0a] border-b border-gray-800">
-                    <div className="flex items-center justify-between px-5 py-3.5 md:px-6">
+                    <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5 md:px-6">
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={() => setIsMobileMenuOpen(true)}
@@ -138,9 +235,9 @@ export function AdminLayout({ children, title, currentPage, onNavigate, onBack }
                             <h1 className="text-white">{title}</h1>
                         </div>
 
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 sm:gap-4">
                             {/* Search */}
-                            <div className="hidden md:flex items-center gap-2 bg-[#1a1a1a] rounded-lg px-4 py-2 min-w-[300px]">
+                            <div className="hidden xl:flex items-center gap-2 bg-[#1a1a1a] rounded-lg px-4 py-2 w-[min(38vw,360px)]">
                                 <Search className="w-4 h-4 text-gray-500" />
                                 <input
                                     type="text"
@@ -198,12 +295,12 @@ export function AdminLayout({ children, title, currentPage, onNavigate, onBack }
                 </header>
 
                 {/* Content */}
-                <main className="p-5 md:p-6">
+                <main className="flex-1 p-4 sm:p-5 md:p-6">
                     {children}
                 </main>
 
                 {/* Footer */}
-                <footer className="border-t border-gray-800 px-5 py-3 md:px-6">
+                <footer className="border-t border-gray-800 px-4 py-3 sm:px-5 md:px-6">
                     <p className="text-gray-500 text-sm text-center">© 2025 GariZetu. All rights reserved.</p>
                 </footer>
             </div>

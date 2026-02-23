@@ -1,11 +1,14 @@
 package com.amos.garizetu.Car.DTO.Response;
 
 import com.amos.garizetu.Car.Enums.BodyType;
+import com.amos.garizetu.Car.Enums.CarAvailabilityStatus;
 import com.amos.garizetu.Car.Enums.CarStatus;
+import com.amos.garizetu.Car.Enums.FeaturedCategory;
 import com.amos.garizetu.Car.Enums.FuelType;
 import com.amos.garizetu.Car.Enums.TransmissionType;
 import lombok.Data;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -22,15 +25,25 @@ public class CarResponseDTO {
     private double dailyPrice;
     private int seatingCapacity;
     private String mainImageUrl;
+    private List<String> galleryImageUrls;
     private String description;
     private CarStatus carStatus;
     private TransmissionType transmissionType;
     private FuelType fuelType;
     private BodyType bodyType;
+    private FeaturedCategory featuredCategory;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     // Features is being returned as a list of objects  not array of strings
     private List<FeatureResponseDTO> features;
+
+    // Dynamic availability view for customer booking UX
+    private CarAvailabilityStatus availabilityStatus;
+    private String availabilityMessage;
+    private LocalDateTime softLockExpiresAt;
+    private LocalDateTime nextAvailableAt;
+    private LocalDate blockedFromDate;
+    private LocalDate blockedToDate;
 
 }

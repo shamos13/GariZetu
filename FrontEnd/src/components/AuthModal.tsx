@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import {
     X,
     Mail,
@@ -166,8 +167,8 @@ export function AuthModal({
         { icon: ThumbsUp, text: "Convenience", color: "text-emerald-400" },
     ];
 
-    return (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-hidden">
+    const modalContent = (
+        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 overflow-hidden">
             {/* Backdrop with glassmorphism */}
             <div
                 className="absolute inset-0 bg-black/70 backdrop-blur-md"
@@ -319,6 +320,7 @@ export function AuthModal({
                                             value={loginForm.email}
                                             onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
                                             placeholder="you@example.com"
+                                            autoComplete="username"
                                             required
                                                     className="w-full px-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-white/50 focus:bg-white/10 transition-all"
                                         />
@@ -370,7 +372,7 @@ export function AuthModal({
                                         <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                     ) : (
                                         <>
-                                                    Sign in
+                                                    Enter the Cockpit
                                                     <ArrowRight className="w-5 h-5" />
                                         </>
                                     )}
@@ -444,6 +446,7 @@ export function AuthModal({
                                             value={signupForm.fullName}
                                             onChange={(e) => setSignupForm({ ...signupForm, fullName: e.target.value })}
                                             placeholder="John Doe"
+                                            autoComplete="name"
                                             required
                                             minLength={5}
                                             maxLength={15}
@@ -462,6 +465,7 @@ export function AuthModal({
                                             value={signupForm.email}
                                             onChange={(e) => setSignupForm({ ...signupForm, email: e.target.value })}
                                             placeholder="you@example.com"
+                                            autoComplete="email"
                                             required
                                                     className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-white/50 focus:bg-white/10 transition-all"
                                         />
@@ -477,6 +481,7 @@ export function AuthModal({
                                             value={signupForm.phone}
                                             onChange={(e) => setSignupForm({ ...signupForm, phone: e.target.value })}
                                             placeholder="+254 712 345 678"
+                                            autoComplete="tel"
                                                     className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-white/50 focus:bg-white/10 transition-all"
                                         />
                                     </div>
@@ -491,6 +496,7 @@ export function AuthModal({
                                             value={signupForm.password}
                                             onChange={(e) => setSignupForm({ ...signupForm, password: e.target.value })}
                                             placeholder="••••••••"
+                                            autoComplete="new-password"
                                             required
                                             minLength={8}
                                                     className="w-full pl-12 pr-12 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-white/50 focus:bg-white/10 transition-all"
@@ -641,4 +647,10 @@ export function AuthModal({
             </div>
         </div>
     );
+
+    if (typeof document === "undefined") {
+        return null;
+    }
+
+    return createPortal(modalContent, document.body);
 }

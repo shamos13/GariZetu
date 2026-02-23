@@ -1,6 +1,5 @@
 import {useEffect, useMemo, useState} from "react";
 import {Link, useNavigate, useSearchParams} from "react-router-dom";
-import axios from "axios";
 import {
     AlertCircle,
     Calendar,
@@ -20,12 +19,23 @@ import {
 } from "lucide-react";
 import {Navbar} from "../components/Navbar";
 import {Footer} from "../components/Footer";
-import {Car as CarType, CARS_DATA} from "../data/cars";
+import {Car as CarType} from "../data/cars";
 import {carService} from "../services/carService";
 import {getImageUrl} from "../lib/ImageUtils";
 import {authService} from "../services/AuthService";
+import { AUTH_CHANGED_EVENT } from "../lib/authEvents.ts";
 import {AuthModal} from "../components/AuthModal";
 import {bookingService, type BookingCreateRequest} from "../services/BookingService.ts";
+import { getErrorMessage, isConflictError, isForbiddenError, isUnauthorizedError } from "../lib/errorUtils.ts";
+import {
+    formatTimeRemaining,
+    getAvailabilityMessage,
+    getAvailabilityLabel,
+    getCarAvailabilityStatus,
+    isCarBookable,
+} from "../lib/carAvailability.ts";
+import { pushUserNotification } from "../lib/userNotifications.ts";
+import { toast } from "sonner";
 
 // Pickup locations
 const PICKUP_LOCATIONS = [
@@ -43,20 +53,12 @@ const formatDateForApi = (date: Date): string => {
     return `${year}-${month}-${day}`;
 };
 
-const getErrorMessage = (error: unknown, fallback: string): string => {
-    if (axios.isAxiosError(error)) {
-        const errorData = error.response?.data as { message?: string } | undefined;
-        const backendMessage = errorData?.message;
-        if (typeof backendMessage === "string" && backendMessage.trim().length > 0) {
-            return backendMessage;
-        }
-    }
-
-    if (error instanceof Error && error.message.trim().length > 0) {
-        return error.message;
-    }
-
-    return fallback;
+const looksLikeCarAvailabilityFailure = (message: string): boolean => {
+    const normalized = message.toLowerCase();
+    return normalized.includes("not available")
+        || normalized.includes("temporarily reserved")
+        || normalized.includes("soft lock")
+        || normalized.includes("payment window");
 };
 
 export default function BookingPage() {
@@ -113,21 +115,24 @@ export default function BookingPage() {
     const [bookingError, setBookingError] = useState<string | null>(null);
     const [isSubmittingBooking, setIsSubmittingBooking] = useState(false);
 
-    // Update auth state when modal closes (in case user logged in)
+    // Keep auth state synchronized with login/logout in same tab and other tabs.
     useEffect(() => {
-        if (!isAuthModalOpen) {
-            // Check auth state after modal closes
-            const checkAuth = () => {
-                setAuthState({
-                    isAuthenticated: authService.isAuthenticated(),
-                    user: authService.getUser()
-                });
-            };
-            // Small delay to ensure localStorage is updated
-            const timeoutId = setTimeout(checkAuth, 100);
-            return () => clearTimeout(timeoutId);
-        }
-    }, [isAuthModalOpen]);
+        const syncAuthState = () => {
+            setAuthState({
+                isAuthenticated: authService.isAuthenticated(),
+                user: authService.getUser()
+            });
+        };
+
+        syncAuthState();
+        window.addEventListener("storage", syncAuthState);
+        window.addEventListener(AUTH_CHANGED_EVENT, syncAuthState as EventListener);
+
+        return () => {
+            window.removeEventListener("storage", syncAuthState);
+            window.removeEventListener(AUTH_CHANGED_EVENT, syncAuthState as EventListener);
+        };
+    }, []);
     
     // Update guest info when user logs in
     useEffect(() => {
@@ -147,6 +152,7 @@ export default function BookingPage() {
         childSeat: false,
         additionalDriver: false
     });
+    const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"M_PESA" | "CARD">("M_PESA");
 
     // ✅ FETCH CAR DATA ON MOUNT
     useEffect(() => {
@@ -165,13 +171,8 @@ export default function BookingPage() {
                 setCar(fetchedCar);
             } catch (error) {
                 console.error("Failed to fetch car:", error);
-                setCarError("Failed to load vehicle details");
-
-                // Fallback to CARS_DATA
-                const fallbackCar = CARS_DATA.find(c => c.id === Number(carId));
-                if (fallbackCar) {
-                    setCar(fallbackCar);
-                }
+                setCarError(getErrorMessage(error, "Failed to load vehicle details."));
+                setCar(null);
             } finally {
                 setIsLoadingCar(false);
             }
@@ -205,8 +206,37 @@ export default function BookingPage() {
         return { subtotal, insurance, gps, childSeat, additionalDriver, serviceFee, total };
     }, [car, rentalDays, extras]);
 
+    const [availabilityTick, setAvailabilityTick] = useState(0);
+
+    const availabilityStatus = car ? getCarAvailabilityStatus(car) : "available";
+    const carCanBeBooked = car ? isCarBookable(car) : false;
+    const availabilityMessage = car ? getAvailabilityMessage(car) : "";
+    const softLockCountdownLabel = useMemo(() => {
+        void availabilityTick;
+        if (!car?.softLockExpiresAt) {
+            return null;
+        }
+        return formatTimeRemaining(car.softLockExpiresAt);
+    }, [car?.softLockExpiresAt, availabilityTick]);
+
+    useEffect(() => {
+        if (!car?.softLockExpiresAt || availabilityStatus !== "soft_locked") {
+            return;
+        }
+
+        const timer = window.setInterval(() => {
+            setAvailabilityTick((value) => value + 1);
+        }, 1000);
+
+        return () => window.clearInterval(timer);
+    }, [car?.softLockExpiresAt, availabilityStatus]);
+
     // Date selection handler
     const handleDateSelect = (date: Date) => {
+        if (!carCanBeBooked) {
+            return;
+        }
+
         if (!pickupDate || (pickupDate && dropoffDate)) {
             setPickupDate(date);
             setDropoffDate(null);
@@ -222,15 +252,29 @@ export default function BookingPage() {
     const handleCompleteBooking = async () => {
         setBookingError(null);
 
-        if (!isAuthenticated) {
-            setBookingError("Please log in to complete your booking.");
-            setStep(2);
-            setIsAuthModalOpen(true);
+        const hasLiveSession = authService.isAuthenticated();
+        if (!hasLiveSession) {
+            setBookingError("You are not logged in. Please sign in from the top menu, then try your booking again.");
             return;
         }
 
         if (!car) {
             setBookingError("Unable to submit booking because vehicle details are missing.");
+            return;
+        }
+
+        if (!carCanBeBooked) {
+            const blockedMessage = availabilityStatus === "soft_locked" && softLockCountdownLabel
+                ? `${availabilityMessage} Try again in ${softLockCountdownLabel}.`
+                : availabilityMessage;
+            setBookingError(blockedMessage);
+            pushUserNotification({
+                title: "Booking blocked",
+                message: blockedMessage,
+                level: "warning",
+                actionPath: `/vehicles/${car.id}`,
+                actionLabel: "View vehicle status",
+            });
             return;
         }
 
@@ -284,18 +328,96 @@ export default function BookingPage() {
 
         try {
             setIsSubmittingBooking(true);
-            await bookingService.create(payload);
-            navigate("/dashboard");
+            const createdBooking = await bookingService.create(payload);
+
+            const bookingNotice = `Booking #${createdBooking.bookingId} has been created and is awaiting payment. Complete payment from My Bookings before the payment window expires.`;
+            sessionStorage.setItem("garizetu_booking_notice", bookingNotice);
+            pushUserNotification({
+                title: "Booking awaiting payment",
+                message: bookingNotice,
+                level: "info",
+                actionPath: "/dashboard/bookings",
+                actionLabel: "Complete payment",
+            });
+            toast.success("Booking created. Awaiting payment in My Bookings.");
+            navigate("/dashboard/bookings");
         } catch (error) {
+            const resolvedMessage = getErrorMessage(error, "Failed to complete booking. Please try again.");
+            const looksLikeAvailabilityFailure = looksLikeCarAvailabilityFailure(resolvedMessage);
+
+            if (isConflictError(error) || looksLikeAvailabilityFailure) {
+                setBookingError(resolvedMessage);
+                pushUserNotification({
+                    title: "Booking not completed",
+                    message: resolvedMessage,
+                    level: "warning",
+                    actionPath: `/vehicles/${car.id}`,
+                    actionLabel: "View vehicle status",
+                });
+                return;
+            }
+
+            if (isUnauthorizedError(error)) {
+                const stillAuthenticated = authService.isAuthenticated();
+                const normalized = resolvedMessage.toLowerCase();
+                const looksLikeSessionIssue =
+                    normalized.includes("token")
+                    || normalized.includes("session")
+                    || normalized.includes("unauthorized")
+                    || normalized.includes("authentication");
+
+                if (stillAuthenticated) {
+                    const authenticatedUserMessage = looksLikeAvailabilityFailure
+                        ? resolvedMessage
+                        : "Booking could not be completed right now. This vehicle may be temporarily reserved. Please refresh availability and try again.";
+                    setBookingError(authenticatedUserMessage);
+                    pushUserNotification({
+                        title: "Booking not completed",
+                        message: authenticatedUserMessage,
+                        level: "warning",
+                        actionPath: `/vehicles/${car.id}`,
+                        actionLabel: "View vehicle status",
+                    });
+                    return;
+                }
+
+                if (!looksLikeSessionIssue || looksLikeAvailabilityFailure) {
+                    setBookingError(resolvedMessage);
+                    pushUserNotification({
+                        title: "Booking not completed",
+                        message: resolvedMessage,
+                        level: "warning",
+                        actionPath: `/vehicles/${car.id}`,
+                        actionLabel: "View vehicle status",
+                    });
+                    return;
+                }
+
+                setBookingError("Your session may have expired. Please sign in again from the top menu, then retry the booking.");
+                return;
+            }
+            if (isForbiddenError(error)) {
+                setBookingError("Your account does not have permission to create this booking (403). Please contact support if this is unexpected.");
+                return;
+            }
             console.error("Failed to create booking:", error);
-            setBookingError(getErrorMessage(error, "Failed to complete booking. Please try again."));
+            setBookingError(resolvedMessage);
+            pushUserNotification({
+                title: "Booking not completed",
+                message: resolvedMessage,
+                level: "warning",
+                actionPath: `/vehicles/${car.id}`,
+                actionLabel: "View vehicle status",
+            });
         } finally {
             setIsSubmittingBooking(false);
         }
     };
 
     // Validation
-    const canProceedStep1 = Boolean(pickupDate && dropoffDate && pickupLocation && (sameLocation || dropoffLocation));
+    const canProceedStep1 = Boolean(
+        carCanBeBooked && pickupDate && dropoffDate && pickupLocation && (sameLocation || dropoffLocation)
+    );
     const canProceedStep2 = isAuthenticated;
 
     // ✅ LOADING STATE
@@ -347,7 +469,7 @@ export default function BookingPage() {
             <div className="bg-black pb-4 pt-20 md:pt-24">
                 <div className="layout-container">
                     <h1 className="mb-2 text-xl font-bold text-white md:text-2xl">Complete Your Booking</h1>
-                    <p className="text-gray-400">You're booking: {car.name}</p>
+                    <p className="text-sm text-gray-400 md:text-base">You're booking: {car.name}</p>
                 </div>
             </div>
 
@@ -355,38 +477,55 @@ export default function BookingPage() {
             {carError && (
                 <div className="bg-yellow-50 border-b border-yellow-200">
                     <div className="layout-container py-3">
-                        <p className="text-yellow-800 text-sm">{carError} - Showing cached data</p>
+                        <p className="text-yellow-800 text-sm">{carError}</p>
+                    </div>
+                </div>
+            )}
+
+            {!carCanBeBooked && (
+                <div className="bg-amber-50 border-b border-amber-200">
+                    <div className="layout-container py-3 flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-amber-800 text-sm font-medium">
+                            {getAvailabilityLabel(availabilityStatus)}: {availabilityMessage}
+                        </p>
+                        {availabilityStatus === "soft_locked" && softLockCountdownLabel && (
+                            <p className="text-amber-900 text-sm font-semibold">
+                                Retry in {softLockCountdownLabel}
+                            </p>
+                        )}
                     </div>
                 </div>
             )}
 
             {/* Progress Steps */}
-            <div className="sticky top-24 z-40 border-b border-gray-100 bg-white">
+            <div className="sticky top-14 z-40 border-b border-gray-100 bg-white md:top-24">
                 <div className="layout-container py-3">
-                    <div className="flex items-center justify-between max-w-xl">
-                        {[
-                            { num: 1, label: "Dates & Location" },
-                            { num: 2, label: "Your Details" },
-                            { num: 3, label: "Payment" }
-                        ].map((s, i) => (
-                            <div key={s.num} className="flex items-center">
-                                <div className={`flex items-center gap-2 ${step >= s.num ? "text-black" : "text-gray-400"}`}>
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                                        step > s.num
-                                            ? "bg-emerald-500 text-white"
-                                            : step === s.num
-                                                ? "bg-black text-white"
-                                                : "bg-gray-200 text-gray-500"
-                                    }`}>
-                                        {step > s.num ? <Check className="w-4 h-4" /> : s.num}
+                    <div className="overflow-x-auto">
+                        <div className="flex min-w-[520px] items-center justify-between pr-3">
+                            {[
+                                { num: 1, label: "Dates & Location" },
+                                { num: 2, label: "Your Details" },
+                                { num: 3, label: "Payment" }
+                            ].map((s, i) => (
+                                <div key={s.num} className="flex items-center">
+                                    <div className={`flex items-center gap-2 ${step >= s.num ? "text-black" : "text-gray-400"}`}>
+                                        <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold ${
+                                            step > s.num
+                                                ? "bg-emerald-500 text-white"
+                                                : step === s.num
+                                                    ? "bg-black text-white"
+                                                    : "bg-gray-200 text-gray-500"
+                                        }`}>
+                                            {step > s.num ? <Check className="w-4 h-4" /> : s.num}
+                                        </div>
+                                        <span className="text-xs font-medium sm:text-sm">{s.label}</span>
                                     </div>
-                                    <span className="hidden sm:block text-sm font-medium">{s.label}</span>
+                                    {i < 2 && (
+                                        <div className={`mx-2 h-0.5 w-12 sm:w-20 ${step > s.num ? "bg-emerald-500" : "bg-gray-200"}`} />
+                                    )}
                                 </div>
-                                {i < 2 && (
-                                    <div className={`w-12 sm:w-20 h-0.5 mx-2 ${step > s.num ? "bg-emerald-500" : "bg-gray-200"}`} />
-                                )}
-                            </div>
-                        ))}
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -439,6 +578,7 @@ export default function BookingPage() {
                                                 pickupDate={pickupDate}
                                                 dropoffDate={dropoffDate}
                                                 onDateSelect={handleDateSelect}
+                                                disabled={!carCanBeBooked}
                                             />
                                         </div>
 
@@ -783,7 +923,14 @@ export default function BookingPage() {
                                 <div className="space-y-4">
                                     {/* Payment Options */}
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <button className="p-4 border-2 border-black bg-gray-50 rounded-xl text-left">
+                                        <button
+                                            onClick={() => setSelectedPaymentMethod("M_PESA")}
+                                            className={`p-4 border-2 rounded-xl text-left transition-colors ${
+                                                selectedPaymentMethod === "M_PESA"
+                                                    ? "border-black bg-gray-50"
+                                                    : "border-gray-200 hover:border-gray-300"
+                                            }`}
+                                        >
                                             <div className="flex items-center gap-3">
                                                 <div className="w-12 h-8 bg-green-600 rounded flex items-center justify-center text-white text-xs font-bold">
                                                     M-PESA
@@ -795,7 +942,14 @@ export default function BookingPage() {
                                             </div>
                                         </button>
 
-                                        <button className="p-4 border-2 border-gray-200 hover:border-gray-300 rounded-xl text-left transition-colors">
+                                        <button
+                                            onClick={() => setSelectedPaymentMethod("CARD")}
+                                            className={`p-4 border-2 rounded-xl text-left transition-colors ${
+                                                selectedPaymentMethod === "CARD"
+                                                    ? "border-black bg-gray-50"
+                                                    : "border-gray-200 hover:border-gray-300"
+                                            }`}
+                                        >
                                             <div className="flex items-center gap-3">
                                                 <CreditCard className="w-8 h-8 text-gray-600" />
                                                 <div>
@@ -807,15 +961,25 @@ export default function BookingPage() {
                                     </div>
 
                                     {/* M-Pesa Instructions */}
-                                    <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
-                                        <h3 className="font-medium text-green-900 mb-2">M-Pesa Payment</h3>
-                                        <ol className="text-sm text-green-800 space-y-1">
-                                            <li>1. Click "Complete Booking" below</li>
-                                            <li>2. You will receive an STK push on your phone</li>
-                                            <li>3. Enter your M-Pesa PIN to complete payment</li>
-                                            <li>4. Wait for confirmation SMS</li>
-                                        </ol>
-                                    </div>
+                                    {selectedPaymentMethod === "M_PESA" ? (
+                                        <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
+                                            <h3 className="font-medium text-green-900 mb-2">M-Pesa Payment</h3>
+                                            <ol className="text-sm text-green-800 space-y-1">
+                                                <li>1. Click "Create Booking (Pay Later)" below</li>
+                                                <li>2. Booking is created and marked as awaiting payment</li>
+                                                <li>3. In My Bookings, click "Complete Payment" to finish payment</li>
+                                            </ol>
+                                        </div>
+                                    ) : (
+                                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                                            <h3 className="font-medium text-blue-900 mb-2">Card Payment</h3>
+                                            <ol className="text-sm text-blue-800 space-y-1">
+                                                <li>1. Click "Create Booking (Pay Later)" below</li>
+                                                <li>2. Booking is created and marked as awaiting payment</li>
+                                                <li>3. In My Bookings, click "Complete Payment" to finish payment</li>
+                                            </ol>
+                                        </div>
+                                    )}
 
                                     {/* Summary */}
                                     <div className="p-4 bg-gray-50 rounded-xl">
@@ -882,16 +1046,18 @@ export default function BookingPage() {
                             ) : (
                                 <button
                                     onClick={handleCompleteBooking}
-                                    disabled={isSubmittingBooking || !isAuthenticated}
+                                    disabled={isSubmittingBooking || !isAuthenticated || !carCanBeBooked}
                                     className={`px-8 py-3 rounded-xl font-semibold transition-colors ${
-                                        isSubmittingBooking || !isAuthenticated
+                                        isSubmittingBooking || !isAuthenticated || !carCanBeBooked
                                             ? "bg-emerald-300 text-white cursor-not-allowed"
                                             : "bg-emerald-600 text-white hover:bg-emerald-700"
                                     }`}
                                 >
                                     {isSubmittingBooking
                                         ? "Submitting booking..."
-                                        : `Complete Booking - Ksh ${pricing.total.toLocaleString()}`}
+                                        : !carCanBeBooked
+                                            ? "Currently unavailable"
+                                        : `Create Booking (Pay Later) - Ksh ${pricing.total.toLocaleString()}`}
                                 </button>
                             )}
                         </div>
@@ -1022,9 +1188,17 @@ interface BookingCalendarProps {
     pickupDate: Date | null;
     dropoffDate: Date | null;
     onDateSelect: (date: Date) => void;
+    disabled?: boolean;
 }
 
-function BookingCalendar({ currentMonth, setCurrentMonth, pickupDate, dropoffDate, onDateSelect }: BookingCalendarProps) {
+function BookingCalendar({
+    currentMonth,
+    setCurrentMonth,
+    pickupDate,
+    dropoffDate,
+    onDateSelect,
+    disabled = false,
+}: BookingCalendarProps) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -1090,10 +1264,10 @@ function BookingCalendar({ currentMonth, setCurrentMonth, pickupDate, dropoffDat
                     return (
                         <button
                             key={day}
-                            onClick={() => !past && onDateSelect(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day))}
-                            disabled={past}
+                            onClick={() => !past && !disabled && onDateSelect(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day))}
+                            disabled={past || disabled}
                             className={`h-9 text-sm rounded-lg transition-all ${
-                                past
+                                past || disabled
                                     ? "text-gray-300 cursor-not-allowed"
                                     : selected === "start"
                                         ? "bg-black text-white font-medium rounded-r-none"

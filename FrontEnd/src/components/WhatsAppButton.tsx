@@ -17,7 +17,7 @@ export function WhatsAppButton({
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="fixed bottom-6 left-6 z-50 group"
+            className="group fixed bottom-4 left-4 z-50 sm:bottom-6 sm:left-6"
             aria-label="Chat on WhatsApp"
         >
             {/* Pulse Animation */}
@@ -25,8 +25,8 @@ export function WhatsAppButton({
             
             {/* Button */}
             <div className="relative flex items-center gap-3">
-                <div className="w-14 h-14 bg-emerald-500 rounded-full shadow-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                    <MessageCircle className="w-7 h-7 text-white" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500 shadow-lg transition-transform group-hover:scale-110 sm:h-14 sm:w-14">
+                    <MessageCircle className="h-6 w-6 text-white sm:h-7 sm:w-7" />
                 </div>
                 
                 {/* Tooltip */}
@@ -40,4 +40,3 @@ export function WhatsAppButton({
         </a>
     );
 }
-

@@ -20,7 +20,7 @@ export function HeroSection() {
     };
 
     return (
-        <section className="relative flex min-h-[42vh] flex-col items-center justify-start overflow-hidden bg-black pb-0 pt-16 md:min-h-[52vh] md:pt-24">
+        <section className="relative flex min-h-[48vh] flex-col items-center justify-start overflow-hidden bg-black pb-0 pt-16 sm:min-h-[52vh] md:min-h-[56vh] md:pt-24">
             {/* Animated Background Gradient */}
             <div className="absolute inset-0 bg-gradient-to-b from-zinc-900/50 via-transparent to-black/50" />
             
@@ -33,25 +33,25 @@ export function HeroSection() {
             />
 
             {/* Main Content */}
-            <div 
-                className={`z-10 text-center space-y-2.5 px-4 max-w-4xl transition-all duration-1000 ${
+            <div
+                className={`z-10 max-w-4xl px-2 text-center space-y-2 transition-all duration-1000 sm:px-4 ${
                     isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
                 }`}
             >
-                <h1 className="text-3xl md:text-4xl lg:text-[2.9rem] font-serif font-bold text-white leading-[1.1] tracking-tight text-balance">
+                <h1 className="text-[1.75rem] sm:text-3xl md:text-4xl lg:text-[2.9rem] font-bold text-white leading-[1.1] tracking-tight text-balance">
                     You don't need to own a car to own the road
                 </h1>
-                <p 
-                    className={`text-lg md:text-2xl lg:text-[1.75rem] font-script text-white italic opacity-90 transition-all duration-1000 delay-200 ${
+                <p
+                    className={`text-base sm:text-xl md:text-2xl lg:text-[1.75rem] font-medium text-white italic opacity-90 transition-all duration-1000 delay-200 ${
                         isLoaded ? "opacity-90 translate-y-0" : "opacity-0 translate-y-4"
                     }`}
                 >
-                    We've got your ride
+                    We've got our ride - gari zetu
                 </p>
 
                 {/* Stats Bar */}
-                <div 
-                    className={`flex items-center justify-center gap-4 md:gap-6 pt-3 transition-all duration-1000 delay-500 ${
+                <div
+                    className={`grid grid-cols-3 gap-3 pt-3 transition-all duration-1000 delay-500 sm:flex sm:items-center sm:justify-center sm:gap-6 ${
                         isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"
                     }`}
                 >
@@ -61,8 +61,8 @@ export function HeroSection() {
                         { value: "24/7", label: "Support" },
                         ].map((stat, i) => (
                         <div key={i} className="text-center">
-                            <p className="text-lg md:text-xl font-bold text-white">{stat.value}</p>
-                            <p className="text-xs md:text-sm text-gray-400">{stat.label}</p>
+                            <p className="text-base sm:text-lg md:text-xl font-bold text-white">{stat.value}</p>
+                            <p className="text-[11px] sm:text-xs md:text-sm text-gray-400">{stat.label}</p>
                         </div>
                     ))}
                 </div>
@@ -70,14 +70,14 @@ export function HeroSection() {
 
             {/* Car Image with Animation */}
             <div 
-                className={`relative mt-[-8px] flex w-full max-w-3xl flex-grow justify-center px-1 md:mt-[-14px] transition-all duration-1000 delay-300 ${
+                className={`relative mt-[-6px] flex w-full max-w-3xl flex-grow justify-center px-1 md:mt-[-14px] transition-all duration-1000 delay-300 ${
                     isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-12"
                 }`}
             >
                 <img
                     src="/src/assets/car_traced.png"
                     alt="GariZetu Car"
-                    className="relative z-0 w-[108%] max-w-none object-contain pointer-events-none select-none drop-shadow-2xl md:w-[118%]"
+                    className="relative z-0 w-[120%] max-w-none object-contain pointer-events-none select-none drop-shadow-2xl sm:w-[112%] md:w-[118%]"
                 />
                 
                 {/* Glow Effect */}
@@ -87,7 +87,7 @@ export function HeroSection() {
             {/* Scroll Indicator */}
             <button
                 onClick={scrollToContent}
-                className={`absolute bottom-2 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1 text-white/60 hover:text-white transition-all cursor-pointer group ${
+                className={`absolute bottom-2 left-1/2 z-20 hidden -translate-x-1/2 flex-col items-center gap-1 text-white/60 transition-all cursor-pointer group hover:text-white sm:flex ${
                     isLoaded ? "opacity-100" : "opacity-0"
                 }`}
                 aria-label="Scroll down"

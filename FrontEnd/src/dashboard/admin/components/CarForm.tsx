@@ -1,11 +1,10 @@
-import React, {useEffect, useState, useMemo} from "react";
+import React, {useEffect, useState, useMemo, useRef} from "react";
 import {Button} from "../../../components/ui/button";
 import {Input} from "../../../components/ui/input";
 import {Label} from "../../../components/ui/label";
-import {CarStatus, FuelType, TransmissionType, BodyType} from "../types/Car.ts";
+import {CarStatus, FuelType, TransmissionType, BodyType, FeaturedCategory} from "../types/Car.ts";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "../../../components/ui/select.tsx";
 import {Plus, Upload, X, Search, Check} from "lucide-react";
-import axios from "axios";
 import { getImageUrl } from "../../../lib/ImageUtils.ts";
 import { api } from "../../../lib/api.ts";
 
@@ -23,10 +22,12 @@ export type CarFormData = {
     transmissionType: TransmissionType;
     fuelType: FuelType;
     bodyType: BodyType;
+    featuredCategory: FeaturedCategory;
     description: string;
     featureName: string[];
     // Optional existing image URL (used when editing)
     mainImageUrl?: string;
+    galleryImageUrls?: string[];
 }
 
 interface Feature {
@@ -36,13 +37,60 @@ interface Feature {
     featureCategory: string;
 }
 
+const normalizeFeatureName = (value: string) => value.trim().toLowerCase();
+
+type CarFeatureLike = {
+    featureName?: string;
+    name?: string;
+    available?: boolean;
+};
+
+type CarFormInputData = CarFormData & {
+    features?: CarFeatureLike[];
+};
+
+const extractCarFeatureNames = (car?: CarFormInputData): string[] => {
+    if (!car) {
+        return [];
+    }
+
+    const fromFeatureName = (car.featureName || [])
+        .map((feature) => feature.trim())
+        .filter((feature) => feature.length > 0);
+
+    const fromFeatureObjects = (car.features || [])
+        .filter((feature) => feature.available !== false)
+        .map((feature) => (feature.featureName ?? feature.name ?? "").trim())
+        .filter((feature) => feature.length > 0);
+
+    return Array.from(new Set([...fromFeatureName, ...fromFeatureObjects]));
+};
+
+type PendingGalleryImage = {
+    id: string;
+    file: File;
+    preview: string;
+};
+
+export type GallerySubmitPayload = {
+    newImages: File[];
+    existingUrls: string[];
+    hasChanges: boolean;
+};
+
 interface CarFormProps {
-    car?: CarFormData;
-    onSubmit: (car: CarFormData, image: File | null) => void | Promise<void>;
+    car?: CarFormInputData;
+    onSubmit: (
+        car: CarFormData,
+        image: File | null,
+        gallery: GallerySubmitPayload
+    ) => void | Promise<void>;
     onCancel: () => void;
 }
 
 export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
+    const initialCarFeatureNames = useMemo(() => extractCarFeatureNames(car), [car]);
+
     // Store original values for dirty tracking (only when editing)
     const originalValues = car ? {
         make: car.make,
@@ -58,9 +106,11 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         transmissionType: car.transmissionType,
         fuelType: car.fuelType,
         bodyType: car.bodyType,
+        featuredCategory: car.featuredCategory || "Popular Car",
         description: car.description || "",
-        featureName: car.featureName || [],
+        featureName: initialCarFeatureNames,
         hasImage: !!car.mainImageUrl,
+        galleryImageUrls: car.galleryImageUrls || [],
     } : null;
 
     const [formData, setFormData] = useState<CarFormData>({
@@ -77,23 +127,49 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         transmissionType: car?.transmissionType || "AUTOMATIC",
         fuelType: car?.fuelType || "PETROL",
         bodyType: car?.bodyType || "SEDAN",
+        featuredCategory: car?.featuredCategory || "Popular Car",
         description: car?.description || "",
-        featureName: car?.featureName || [],
+        featureName: initialCarFeatureNames,
         mainImageUrl: car?.mainImageUrl,
+        galleryImageUrls: car?.galleryImageUrls || [],
     });
 
     const [selectedImage, setSelectedImage] = useState<File | null>(null);
     const [imagePreview, setImagePreview] = useState<string | null>(
         car?.mainImageUrl ? getImageUrl(car.mainImageUrl) : null
     );
+    const [existingGalleryUrls, setExistingGalleryUrls] = useState<string[]>(car?.galleryImageUrls || []);
+    const [pendingGalleryImages, setPendingGalleryImages] = useState<PendingGalleryImage[]>([]);
+    const pendingGalleryImagesRef = useRef<PendingGalleryImage[]>([]);
+    const existingGalleryPreviews = useMemo(
+        () => existingGalleryUrls.map(getImageUrl),
+        [existingGalleryUrls]
+    );
+    const hasGalleryChanges = useMemo(() => {
+        if (!car) return pendingGalleryImages.length > 0;
+        const original = (car.galleryImageUrls || []).slice().sort().join(",");
+        const current = existingGalleryUrls.slice().sort().join(",");
+        return original !== current || pendingGalleryImages.length > 0;
+    }, [car, existingGalleryUrls, pendingGalleryImages.length]);
 
     // Features state
     const [availableFeatures, setAvailableFeatures] = useState<Feature[]>([]);
-    const [selectedFeatures, setSelectedFeatures] = useState<string[]>(car?.featureName || []);
+    const [selectedFeatures, setSelectedFeatures] = useState<string[]>(initialCarFeatureNames);
     const [featureSearch, setFeatureSearch] = useState("");
     const [isLoadingFeatures, setIsLoadingFeatures] = useState(false);
     const [isCreatingFeature, setIsCreatingFeature] = useState(false);
     const [showFeatureDropdown, setShowFeatureDropdown] = useState(false);
+    const selectedFeatureNameSet = useMemo(
+        () => new Set(selectedFeatures.map((feature) => normalizeFeatureName(feature))),
+        [selectedFeatures]
+    );
+    const sortedAvailableFeatures = useMemo(
+        () =>
+            [...availableFeatures].sort((a, b) =>
+                a.featureName.localeCompare(b.featureName, undefined, { sensitivity: "base" })
+            ),
+        [availableFeatures]
+    );
 
     // Helper function to check if a field is dirty (changed from original)
     const isFieldDirty = (fieldName: keyof CarFormData): boolean => {
@@ -113,6 +189,11 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         if (fieldName === 'mainImageUrl') {
             return selectedImage !== null; // Image changed if a new file is selected
         }
+        if (fieldName === 'galleryImageUrls') {
+            const originalGallery = (originalValues.galleryImageUrls || []).slice().sort().join(',');
+            const currentGallery = existingGalleryUrls.slice().sort().join(',');
+            return currentGallery !== originalGallery || pendingGalleryImages.length > 0;
+        }
         
         return currentValue !== originalValue;
     };
@@ -124,7 +205,8 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         const fields: (keyof CarFormData)[] = [
             'make', 'registrationNumber', 'vehicleModel', 'year', 'engineCapacity',
             'colour', 'mileage', 'dailyPrice', 'seatingCapacity', 'carStatus',
-            'transmissionType', 'fuelType', 'bodyType', 'description', 'featureName', 'mainImageUrl'
+            'transmissionType', 'fuelType', 'bodyType', 'featuredCategory', 'description', 'featureName', 'mainImageUrl',
+            'galleryImageUrls'
         ];
         
         return fields.filter(field => isFieldDirty(field)).length;
@@ -195,7 +277,7 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
     const exactMatch = useMemo(() => {
         if (!featureSearch.trim()) return null;
         return availableFeatures.find(f => 
-            f.featureName.toLowerCase() === featureSearch.trim().toLowerCase()
+            normalizeFeatureName(f.featureName) === normalizeFeatureName(featureSearch)
         );
     }, [availableFeatures, featureSearch]);
 
@@ -203,6 +285,18 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
     const createNewFeature = async (featureName: string) => {
         try {
             setIsCreatingFeature(true);
+            const normalizedFeatureName = normalizeFeatureName(featureName);
+            const existingFeature = availableFeatures.find(
+                (feature) => normalizeFeatureName(feature.featureName) === normalizedFeatureName
+            );
+
+            if (existingFeature) {
+                addFeature(existingFeature.featureName);
+                setFeatureSearch("");
+                setShowFeatureDropdown(false);
+                return;
+            }
+
             // Note: This endpoint needs to be created in backend: POST /api/v1/features
             // For now, we'll add it to the list locally and it will be created when car is saved
             const newFeature: Feature = {
@@ -212,14 +306,14 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                 featureCategory: "CUSTOM"
             };
             setAvailableFeatures(prev => [...prev, newFeature]);
-            toggleFeature(featureName.trim());
+            addFeature(featureName.trim());
             setFeatureSearch("");
             setShowFeatureDropdown(false);
         } catch (error) {
             console.error("Failed to create feature:", error);
             alert("Failed to create feature. It will be added when you save the car.");
             // Still add it locally
-            toggleFeature(featureName.trim());
+            addFeature(featureName.trim());
             setFeatureSearch("");
         } finally {
             setIsCreatingFeature(false);
@@ -268,10 +362,15 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         // Add selected features to formData (can be empty array)
         const dataToSubmit = {
             ...formData,
-            featureName: selectedFeatures
+            featureName: selectedFeatures,
+            galleryImageUrls: existingGalleryUrls
         };
 
-        onSubmit(dataToSubmit, selectedImage);
+        onSubmit(dataToSubmit, selectedImage, {
+            newImages: pendingGalleryImages.map((item) => item.file),
+            existingUrls: existingGalleryUrls,
+            hasChanges: hasGalleryChanges
+        });
     };
 
     const handleChange = (field: keyof CarFormData, value: string | number | string[]) => {
@@ -306,6 +405,96 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         }
     };
 
+    const handleGalleryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const files = Array.from(e.target.files || []);
+
+        if (files.length === 0) {
+            return;
+        }
+
+        const invalidFile = files.find((file) => !file.type.startsWith("image"));
+        if (invalidFile) {
+            alert("Please select only image files");
+            return;
+        }
+
+        const maxSize = 10 * 1024 * 1024;
+        const oversized = files.find((file) => file.size > maxSize);
+        if (oversized) {
+            alert("Each image must be less than 10mb");
+            return;
+        }
+
+        setPendingGalleryImages((prev) => {
+            const existingSignatures = new Set(
+                prev.map((item) => `${item.file.name}-${item.file.size}-${item.file.lastModified}`)
+            );
+
+            const newItems: PendingGalleryImage[] = [];
+            files.forEach((file, index) => {
+                const signature = `${file.name}-${file.size}-${file.lastModified}`;
+                if (existingSignatures.has(signature)) {
+                    return;
+                }
+
+                existingSignatures.add(signature);
+                newItems.push({
+                    id: `${signature}-${Date.now()}-${index}`,
+                    file,
+                    preview: URL.createObjectURL(file)
+                });
+            });
+
+            return [...prev, ...newItems];
+        });
+
+        // Allow selecting the same file again on the next change.
+        e.target.value = "";
+    };
+
+    const handleRemoveExistingGalleryImage = (index: number) => {
+        setExistingGalleryUrls((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
+    };
+
+    const handleRemovePendingGalleryImage = (imageId: string) => {
+        setPendingGalleryImages((prev) => {
+            const target = prev.find((item) => item.id === imageId);
+            if (target) {
+                URL.revokeObjectURL(target.preview);
+            }
+            return prev.filter((item) => item.id !== imageId);
+        });
+    };
+
+    const handleClearPendingGallery = () => {
+        setPendingGalleryImages((prev) => {
+            prev.forEach((item) => URL.revokeObjectURL(item.preview));
+            return [];
+        });
+        const fileInput = document.getElementById('galleryImages') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+    };
+
+    const handleClearAllGallery = () => {
+        setExistingGalleryUrls([]);
+        setPendingGalleryImages((prev) => {
+            prev.forEach((item) => URL.revokeObjectURL(item.preview));
+            return [];
+        });
+        const fileInput = document.getElementById('galleryImages') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+    };
+
+    useEffect(() => {
+        pendingGalleryImagesRef.current = pendingGalleryImages;
+    }, [pendingGalleryImages]);
+
+    useEffect(() => {
+        return () => {
+            pendingGalleryImagesRef.current.forEach((item) => URL.revokeObjectURL(item.preview));
+        };
+    }, []);
+
     const handleClearImage = () => {
         setSelectedImage(null);
         setImagePreview(null);
@@ -314,12 +503,16 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
     };
 
     // Feature handlers
-    const toggleFeature = (featureName: string) => {
-        if (selectedFeatures.includes(featureName)) {
-            setSelectedFeatures(selectedFeatures.filter(f => f !== featureName));
-        } else {
-            setSelectedFeatures([...selectedFeatures, featureName]);
+    const addFeature = (featureName: string) => {
+        const trimmed = featureName.trim();
+        if (!trimmed) return;
+
+        const normalized = normalizeFeatureName(trimmed);
+        if (selectedFeatureNameSet.has(normalized)) {
+            return;
         }
+
+        setSelectedFeatures((prev) => [...prev, trimmed]);
     };
 
     const handleFeatureInputChange = (value: string) => {
@@ -331,7 +524,7 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
     };
 
     const handleSelectFeature = (featureName: string) => {
-        toggleFeature(featureName);
+        addFeature(featureName);
         setFeatureSearch("");
         setShowFeatureDropdown(false);
     };
@@ -341,13 +534,13 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         if (!trimmed) {
             return;
         }
-        if (selectedFeatures.includes(trimmed)) {
+        if (selectedFeatureNameSet.has(normalizeFeatureName(trimmed))) {
             alert("This feature is already selected");
             return;
         }
         if (exactMatch) {
             // Feature exists, just select it
-            handleSelectFeature(trimmed);
+            handleSelectFeature(exactMatch.featureName);
             return;
         }
         // Create new feature
@@ -355,7 +548,10 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
     };
 
     const removeFeature = (featureName: string) => {
-        setSelectedFeatures(selectedFeatures.filter(f => f !== featureName));
+        const normalized = normalizeFeatureName(featureName);
+        setSelectedFeatures((prev) =>
+            prev.filter((feature) => normalizeFeatureName(feature) !== normalized)
+        );
     };
 
     const descriptionLength = formData.description.length;
@@ -428,6 +624,104 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                         />
                     </label>
                 )}
+            </div>
+
+            {/* Gallery Upload */}
+            <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                    <Label htmlFor="galleryImages" className="text-gray-300">Gallery Images</Label>
+                    {isFieldDirty('galleryImageUrls') && (
+                        <span className="text-xs bg-blue-500/20 text-blue-400 px-2 py-0.5 rounded">Modified</span>
+                    )}
+                </div>
+
+                {(pendingGalleryImages.length > 0 || existingGalleryPreviews.length > 0) && (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                        {existingGalleryPreviews.map((url, index) => (
+                            <div key={`existing-${url}-${index}`} className="relative">
+                                <img
+                                    src={url}
+                                    alt={`Gallery preview ${index + 1}`}
+                                    className="h-28 w-full rounded-lg border border-gray-700 object-cover"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveExistingGalleryImage(index)}
+                                    className="absolute right-2 top-2 rounded-full bg-red-500 p-1 text-white hover:bg-red-600 transition-colors"
+                                    aria-label="Remove existing gallery image"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                                <span className="absolute left-2 bottom-2 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white">
+                                    Saved
+                                </span>
+                            </div>
+                        ))}
+                        {pendingGalleryImages.map((item, index) => (
+                            <div key={item.id} className="relative">
+                                <img
+                                    src={item.preview}
+                                    alt={`New gallery preview ${index + 1}`}
+                                    className="h-28 w-full rounded-lg border border-gray-700 object-cover"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemovePendingGalleryImage(item.id)}
+                                    className="absolute right-2 top-2 rounded-full bg-red-500 p-1 text-white hover:bg-red-600 transition-colors"
+                                    aria-label="Remove new gallery image"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                                <span className="absolute left-2 bottom-2 rounded bg-emerald-600/90 px-1.5 py-0.5 text-[10px] text-white">
+                                    New
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                <div className="flex flex-wrap gap-2">
+                    <label
+                        htmlFor="galleryImages"
+                        className="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-gray-300 hover:border-gray-500 hover:bg-[#141414] transition-colors cursor-pointer"
+                    >
+                        <Upload className="h-4 w-4" />
+                        Add Gallery Images
+                    </label>
+                    {pendingGalleryImages.length > 0 && (
+                        <button
+                            type="button"
+                            onClick={handleClearPendingGallery}
+                            className="inline-flex items-center gap-2 rounded-lg border border-orange-500/40 bg-orange-500/10 px-3 py-2 text-sm text-orange-300 hover:bg-orange-500/20 transition-colors"
+                        >
+                            <X className="h-4 w-4" />
+                            Clear New Images
+                        </button>
+                    )}
+                    {(existingGalleryUrls.length > 0 || pendingGalleryImages.length > 0) && (
+                        <button
+                            type="button"
+                            onClick={handleClearAllGallery}
+                            className="inline-flex items-center gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300 hover:bg-red-500/20 transition-colors"
+                        >
+                            <X className="h-4 w-4" />
+                            Clear All Gallery
+                        </button>
+                    )}
+                </div>
+
+                <input
+                    id="galleryImages"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={handleGalleryChange}
+                    className="hidden"
+                    multiple
+                />
+
+                <p className="text-xs text-gray-500">
+                    Optional. Add images in batches, remove individual images, and keep only the gallery images you want to save.
+                </p>
             </div>
 
             {/* Basic Details Grid */}
@@ -759,6 +1053,30 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                         </SelectContent>
                     </Select>
                 </div>
+
+                <div>
+                    <div className="flex items-center gap-2 mb-1">
+                        <Label htmlFor="featuredCategory" className="text-gray-300">Featured Category</Label>
+                        {isFieldDirty('featuredCategory') && (
+                            <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">Modified</span>
+                        )}
+                    </div>
+                    <Select
+                        value={formData.featuredCategory}
+                        onValueChange={(value) => handleChange("featuredCategory", value as FeaturedCategory)}
+                    >
+                        <SelectTrigger id="featuredCategory" className={`bg-[#0a0a0a] ${getFieldBorderClass('featuredCategory')} text-white`}>
+                            <SelectValue placeholder="Select featured category" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-[#1a1a1a] border-gray-700 text-white">
+                            <SelectItem value="Popular Car">Popular Car</SelectItem>
+                            <SelectItem value="Luxury Car">Luxury Car</SelectItem>
+                            <SelectItem value="Vintage Car">Vintage Car</SelectItem>
+                            <SelectItem value="Family Car">Family Car</SelectItem>
+                            <SelectItem value="Off-Road Car">Off-Road Car</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
             </div>
 
             {/* Description - Full Width (OPTIONAL) */}
@@ -840,12 +1158,15 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                             ) : filteredFeatures.length > 0 ? (
                                 <>
                                     {filteredFeatures.slice(0, 10).map((feature) => {
-                                        const isSelected = selectedFeatures.includes(feature.featureName);
+                                        const isSelected = selectedFeatureNameSet.has(
+                                            normalizeFeatureName(feature.featureName)
+                                        );
                                         return (
                                             <button
                                                 key={feature.featureId}
                                                 type="button"
                                                 onClick={() => handleSelectFeature(feature.featureName)}
+                                                disabled={isSelected}
                                                 className={`w-full text-left px-4 py-3 hover:bg-gray-800 transition-colors flex items-center justify-between ${
                                                     isSelected
                                                         ? "bg-emerald-500/20 border-l-2 border-emerald-500"
@@ -911,32 +1232,79 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                     )}
                 </div>
 
-                {/* Selected features display */}
-                {selectedFeatures.length > 0 && (
-                    <div>
-                        <Label className="text-gray-300 text-sm mb-2 block">
-                            Selected Features ({selectedFeatures.length})
-                        </Label>
-                        <div className="flex flex-wrap gap-2">
-                            {selectedFeatures.map((feature) => (
-                                <div
-                                    key={feature}
-                                    className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/20 border border-emerald-500/40 rounded-full text-sm text-emerald-300"
-                                >
-                                    <Check className="w-3 h-3 text-emerald-400" />
-                                    <span>{feature}</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => removeFeature(feature)}
-                                        className="hover:text-red-400 transition-colors ml-1"
+                {/* Features currently available on this car */}
+                <div>
+                    <Label className="text-gray-300 text-sm mb-2 block">
+                        Features on This Car ({selectedFeatures.length})
+                    </Label>
+                    <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-700 bg-[#0a0a0a] p-3">
+                        {selectedFeatures.length > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                                {selectedFeatures.map((feature) => (
+                                    <div
+                                        key={`selected-${feature}`}
+                                        className="flex items-center gap-2 rounded-full border border-emerald-500/40 bg-emerald-500/20 px-3 py-1.5 text-sm text-emerald-300"
                                     >
-                                        <X className="w-3 h-3" />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
+                                        <Check className="h-3 w-3 text-emerald-400" />
+                                        <span>{feature}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => removeFeature(feature)}
+                                            className="ml-1 text-emerald-200 transition-colors hover:text-red-400"
+                                            title="Remove feature from this car"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-gray-500">No features assigned to this car yet.</p>
+                        )}
                     </div>
-                )}
+                </div>
+
+                {/* Always-visible available features list */}
+                <div>
+                    <Label className="text-gray-300 text-sm mb-2 block">
+                        Available Features ({sortedAvailableFeatures.length})
+                    </Label>
+                    <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-700 bg-[#0a0a0a] p-3">
+                        {isLoadingFeatures ? (
+                            <div className="text-sm text-gray-400">Loading features...</div>
+                        ) : sortedAvailableFeatures.length === 0 ? (
+                            <div className="text-sm text-gray-500">No features available yet.</div>
+                        ) : (
+                            <div className="flex flex-wrap gap-2">
+                                {sortedAvailableFeatures.map((feature) => {
+                                    const isSelected = selectedFeatureNameSet.has(
+                                        normalizeFeatureName(feature.featureName)
+                                    );
+
+                                    return (
+                                        <button
+                                            key={`available-${feature.featureId}`}
+                                            type="button"
+                                            onClick={() => handleSelectFeature(feature.featureName)}
+                                            disabled={isSelected}
+                                            className={`rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                                                isSelected
+                                                    ? "cursor-not-allowed border-emerald-500/40 bg-emerald-500/20 text-emerald-300"
+                                                    : "border-gray-600 bg-[#141414] text-gray-300 hover:border-emerald-400 hover:text-emerald-300"
+                                            }`}
+                                            title={isSelected ? "Already selected" : "Add feature"}
+                                        >
+                                            {isSelected ? "Added: " : ""}{feature.featureName}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                    <p className="mt-2 text-xs text-gray-500">
+                        Existing features are shown here so admins can pick from them and avoid duplicate custom entries.
+                    </p>
+                </div>
             </div>
 
             {/* Form Actions */}

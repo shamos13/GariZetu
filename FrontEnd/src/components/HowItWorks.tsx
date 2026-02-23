@@ -24,8 +24,8 @@ export function HowItWorks() {
     return (
         <section className="section-space">
             <div className="layout-container">
-            <div className="text-center space-y-2.5 mb-6">
-                <h2 className="text-2xl md:text-[1.75rem] font-bold">How it works</h2>
+            <div className="mb-6 space-y-2.5 text-center">
+                <h2 className="text-[1.65rem] font-bold sm:text-2xl md:text-[1.75rem]">How it works</h2>
                 <p className="text-gray-500 max-w-2xl mx-auto">
                     Renting a luxury car has never been easier. Our streamlined process makes it simple for you to book and
                     confirm your vehicle of choice online
@@ -37,7 +37,7 @@ export function HowItWorks() {
                     {STEPS.map((step) => (
                         <div
                             key={step.title}
-                            className="bg-white rounded-xl p-3.5 flex gap-3 border border-gray-100 shadow-sm hover:shadow-md transition-all"
+                            className="flex gap-3 rounded-xl border border-gray-100 bg-white p-3.5 shadow-sm transition-all hover:shadow-md"
                         >
                             <div className="w-9 h-9 bg-gray-50 rounded-lg flex items-center justify-center shrink-0">
                                 <step.icon className="text-gray-900" size={18} />
@@ -50,9 +50,9 @@ export function HowItWorks() {
                     ))}
                 </div>
 
-                <div className="relative bg-gray-50 rounded-[2rem] p-5 md:p-6 aspect-square flex items-center justify-center">
-                    <div className="relative w-full h-full transform translate-x-2">
-                        <img src="/src/assets/car-jeep.png" alt="Jeep Wrangler"  className="object-contain" />
+                <div className="relative flex aspect-[4/3] items-center justify-center rounded-[2rem] bg-gray-50 p-4 sm:aspect-square md:p-6">
+                    <div className="relative h-full w-full">
+                        <img src="/src/assets/car-jeep.png" alt="Jeep Wrangler" className="h-full w-full object-contain" />
                     </div>
                 </div>
             </div>

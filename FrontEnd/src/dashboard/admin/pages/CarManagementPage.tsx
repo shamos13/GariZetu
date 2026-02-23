@@ -188,7 +188,7 @@ export function CarManagementPage({ cars, onAdd, onEdit, onDelete, onStatusChang
             <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
                 <div>
                     <p className="text-xs uppercase tracking-[0.22em] text-gray-500">Fleet Control</p>
-                    <h2 className="mt-1 text-3xl font-serif text-white">Vehicle Management</h2>
+                    <h2 className="mt-1 text-3xl text-white">Vehicle Management</h2>
                     <p className="mt-1 text-sm text-gray-400">
                         Manage inventory, track availability, and update fleet status from one place.
                     </p>

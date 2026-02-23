@@ -1,13 +1,25 @@
-import { useEffect, useState, useCallback } from 'react';
+import { lazy, Suspense, useEffect, useState, useCallback } from 'react';
 import { AdminLayout } from "./components/AdminLayout.tsx";
-import { Car, CarCreateRequest } from "./types/Car.ts";
-import { CarManagementPage } from "./pages/CarManagementPage.tsx";
-import { UserManagementPage } from "./pages/UserManagementPage.tsx";
-import { DashboardPage } from "./pages/DashboardPage.tsx";
+import { Car } from "./types/Car.ts";
 import { adminCarService } from "../admin/service/AdminCarService.ts";
-import { CarForm } from "./components/CarForm.tsx";
+import { CarForm, type CarFormData, type GallerySubmitPayload } from "./components/CarForm.tsx";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog.tsx";
+import { bookingService } from "../../services/BookingService.ts";
+import { getAdminActionErrorMessage } from "../../lib/adminErrorUtils.ts";
+
+const CarManagementPage = lazy(() =>
+    import("./pages/CarManagementPage.tsx").then((module) => ({ default: module.CarManagementPage }))
+);
+const UserManagementPage = lazy(() =>
+    import("./pages/UserManagementPage.tsx").then((module) => ({ default: module.UserManagementPage }))
+);
+const DashboardPage = lazy(() =>
+    import("./pages/DashboardPage.tsx").then((module) => ({ default: module.DashboardPage }))
+);
+const BookingManagementPage = lazy(() =>
+    import("./pages/BookingManagementPage.tsx").then((module) => ({ default: module.BookingManagementPage }))
+);
 
 interface AdminDashboardProps {
     onBack: () => void;
@@ -25,7 +37,14 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     const [editingCar, setEditingCar] = useState<Car | null>(null);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [carsLoaded, setCarsLoaded] = useState(false);
+    const [bookingNotificationCount, setBookingNotificationCount] = useState(0);
     const closeForm = () => setIsFormOpen(false);
+
+    const pageLoader = (
+        <div className="flex min-h-[34vh] items-center justify-center">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-700 border-t-white" />
+        </div>
+    );
 
     // Save current page to localStorage whenever it changes
     useEffect(() => {
@@ -44,6 +63,16 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         setEditingCar(null);
     }
 
+    const refreshBookingNotifications = useCallback(async () => {
+        try {
+            const notifications = await bookingService.getAdminNotifications(false);
+            setBookingNotificationCount(notifications.length);
+        } catch (error) {
+            console.error("Failed to fetch booking notifications:", error);
+            toast.error(getAdminActionErrorMessage(error, "Unable to load admin notifications."));
+        }
+    }, []);
+
     // Load cars from backend only when cars page is active and not already loaded
     useEffect(() => {
         if (currentPage === "cars" && !carsLoaded) {
@@ -56,7 +85,11 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         }
     }, [currentPage, carsLoaded]);
 
-    const handleAddCar = async (carData: CarCreateRequest, image: File | null) => {
+    useEffect(() => {
+        void refreshBookingNotifications();
+    }, [refreshBookingNotifications]);
+
+    const handleAddCar = async (carData: CarFormData, image: File | null, gallery: GallerySubmitPayload) => {
         try {
             // Step 1: Validate we have an image
             if (!image) {
@@ -85,6 +118,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
             formData.append("fuelType", carData.fuelType);
             formData.append("carStatus", carData.carStatus);
             formData.append("bodyType", carData.bodyType);
+            formData.append("featuredCategory", carData.featuredCategory);
 
             // ✅ FIXED: Append description only if it exists
             if (carData.description) {
@@ -96,6 +130,12 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
             if (carData.featureName && carData.featureName.length > 0) {
                 carData.featureName.forEach(name => {
                     formData.append("featureName", name);
+                });
+            }
+
+            if (gallery.newImages.length > 0) {
+                gallery.newImages.forEach((file) => {
+                    formData.append("galleryImages", file);
                 });
             }
 
@@ -112,7 +152,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
 
         } catch (error) {
             console.error("Failed to create car:", error);
-            toast.error("Failed to add car. Please try again.");
+            toast.error(getAdminActionErrorMessage(error, "Failed to add car. Please try again."));
         }
     };
 
@@ -132,11 +172,11 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
             toast.success("Car deleted successfully");
         } catch (error) {
             console.error("Failed to delete car:", error);
-            toast.error("Failed to delete car. Please try again.");
+            toast.error(getAdminActionErrorMessage(error, "Failed to delete car. Please try again."));
         }
     };
 
-    const handleUpdateCar = async (carData: CarCreateRequest, image: File | null) => {
+    const handleUpdateCar = async (carData: CarFormData, image: File | null, gallery: GallerySubmitPayload) => {
         if (!editingCar) return;
 
         try {
@@ -155,6 +195,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                 transmissionType: carData.transmissionType,
                 fuelType: carData.fuelType,
                 bodyType: carData.bodyType,
+                featuredCategory: carData.featuredCategory,
                 description: carData.description,
                 featureName: carData.featureName,
             };
@@ -162,7 +203,10 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
             const updatedCar = await adminCarService.updateCar(
                 editingCar.carId,
                 payload,
-                image ?? undefined
+                image ?? undefined,
+                gallery.newImages,
+                gallery.existingUrls,
+                gallery.hasChanges
             );
 
             setCars(prev =>
@@ -175,7 +219,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
             toast.success("Car updated successfully!");
         } catch (error) {
             console.error("Failed to update car:", error);
-            toast.error("Failed to update car. Please try again.");
+            toast.error(getAdminActionErrorMessage(error, "Failed to update car. Please try again."));
         }
     };
 
@@ -194,7 +238,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
             toast.success(`Car status updated to ${newStatus}`);
         } catch (error) {
             console.error("Failed to update car status:", error);
-            toast.error("Failed to update car status. Please try again.");
+            toast.error(getAdminActionErrorMessage(error, "Failed to update car status. Please try again."));
         }
     };
 
@@ -203,31 +247,21 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
             case "dashboard":
                 return "Dashboard";
             case "cars":
-                return "Cars";
+                return "Fleet Management";
             case "bookings":
                 return "Bookings";
             case "users":
-                return "Users";
+                return "Customers";
             case "payments":
                 return "Payments";
             case "reports":
-                return "Reports";
+                return "Analytics";
             case "settings":
-                return "Settings";
+                return "Configuration";
             default:
                 return "Dashboard";
         }
     };
-
-    // Refresh cars list manually
-    const refreshCars = useCallback(() => {
-        adminCarService.getAll()
-            .then((data) => {
-                setCars(data);
-                setCarsLoaded(true);
-            })
-            .catch(console.error);
-    }, []);
 
     const renderPage = () => {
         switch (currentPage) {
@@ -246,6 +280,13 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                 );
             case "users":
                 return <UserManagementPage key="users" />;
+            case "bookings":
+                return (
+                    <BookingManagementPage
+                        key="bookings"
+                        onNotificationCountChange={setBookingNotificationCount}
+                    />
+                );
             default:
                 return <DashboardPage key="dashboard-default" />;
         }
@@ -257,9 +298,12 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                 title={getPageTitle()}
                 currentPage={currentPage}
                 onNavigate={handlePageChange}
+                bookingNotificationCount={bookingNotificationCount}
                 onBack={onBack}
             >
-                {renderPage()}
+                <Suspense fallback={pageLoader}>
+                    {renderPage()}
+                </Suspense>
             </AdminLayout>
 
             {/* Add/Edit Car Form Dialog */}

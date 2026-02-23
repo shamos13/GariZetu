@@ -4,6 +4,7 @@ import com.amos.garizetu.Car.DTO.Request.CarCreateRequest;
 import com.amos.garizetu.Car.DTO.Response.CarResponseDTO;
 import com.amos.garizetu.Car.DTO.Response.FeatureResponseDTO;
 import com.amos.garizetu.Car.Entity.Car;
+import com.amos.garizetu.Car.Enums.FeaturedCategory;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -33,6 +34,7 @@ public class CarMapper {
         car.setTransmissionType(dto.getTransmissionType());
         car.setFuelType(dto.getFuelType());
         car.setBodyType(dto.getBodyType());
+        car.setFeaturedCategory(dto.getFeaturedCategory());
 
         return car;
     }
@@ -55,11 +57,15 @@ public class CarMapper {
         carResponseDTO.setDailyPrice(car.getDailyPrice());
         carResponseDTO.setSeatingCapacity(car.getSeatingCapacity());
         carResponseDTO.setMainImageUrl(car.getMainImageUrl());
+        carResponseDTO.setGalleryImageUrls(car.getGalleryImageUrls());
         carResponseDTO.setDescription(car.getDescription());
         carResponseDTO.setCarStatus(car.getCarStatus());
         carResponseDTO.setTransmissionType(car.getTransmissionType());
         carResponseDTO.setFuelType(car.getFuelType());
         carResponseDTO.setBodyType(car.getBodyType());
+        carResponseDTO.setFeaturedCategory(
+                car.getFeaturedCategory() != null ? car.getFeaturedCategory() : FeaturedCategory.POPULAR_CAR
+        );
 
 
         //Map FEATURES to DTO - always set features list (even if empty)

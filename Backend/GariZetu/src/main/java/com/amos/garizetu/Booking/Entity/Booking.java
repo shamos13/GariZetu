@@ -1,6 +1,7 @@
 package com.amos.garizetu.Booking.Entity;
 
 import com.amos.garizetu.Booking.Enums.BookingStatus;
+import com.amos.garizetu.Booking.Enums.PaymentStatus;
 import com.amos.garizetu.Car.Entity.Car;
 import com.amos.garizetu.User.Entity.User;
 import jakarta.persistence.*;
@@ -68,6 +69,31 @@ public class Booking {
     @Column(name = "booking_status", nullable = false)
     private BookingStatus bookingStatus;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_status")
+    private PaymentStatus paymentStatus;
+
+    @Column(name = "payment_reference")
+    private String paymentReference;
+
+    @Column(name = "payment_method")
+    private String paymentMethod;
+
+    @Column(name = "payment_simulated_at")
+    private LocalDateTime paymentSimulatedAt;
+
+    @Column(name = "payment_expires_at")
+    private LocalDateTime paymentExpiresAt;
+
+    @Column(name = "admin_notified_at")
+    private LocalDateTime adminNotifiedAt;
+
+    @Column(name = "admin_notification_read", nullable = false)
+    private Boolean adminNotificationRead = Boolean.FALSE;
+
+    @Column(name = "admin_notification_read_at")
+    private LocalDateTime adminNotificationReadAt;
+
     // TimeStamps
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -106,10 +132,18 @@ public class Booking {
     // Can't cancel if already COMPLETED
     public boolean canBeCancelled() {
         return bookingStatus != BookingStatus.COMPLETED
-                && bookingStatus != BookingStatus.CANCELLED;
+                && bookingStatus != BookingStatus.CANCELLED
+                && bookingStatus != BookingStatus.EXPIRED
+                && bookingStatus != BookingStatus.REJECTED;
     }
 
-
+    // Treat legacy NULL values as false when loading historical rows.
+    @PostLoad
+    protected void onLoad() {
+        if (adminNotificationRead == null) {
+            adminNotificationRead = Boolean.FALSE;
+        }
+    }
 
     @PrePersist
     protected void onCreate() {
@@ -118,7 +152,15 @@ public class Booking {
 
         // Default status when created
         if (bookingStatus == null){
-            bookingStatus = BookingStatus.PENDING;
+            bookingStatus = BookingStatus.PENDING_PAYMENT;
+        }
+
+        if (paymentStatus == null) {
+            paymentStatus = PaymentStatus.UNPAID;
+        }
+
+        if (adminNotificationRead == null) {
+            adminNotificationRead = Boolean.FALSE;
         }
 
         // Calculate price if not set
@@ -131,6 +173,13 @@ public class Booking {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
+        if (adminNotificationRead == null) {
+            adminNotificationRead = Boolean.FALSE;
+        }
+    }
+
+    public boolean isAdminNotificationRead() {
+        return Boolean.TRUE.equals(adminNotificationRead);
     }
 
 

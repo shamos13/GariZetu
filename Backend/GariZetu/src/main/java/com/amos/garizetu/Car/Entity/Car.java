@@ -3,6 +3,7 @@ package com.amos.garizetu.Car.Entity;
 import com.amos.garizetu.Booking.Entity.Booking;
 import com.amos.garizetu.Car.Enums.BodyType;
 import com.amos.garizetu.Car.Enums.CarStatus;
+import com.amos.garizetu.Car.Enums.FeaturedCategory;
 import com.amos.garizetu.Car.Enums.FuelType;
 import com.amos.garizetu.Car.Enums.TransmissionType;
 import jakarta.persistence.*;
@@ -12,6 +13,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -39,6 +41,10 @@ public class Car {
     private double dailyPrice;
     private int seatingCapacity;
     private String mainImageUrl;//Added a url to upload images
+    @ElementCollection
+    @CollectionTable(name = "car_gallery_images", joinColumns = @JoinColumn(name = "car_id"))
+    @Column(name = "image_url")
+    private List<String> galleryImageUrls = new ArrayList<>();
     private String description; // To store the description of the car
 
 
@@ -58,6 +64,10 @@ public class Car {
     @Enumerated(EnumType.STRING)
     @Column(name = "body_type")
     private BodyType bodyType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "featured_category")
+    private FeaturedCategory featuredCategory;
 
     // Implementing the many to many relationship
     @ManyToMany(cascade = {CascadeType.PERSIST ,CascadeType.MERGE})

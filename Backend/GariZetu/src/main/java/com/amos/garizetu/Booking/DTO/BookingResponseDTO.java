@@ -1,6 +1,7 @@
 package com.amos.garizetu.Booking.DTO;
 
 import com.amos.garizetu.Booking.Enums.BookingStatus;
+import com.amos.garizetu.Booking.Enums.PaymentStatus;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -46,6 +47,14 @@ public class BookingResponseDTO {
 
     // ========= STATUS ===================
     private BookingStatus bookingStatus;
+    private PaymentStatus paymentStatus;
+    private String paymentReference;
+    private String paymentMethod;
+    private LocalDateTime paymentSimulatedAt;
+    private LocalDateTime paymentExpiresAt;
+    private LocalDateTime adminNotifiedAt;
+    private boolean adminNotificationRead;
+    private LocalDateTime adminNotificationReadAt;
 
     // ========= TIMESTAMPS ==================
     private LocalDateTime createdAt;

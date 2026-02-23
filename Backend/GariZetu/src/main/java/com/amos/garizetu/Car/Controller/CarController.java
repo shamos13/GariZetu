@@ -18,7 +18,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
-@CrossOrigin(origins = "http://localhost:5173")
 @Slf4j
 @RequiredArgsConstructor
 @RestController
@@ -58,16 +57,21 @@ public class CarController {
     public ResponseEntity<Resource> getImage(@PathVariable String fileName) {
         log.info("Getting image for file {}", fileName);
 
-        // Load the file as a resource
-        Resource resource = fileStorageService.loadFileAsResource(fileName);
+        try {
+            // Load the file as a resource
+            Resource resource = fileStorageService.loadFileAsResource(fileName);
 
-        // Determine the content type based on file extension
-        String contentType = determineContentType(fileName);
-        //Return the image with appropriate headers
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(contentType))
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" +fileName + "\"")
-                .body(resource);
+            // Determine the content type based on file extension
+            String contentType = determineContentType(fileName);
+            //Return the image with appropriate headers
+            return ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType(contentType))
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" +fileName + "\"")
+                    .body(resource);
+        } catch (RuntimeException e) {
+            log.warn("Image file not found: {}", fileName);
+            return ResponseEntity.notFound().build();
+        }
     }
 
     //Get all Cars
@@ -105,6 +109,17 @@ public class CarController {
             @RequestParam("image") MultipartFile image
     ) {
         CarResponseDTO updatedCar = carService.updateCarImage(id, image);
+        return ResponseEntity.ok(updatedCar);
+    }
+
+    // Replace car gallery images
+    @PatchMapping(value = "/{id}/gallery", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<CarResponseDTO> updateCarGallery(
+            @PathVariable Long id,
+            @RequestParam(value = "images", required = false) List<MultipartFile> images,
+            @RequestParam(value = "existingUrls", required = false) List<String> existingUrls
+    ) {
+        CarResponseDTO updatedCar = carService.updateCarGallery(id, images, existingUrls);
         return ResponseEntity.ok(updatedCar);
     }
     @DeleteMapping({"/{id}"})

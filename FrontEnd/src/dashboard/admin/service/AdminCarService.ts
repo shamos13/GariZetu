@@ -4,6 +4,7 @@ import type {
     BodyType,
     Car as BackendCar,
     CarStatus,
+    FeaturedCategory,
     FuelType,
     TransmissionType,
 } from "../types/Car";
@@ -71,10 +72,14 @@ export const adminCarService = {
             transmissionType?: TransmissionType;
             fuelType?: FuelType;
             bodyType?: BodyType;
+            featuredCategory?: FeaturedCategory;
             description?: string;
             featureName?: string[];
         },
-        image?: File
+        image?: File,
+        galleryImages?: File[],
+        existingGalleryUrls: string[] = [],
+        syncGallery = false
     ): Promise<BackendCar> => {
         try {
             // First update JSON fields (status, mileage, dailyPrice)
@@ -101,6 +106,25 @@ export const adminCarService = {
                 );
 
                 updatedCar = imageRes.data;
+            }
+
+            const shouldSyncGallery = syncGallery || (galleryImages && galleryImages.length > 0);
+            if (shouldSyncGallery) {
+                const formData = new FormData();
+                existingGalleryUrls.forEach((url) => formData.append("existingUrls", url));
+                (galleryImages || []).forEach((file) => formData.append("images", file));
+
+                const galleryRes = await api.patch<BackendCar>(
+                    `/cars/${id}/gallery`,
+                    formData,
+                    {
+                        headers: {
+                            "Content-Type": "multipart/form-data"
+                        }
+                    }
+                );
+
+                updatedCar = galleryRes.data;
             }
 
             return updatedCar;

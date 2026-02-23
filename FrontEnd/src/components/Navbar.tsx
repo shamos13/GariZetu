@@ -3,7 +3,15 @@ import {Link, useLocation, useNavigate} from "react-router-dom";
 import {Bell, ChevronDown, LogOut, Phone, User} from "lucide-react";
 import {AuthModal} from "./AuthModal";
 import {authService} from "../services/AuthService.ts";
+import { AUTH_CHANGED_EVENT } from "../lib/authEvents.ts";
 import {toast} from "sonner";
+import {
+    clearUserNotifications,
+    getUserNotifications,
+    markAllNotificationsRead,
+    type UserNotification,
+    USER_NOTIFICATIONS_CHANGED_EVENT,
+} from "../lib/userNotifications.ts";
 
 export function Navbar() {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -14,27 +22,64 @@ export function Navbar() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [user, setUser] = useState(authService.getUser());
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+    const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const [notifications, setNotifications] = useState<UserNotification[]>([]);
     const profileMenuRef = useRef<HTMLDivElement>(null);
+    const notificationsRef = useRef<HTMLDivElement>(null);
+    const unreadCountRef = useRef(0);
     const location = useLocation();
     const navigate = useNavigate();
+    const unreadNotificationCount = notifications.filter((notification) => !notification.read).length;
 
-    // Check authentication status
+    // Keep auth state synced with localStorage changes (same tab + cross-tab)
     useEffect(() => {
         const checkAuth = () => {
             const authenticated = authService.isAuthenticated();
             setIsAuthenticated(authenticated);
             setUser(authService.getUser());
         };
+
         checkAuth();
-        // Listen for storage changes (when login/logout happens in other tabs)
-        window.addEventListener('storage', checkAuth);
-        return () => window.removeEventListener('storage', checkAuth);
-    }, [location]);
+        window.addEventListener("storage", checkAuth);
+        window.addEventListener(AUTH_CHANGED_EVENT, checkAuth as EventListener);
+
+        return () => {
+            window.removeEventListener("storage", checkAuth);
+            window.removeEventListener(AUTH_CHANGED_EVENT, checkAuth as EventListener);
+        };
+    }, []);
+
+    useEffect(() => {
+        setIsAuthenticated(authService.isAuthenticated());
+        setUser(authService.getUser());
+    }, [location.pathname]);
+
+    useEffect(() => {
+        const syncNotifications = () => {
+            const nextNotifications = getUserNotifications();
+            const nextUnreadCount = nextNotifications.filter((notification) => !notification.read).length;
+            if (isAuthenticated && nextUnreadCount > unreadCountRef.current) {
+                setIsNotificationsOpen(true);
+            }
+            unreadCountRef.current = nextUnreadCount;
+            setNotifications(nextNotifications);
+        };
+
+        syncNotifications();
+        window.addEventListener("storage", syncNotifications);
+        window.addEventListener(USER_NOTIFICATIONS_CHANGED_EVENT, syncNotifications as EventListener);
+
+        return () => {
+            window.removeEventListener("storage", syncNotifications);
+            window.removeEventListener(USER_NOTIFICATIONS_CHANGED_EVENT, syncNotifications as EventListener);
+        };
+    }, [isAuthenticated]);
 
     const handleLogout = () => {
         authService.logout();
         setIsAuthenticated(false);
         setUser(null);
+        setIsNotificationsOpen(false);
         navigate("/");
         window.location.reload();
     };
@@ -76,6 +121,7 @@ export function Navbar() {
             setIsMobileMenuOpen(false);
             setIsVehiclesOpen(false);
             setIsProfileMenuOpen(false);
+            setIsNotificationsOpen(false);
         });
 
         return () => window.cancelAnimationFrame(frame);
@@ -85,6 +131,9 @@ export function Navbar() {
         const handleClickOutside = (event: MouseEvent) => {
             if (profileMenuRef.current && !profileMenuRef.current.contains(event.target as Node)) {
                 setIsProfileMenuOpen(false);
+            }
+            if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
+                setIsNotificationsOpen(false);
             }
         };
 
@@ -117,6 +166,29 @@ export function Navbar() {
             return `${parts[0].charAt(0)}${parts[1].charAt(0)}`.toUpperCase();
         }
         return user.userName.charAt(0).toUpperCase();
+    };
+
+    const formatNotificationAge = (createdAt: string): string => {
+        const createdAtMs = new Date(createdAt).getTime();
+        if (Number.isNaN(createdAtMs)) {
+            return "now";
+        }
+        const deltaSeconds = Math.max(0, Math.floor((Date.now() - createdAtMs) / 1000));
+        if (deltaSeconds < 60) return "just now";
+        const deltaMinutes = Math.floor(deltaSeconds / 60);
+        if (deltaMinutes < 60) return `${deltaMinutes}m ago`;
+        const deltaHours = Math.floor(deltaMinutes / 60);
+        if (deltaHours < 24) return `${deltaHours}h ago`;
+        return `${Math.floor(deltaHours / 24)}d ago`;
+    };
+
+    const handleNotificationClick = (notification: UserNotification) => {
+        if (!notification.actionPath) {
+            return;
+        }
+
+        setIsNotificationsOpen(false);
+        navigate(notification.actionPath);
     };
 
     return (
@@ -275,13 +347,73 @@ export function Navbar() {
 
                     {isAuthenticated ? (
                         <div className="ml-1 flex items-center gap-3">
-                            <button
-                                className="relative text-white/80 hover:text-white transition-colors"
-                                aria-label="Notifications"
-                            >
-                                <Bell className="w-4 h-4" />
-                                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border border-black" />
-                            </button>
+                            <div className="relative" ref={notificationsRef}>
+                                <button
+                                    onClick={() => {
+                                        const nextOpen = !isNotificationsOpen;
+                                        setIsNotificationsOpen(nextOpen);
+                                        if (nextOpen && unreadNotificationCount > 0) {
+                                            markAllNotificationsRead();
+                                        }
+                                    }}
+                                    className="relative text-white/80 hover:text-white transition-colors"
+                                    aria-label="Notifications"
+                                >
+                                    <Bell className="w-4 h-4" />
+                                    {unreadNotificationCount > 0 && (
+                                        <span className="absolute -top-1 -right-1 min-w-[12px] h-3 px-1 rounded-full bg-red-500 border border-black text-[9px] text-white leading-none flex items-center justify-center">
+                                            {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
+                                        </span>
+                                    )}
+                                </button>
+
+                                {isNotificationsOpen && (
+                                    <div className="absolute right-0 mt-3 w-[320px] max-w-[85vw] overflow-hidden rounded-xl border border-white/10 bg-[#121212] shadow-xl">
+                                        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+                                            <p className="text-sm font-semibold text-white">Notifications</p>
+                                            {notifications.length > 0 && (
+                                                <button
+                                                    onClick={() => clearUserNotifications()}
+                                                    className="text-xs text-gray-300 hover:text-white"
+                                                >
+                                                    Clear all
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {notifications.length === 0 ? (
+                                            <div className="px-4 py-6 text-sm text-gray-400">
+                                                No notifications yet.
+                                            </div>
+                                        ) : (
+                                            <div className="max-h-80 overflow-y-auto">
+                                                {notifications.slice(0, 8).map((notification) => (
+                                                    <div
+                                                        key={notification.id}
+                                                        className={`border-b border-white/5 px-4 py-3 last:border-b-0 ${
+                                                            notification.actionPath ? "cursor-pointer hover:bg-white/5" : ""
+                                                        }`}
+                                                        onClick={() => handleNotificationClick(notification)}
+                                                    >
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <p className="text-sm font-medium text-white">{notification.title}</p>
+                                                            <span className="text-[11px] text-gray-500">
+                                                                {formatNotificationAge(notification.createdAt)}
+                                                            </span>
+                                                        </div>
+                                                        <p className="mt-1 text-xs text-gray-300">{notification.message}</p>
+                                                        {notification.actionPath && (
+                                                            <p className="mt-2 text-[11px] font-semibold text-emerald-300">
+                                                                {notification.actionLabel || "Open"}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
 
                             <div className="h-7 w-px bg-white/20" />
 
@@ -383,7 +515,7 @@ export function Navbar() {
 
             {/* Mobile Menu Panel */}
             <div
-                className={`md:hidden fixed top-0 right-0 h-full w-[280px] bg-black z-40 transform transition-transform duration-300 ease-out shadow-2xl ${
+                className={`md:hidden fixed top-0 right-0 h-full w-[85vw] max-w-[340px] bg-black z-40 transform transition-transform duration-300 ease-out shadow-2xl ${
                     isMobileMenuOpen ? "translate-x-0" : "translate-x-full"
                 }`}
             >
