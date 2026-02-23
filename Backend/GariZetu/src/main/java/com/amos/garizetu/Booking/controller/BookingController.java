@@ -1,6 +1,7 @@
 package com.amos.garizetu.Booking.controller;
 
 import com.amos.garizetu.Booking.DTO.BookingCreateRequest;
+import com.amos.garizetu.Booking.DTO.BookingPaymentSimulationRequest;
 import com.amos.garizetu.Booking.DTO.BookingResponseDTO;
 import com.amos.garizetu.Booking.DTO.BookingStatsDTO;
 import com.amos.garizetu.Booking.DTO.BookingUpdateDTO;
@@ -102,6 +103,20 @@ public class BookingController {
     }
 
     /**
+     * Simulate payment for a booking and queue admin notification
+     * POST /api/v1/bookings/:id/simulate-payment
+     */
+    @PostMapping("/{id}/simulate-payment")
+    @PreAuthorize("hasRole('CUSTOMER') or hasRole('ADMIN')")
+    public ResponseEntity<BookingResponseDTO> simulatePayment(
+            @PathVariable Long id,
+            @Valid @RequestBody(required = false) BookingPaymentSimulationRequest request) {
+        log.info("Simulating payment for booking {}", id);
+        BookingResponseDTO booking = bookingService.simulatePayment(id, request);
+        return ResponseEntity.ok(booking);
+    }
+
+    /**
      * Cancel booking
      * DELETE /api/v1/bookings/:id
      *
@@ -159,6 +174,31 @@ public class BookingController {
         log.info("Admin fetching booking statistics");
         BookingStatsDTO stats = bookingService.getBookingStats();
         return ResponseEntity.ok(stats);
+    }
+
+    /**
+     * Get bookings that are in admin-notification queue
+     * GET /api/v1/bookings/admin/notifications?includeRead=false
+     */
+    @GetMapping("/admin/notifications")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<BookingResponseDTO>> getAdminNotifications(
+            @RequestParam(defaultValue = "false") boolean includeRead) {
+        log.info("Admin fetching booking notifications includeRead={}", includeRead);
+        List<BookingResponseDTO> notifications = bookingService.getAdminNotifications(includeRead);
+        return ResponseEntity.ok(notifications);
+    }
+
+    /**
+     * Mark one booking notification as read
+     * PATCH /api/v1/bookings/admin/notifications/:id/read
+     */
+    @PatchMapping("/admin/notifications/{id}/read")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<BookingResponseDTO> markAdminNotificationAsRead(@PathVariable Long id) {
+        log.info("Admin marking notification as read for booking {}", id);
+        BookingResponseDTO booking = bookingService.markAdminNotificationAsRead(id);
+        return ResponseEntity.ok(booking);
     }
 
 }

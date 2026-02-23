@@ -15,6 +15,7 @@ public class BookingCreateRequest {
     //BookingCreateRequest - Data Customer sends when creating a booking
 
     // ========= REQUIRED FIELDS ==========
+    @NotNull(message = "Car ID is required")
     private Long carId;
     // userId is intentionally not accepted from client payload.
     // BookingService always resolves user identity from authenticated JWT context.
