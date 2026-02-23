@@ -1,16 +1,25 @@
-import { useEffect, useState, useCallback } from 'react';
+import { lazy, Suspense, useEffect, useState, useCallback } from 'react';
 import { AdminLayout } from "./components/AdminLayout.tsx";
 import { Car } from "./types/Car.ts";
-import { CarManagementPage } from "./pages/CarManagementPage.tsx";
-import { UserManagementPage } from "./pages/UserManagementPage.tsx";
-import { DashboardPage } from "./pages/DashboardPage.tsx";
-import { BookingManagementPage } from "./pages/BookingManagementPage.tsx";
 import { adminCarService } from "../admin/service/AdminCarService.ts";
 import { CarForm, type CarFormData, type GallerySubmitPayload } from "./components/CarForm.tsx";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog.tsx";
 import { bookingService } from "../../services/BookingService.ts";
 import { getAdminActionErrorMessage } from "../../lib/adminErrorUtils.ts";
+
+const CarManagementPage = lazy(() =>
+    import("./pages/CarManagementPage.tsx").then((module) => ({ default: module.CarManagementPage }))
+);
+const UserManagementPage = lazy(() =>
+    import("./pages/UserManagementPage.tsx").then((module) => ({ default: module.UserManagementPage }))
+);
+const DashboardPage = lazy(() =>
+    import("./pages/DashboardPage.tsx").then((module) => ({ default: module.DashboardPage }))
+);
+const BookingManagementPage = lazy(() =>
+    import("./pages/BookingManagementPage.tsx").then((module) => ({ default: module.BookingManagementPage }))
+);
 
 interface AdminDashboardProps {
     onBack: () => void;
@@ -30,6 +39,12 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     const [carsLoaded, setCarsLoaded] = useState(false);
     const [bookingNotificationCount, setBookingNotificationCount] = useState(0);
     const closeForm = () => setIsFormOpen(false);
+
+    const pageLoader = (
+        <div className="flex min-h-[34vh] items-center justify-center">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-gray-700 border-t-white" />
+        </div>
+    );
 
     // Save current page to localStorage whenever it changes
     useEffect(() => {
@@ -286,7 +301,9 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                 bookingNotificationCount={bookingNotificationCount}
                 onBack={onBack}
             >
-                {renderPage()}
+                <Suspense fallback={pageLoader}>
+                    {renderPage()}
+                </Suspense>
             </AdminLayout>
 
             {/* Add/Edit Car Form Dialog */}

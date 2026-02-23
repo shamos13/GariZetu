@@ -2,10 +2,13 @@ import axios from "axios";
 import { emitAuthChanged } from "./authEvents.ts";
 
 /**
- * Base URL for your backend API
- * This should point to where your Spring Boot application is running
+ * Backend base URL.
+ * In production set VITE_API_BASE_URL, e.g. https://api.example.com
  */
-export const BASE_URL = "http://localhost:8080";
+const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+export const BASE_URL = (configuredBaseUrl && configuredBaseUrl.length > 0
+    ? configuredBaseUrl
+    : "http://localhost:8080").replace(/\/+$/, "");
 
 /**
  * Create an axios instance with custom configuration
