@@ -117,9 +117,10 @@ public class CarController {
     @PatchMapping(value = "/{id}/gallery", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<CarResponseDTO> updateCarGallery(
             @PathVariable Long id,
-            @RequestParam("images") List<MultipartFile> images
+            @RequestParam(value = "images", required = false) List<MultipartFile> images,
+            @RequestParam(value = "existingUrls", required = false) List<String> existingUrls
     ) {
-        CarResponseDTO updatedCar = carService.updateCarGallery(id, images);
+        CarResponseDTO updatedCar = carService.updateCarGallery(id, images, existingUrls);
         return ResponseEntity.ok(updatedCar);
     }
     @DeleteMapping({"/{id}"})

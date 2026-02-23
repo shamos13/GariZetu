@@ -1,11 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { AdminLayout } from "./components/AdminLayout.tsx";
-import { Car, CarCreateRequest } from "./types/Car.ts";
+import { Car } from "./types/Car.ts";
 import { CarManagementPage } from "./pages/CarManagementPage.tsx";
 import { UserManagementPage } from "./pages/UserManagementPage.tsx";
 import { DashboardPage } from "./pages/DashboardPage.tsx";
 import { adminCarService } from "../admin/service/AdminCarService.ts";
-import { CarForm } from "./components/CarForm.tsx";
+import { CarForm, type CarFormData, type GallerySubmitPayload } from "./components/CarForm.tsx";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog.tsx";
 
@@ -56,7 +56,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         }
     }, [currentPage, carsLoaded]);
 
-    const handleAddCar = async (carData: CarCreateRequest, image: File | null, galleryImages: File[]) => {
+    const handleAddCar = async (carData: CarFormData, image: File | null, gallery: GallerySubmitPayload) => {
         try {
             // Step 1: Validate we have an image
             if (!image) {
@@ -100,8 +100,8 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                 });
             }
 
-            if (galleryImages && galleryImages.length > 0) {
-                galleryImages.forEach((file) => {
+            if (gallery.newImages.length > 0) {
+                gallery.newImages.forEach((file) => {
                     formData.append("galleryImages", file);
                 });
             }
@@ -143,7 +143,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         }
     };
 
-    const handleUpdateCar = async (carData: CarCreateRequest, image: File | null, galleryImages: File[]) => {
+    const handleUpdateCar = async (carData: CarFormData, image: File | null, gallery: GallerySubmitPayload) => {
         if (!editingCar) return;
 
         try {
@@ -171,7 +171,9 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                 editingCar.carId,
                 payload,
                 image ?? undefined,
-                galleryImages
+                gallery.newImages,
+                gallery.existingUrls,
+                gallery.hasChanges
             );
 
             setCars(prev =>
