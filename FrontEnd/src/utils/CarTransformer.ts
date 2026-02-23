@@ -42,14 +42,8 @@ export function transformBackendCarToCustomer(backendCar: BackendCar): CustomerC
         // Direct mapping - both use mainImageUrl
         mainImageUrl: backendCar.mainImageUrl,
 
-        // Create gallery from main image
-        gallery: [
-            {
-                id: 1,
-                url: backendCar.mainImageUrl,
-                alt: `${backendCar.make} ${backendCar.vehicleModel} exterior`
-            }
-        ],
+        // Create gallery from main image + optional gallery images
+        gallery: buildGallery(backendCar),
 
         // Format mileage with comma separator
         mileage: `${backendCar.mileage.toLocaleString()} km`,
@@ -118,6 +112,25 @@ function transformFeatures(features?: any[] , featureNames?: string[]): CarFeatu
     }
 
     return [];
+}
+
+function buildGallery(backendCar: BackendCar) {
+    const urls = [
+        backendCar.mainImageUrl,
+        ...(backendCar.galleryImageUrls || []),
+    ].filter(Boolean);
+
+    const uniqueUrls = Array.from(new Set(urls));
+
+    if (uniqueUrls.length === 0) {
+        return [];
+    }
+
+    return uniqueUrls.map((url, index) => ({
+        id: index + 1,
+        url,
+        alt: `${backendCar.make} ${backendCar.vehicleModel} image ${index + 1}`,
+    }));
 }
 
 /**

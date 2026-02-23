@@ -40,6 +40,10 @@ public class CarService {
             throw  new RuntimeException("Car with registration number " + carCreateRequest.getRegistrationNumber() + " already exists");
         }
 
+        if (carCreateRequest.getImage() == null || carCreateRequest.getImage().isEmpty()) {
+            throw new RuntimeException("Main image is required");
+        }
+
         //Store the image first and get the file name
         String storedFileName = fileStorageService.storeFile(carCreateRequest.getImage());
         log.info("Storing image for file {}", storedFileName);
@@ -49,6 +53,16 @@ public class CarService {
 
         Car car = carMapper.toEntity(carCreateRequest);
         car.setMainImageUrl(imageUrl);
+
+        // Store gallery images if provided
+        if (carCreateRequest.getGalleryImages() != null && !carCreateRequest.getGalleryImages().isEmpty()) {
+            List<String> galleryUrls = carCreateRequest.getGalleryImages().stream()
+                    .filter(file -> file != null && !file.isEmpty())
+                    .map(fileStorageService::storeFile)
+                    .map(fileName -> "/api/v1/cars/images/" + fileName)
+                    .collect(Collectors.toList());
+            car.setGalleryImageUrls(galleryUrls);
+        }
 
         //Business rule 2: Validate car year
         validateCarYear(carCreateRequest.getYear());
@@ -212,6 +226,26 @@ public class CarService {
 
         String imageUrl = "/api/v1/cars/images/" + storedFileName;
         car.setMainImageUrl(imageUrl);
+
+        Car savedCar = carRepository.save(car);
+        return carMapper.toResponseDTO(savedCar);
+    }
+
+    // Replace car gallery images
+    public CarResponseDTO updateCarGallery(Long id, List<MultipartFile> images) {
+        Car car = carRepository.findByIdWithFeatures(id)
+                .orElseThrow(() -> new RuntimeException("Car with ID " + id + " not found"));
+
+        if (images == null || images.isEmpty()) {
+            throw new RuntimeException("Gallery images are required");
+        }
+
+        List<String> galleryUrls = images.stream()
+                .filter(file -> file != null && !file.isEmpty())
+                .map(fileStorageService::storeFile)
+                .map(fileName -> "/api/v1/cars/images/" + fileName)
+                .collect(Collectors.toList());
+        car.setGalleryImageUrls(galleryUrls);
 
         Car savedCar = carRepository.save(car);
         return carMapper.toResponseDTO(savedCar);

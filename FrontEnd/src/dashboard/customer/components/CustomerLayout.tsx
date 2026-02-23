@@ -124,17 +124,17 @@ export function CustomerLayout({ children, title, currentPage, onNavigate, onBac
                                 );
                             })}
                         </div>
-                    </div>
-
-                    <div className="mt-auto pt-6 border-t border-white/10 space-y-2">
                         {onBack && (
                             <button
                                 onClick={onBack}
-                                className="w-full text-left px-4 py-3 rounded-xl text-gray-300 hover:bg-white/5 transition-colors"
+                                className="w-full mt-3 text-left px-4 py-3 rounded-xl text-gray-300 hover:bg-white/5 transition-colors"
                             >
                                 Back to Site
                             </button>
                         )}
+                    </div>
+
+                    <div className="mt-auto pt-6 border-t border-white/10 space-y-2">
                         <button
                             onClick={handleLogout}
                             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-gray-300 hover:bg-white/5 hover:text-white transition-colors"
