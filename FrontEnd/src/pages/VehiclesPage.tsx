@@ -264,6 +264,17 @@ export default function VehiclesPage() {
         }
     }, [currentPage, totalPages]);
 
+    useEffect(() => {
+        if (!showFilters) return;
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = "hidden";
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [showFilters]);
+
     const pagedCars = useMemo(() => {
         const start = (currentPage - 1) * CARS_PER_PAGE;
         return filteredCars.slice(start, start + CARS_PER_PAGE);
@@ -294,6 +305,7 @@ export default function VehiclesPage() {
         setSelectedBrands([]);
         setSortBy("recommended");
         setCurrentPage(1);
+        setShowFilters(false);
         setSearchParams({});
     };
 
@@ -312,17 +324,17 @@ export default function VehiclesPage() {
             <main className="layout-container pb-10 pt-20 md:pt-24">
                 <header className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
                     <div>
-                        <h1 className="font-serif text-4xl text-zinc-900 md:text-5xl">Our Fleet</h1>
+                        <h1 className="font-serif text-3xl text-zinc-900 sm:text-4xl md:text-5xl">Our Fleet</h1>
                         <p className="mt-2 text-sm text-zinc-600">
                             Explore our premium collection of luxury vehicles.
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
                         <button
                             type="button"
                             onClick={() => setShowFilters((current) => !current)}
-                            className="inline-flex items-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 lg:hidden"
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-50 sm:w-auto lg:hidden"
                         >
                             <SlidersHorizontal className="h-4 w-4" />
                             Filters
@@ -333,7 +345,7 @@ export default function VehiclesPage() {
                             )}
                         </button>
 
-                        <div className="inline-flex items-center gap-2 rounded-xl border border-zinc-300 bg-white px-3 py-2">
+                        <div className="inline-flex w-full items-center justify-between gap-2 rounded-xl border border-zinc-300 bg-white px-3 py-2 sm:w-auto">
                             <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                                 Sort by:
                             </span>
@@ -361,8 +373,31 @@ export default function VehiclesPage() {
                     </div>
                 )}
 
+                {showFilters && (
+                    <button
+                        type="button"
+                        aria-label="Close filters"
+                        className="fixed inset-0 z-30 bg-black/45 backdrop-blur-sm lg:hidden"
+                        onClick={() => setShowFilters(false)}
+                    />
+                )}
+
                 <section className="grid gap-6 lg:grid-cols-[270px_minmax(0,1fr)]">
-                    <aside className={`${showFilters ? "block" : "hidden lg:block"} space-y-4`}>
+                    <aside
+                        className={`fixed inset-y-0 left-0 z-40 w-[88vw] max-w-xs space-y-4 overflow-y-auto border-r border-zinc-200 bg-zinc-100 p-4 shadow-xl transition-transform duration-300 lg:static lg:z-auto lg:w-auto lg:max-w-none lg:translate-x-0 lg:border-r-0 lg:bg-transparent lg:p-0 lg:shadow-none ${
+                            showFilters ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+                        }`}
+                    >
+                        <div className="flex items-center justify-between lg:hidden">
+                            <p className="text-base font-semibold text-zinc-900">Filters</p>
+                            <button
+                                type="button"
+                                onClick={() => setShowFilters(false)}
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-700"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
                         <FilterCard
                             title="Price Range (Daily)"
                             action={
@@ -529,6 +564,16 @@ export default function VehiclesPage() {
                                 </div>
                             </div>
                         </FilterCard>
+
+                        <div className="pb-2 lg:hidden">
+                            <button
+                                type="button"
+                                onClick={() => setShowFilters(false)}
+                                className="inline-flex h-10 w-full items-center justify-center rounded-xl bg-black text-sm font-medium text-white"
+                            >
+                                View Results
+                            </button>
+                        </div>
                     </aside>
 
                     <div className="space-y-4">
