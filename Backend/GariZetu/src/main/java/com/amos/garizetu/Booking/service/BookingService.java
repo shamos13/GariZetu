@@ -8,6 +8,9 @@ import com.amos.garizetu.Booking.DTO.BookingUpdateDTO;
 import com.amos.garizetu.Booking.Entity.Booking;
 import com.amos.garizetu.Booking.Enums.BookingStatus;
 import com.amos.garizetu.Booking.Enums.PaymentStatus;
+import com.amos.garizetu.Booking.exception.BookingConflictException;
+import com.amos.garizetu.Booking.exception.BookingNotFoundException;
+import com.amos.garizetu.Booking.exception.BookingValidationException;
 import com.amos.garizetu.Booking.mapper.BookingMapper;
 import com.amos.garizetu.Booking.repository.BookingRepository;
 import com.amos.garizetu.Car.Entity.Car;
@@ -19,6 +22,7 @@ import com.amos.garizetu.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -78,15 +82,15 @@ public class BookingService {
         log.info("User {} creating booking for car {}", authenticatedUserId, request.getCarId());
 
         Car car = carRepository.findById(request.getCarId())
-                .orElseThrow(() -> new RuntimeException("Car not found with ID: " + request.getCarId()));
+                .orElseThrow(() -> new BookingNotFoundException("Car not found with ID: " + request.getCarId()));
 
         // ACTIVE car in this domain means the car is operational/listed (not in maintenance).
         if (car.getCarStatus() == CarStatus.MAINTENANCE) {
-            throw new RuntimeException("Car is currently under maintenance");
+            throw new BookingConflictException("Car is currently under maintenance");
         }
 
         User user = userRepository.findById(authenticatedUserId)
-                .orElseThrow(() -> new RuntimeException("User not found with ID: " + authenticatedUserId));
+                .orElseThrow(() -> new BookingNotFoundException("User not found with ID: " + authenticatedUserId));
 
         validateBookingDates(request.getPickupDate(), request.getReturnDate());
 
@@ -145,6 +149,7 @@ public class BookingService {
         expirePendingPaymentBookings();
         log.debug("Fetching booking {}", bookingId);
         Booking booking = findBookingOrThrow(bookingId);
+        validateBookingIntegrity(booking, "view booking");
         assertAdminOrBookingOwner(booking, "view");
         return bookingMapper.toResponseDTO(booking);
     }
@@ -165,9 +170,10 @@ public class BookingService {
 
     public BookingResponseDTO markAdminNotificationAsRead(Long bookingId) {
         Booking booking = findBookingOrThrow(bookingId);
+        validateBookingIntegrity(booking, "mark notification");
 
         if (booking.getAdminNotifiedAt() == null) {
-            throw new RuntimeException("Booking has no admin notification to mark as read");
+            throw new BookingConflictException("Booking has no admin notification to mark as read");
         }
 
         if (!booking.isAdminNotificationRead()) {
@@ -189,25 +195,26 @@ public class BookingService {
         expirePendingPaymentBookings();
 
         Booking booking = findBookingOrThrow(bookingId);
+        validateBookingIntegrity(booking, "process payment");
         assertAdminOrBookingOwner(booking, "simulate payment for");
 
         if (TERMINAL_STATUSES.contains(booking.getBookingStatus())) {
-            throw new RuntimeException("Cannot process payment for booking with status: " + booking.getBookingStatus());
+            throw new BookingConflictException("Cannot process payment for booking with status: " + booking.getBookingStatus());
         }
 
         if (!PENDING_PAYMENT_STATUSES.contains(booking.getBookingStatus())) {
-            throw new RuntimeException("Only pending-payment bookings can process payment retries");
+            throw new BookingConflictException("Only pending-payment bookings can process payment retries");
         }
 
         LocalDateTime now = LocalDateTime.now();
         if (hasPaymentWindowExpired(booking, now)) {
             expireBooking(booking, now, "Payment window expired before payment completion");
             bookingRepository.save(booking);
-            throw new RuntimeException("Payment window has expired for this booking");
+            throw new BookingConflictException("Payment window has expired for this booking");
         }
 
         if (PAID_STATUSES.contains(booking.getPaymentStatus())) {
-            throw new RuntimeException("Payment has already been completed for this booking");
+            throw new BookingConflictException("Payment has already been completed for this booking");
         }
 
         boolean paymentSuccessful = request == null
@@ -248,17 +255,18 @@ public class BookingService {
         log.info("Updating booking {}", bookingId);
 
         Booking booking = findBookingOrThrow(bookingId);
+        validateBookingIntegrity(booking, "update booking");
         assertAdminOrBookingOwner(booking, "update");
 
         boolean isAdmin = securityUtils.hasRole("ADMIN");
 
         if (!isAdmin && updateDTO.getBookingStatus() != null) {
-            throw new RuntimeException("Only admins can change booking status");
+            throw new AccessDeniedException("Only admins can change booking status");
         }
 
         if (!isAdmin && hasCustomerEditableFields(updateDTO)
                 && !CUSTOMER_EDITABLE_STATUSES.contains(booking.getBookingStatus())) {
-            throw new RuntimeException("Booking details can no longer be modified in status: " + booking.getBookingStatus());
+            throw new BookingConflictException("Booking details can no longer be modified in status: " + booking.getBookingStatus());
         }
 
         if (updateDTO.getReturnLocation() != null) {
@@ -284,25 +292,28 @@ public class BookingService {
         log.info("Cancelling booking {}", bookingId);
 
         Booking booking = findBookingOrThrow(bookingId);
+        validateBookingIntegrity(booking, "cancel booking");
         assertAdminOrBookingOwner(booking, "cancel");
 
         if (!booking.canBeCancelled()) {
-            throw new RuntimeException("Cannot cancel booking with status: " + booking.getBookingStatus());
+            throw new BookingConflictException("Cannot cancel booking with status: " + booking.getBookingStatus());
         }
 
         boolean isAdmin = securityUtils.hasRole("ADMIN");
         if (!isAdmin) {
             if (!booking.getPickupDate().isAfter(LocalDate.now())) {
-                throw new RuntimeException("Customers may only cancel before the rental start date");
+                throw new BookingConflictException("Customers may only cancel before the rental start date");
             }
 
             if (booking.getBookingStatus() == BookingStatus.ACTIVE) {
-                throw new RuntimeException("Active bookings can only be cancelled by an admin");
+                throw new AccessDeniedException("Active bookings can only be cancelled by an admin");
             }
         }
 
         booking.setBookingStatus(BookingStatus.CANCELLED);
-        booking.getCar().setCarStatus(CarStatus.AVAILABLE);
+        if (booking.getCar() != null) {
+            booking.getCar().setCarStatus(CarStatus.AVAILABLE);
+        }
 
         if (PAID_STATUSES.contains(booking.getPaymentStatus())) {
             booking.setPaymentStatus(PaymentStatus.REFUNDED);
@@ -325,16 +336,16 @@ public class BookingService {
         LocalDate today = LocalDate.now();
 
         if (pickupDate.isBefore(today)) {
-            throw new RuntimeException("Pickup date cannot be in the past");
+            throw new BookingValidationException("Pickup date cannot be in the past");
         }
 
         if (!returnDate.isAfter(pickupDate)) {
-            throw new RuntimeException("Return date must be after pickup date");
+            throw new BookingValidationException("Return date must be after pickup date");
         }
 
         long days = ChronoUnit.DAYS.between(pickupDate, returnDate);
         if (days < 1) {
-            throw new RuntimeException("Minimum rental period is 1 day");
+            throw new BookingValidationException("Minimum rental period is 1 day");
         }
     }
 
@@ -346,7 +357,7 @@ public class BookingService {
                     .map(b -> b.getBookingId() + ":" + b.getBookingStatus())
                     .collect(Collectors.joining(", "));
             log.warn("Car {} not available for {} to {}. Conflicts: {}", carId, pickupDate, returnDate, conflictSummary);
-            throw new RuntimeException("Car is not available for the selected dates");
+            throw new BookingConflictException("Car is not available for the selected dates");
         }
 
         log.debug("Car {} is available for {} to {}", carId, pickupDate, returnDate);
@@ -356,10 +367,13 @@ public class BookingService {
         if (securityUtils.hasRole("ADMIN")) {
             return;
         }
+        if (booking.getUser() == null || booking.getUser().getUserId() == null) {
+            throw new BookingConflictException("Booking ownership data is missing. Please contact support.");
+        }
         Long authenticatedUserId = securityUtils.getAuthenticatedUserId();
         Long bookingOwnerId = booking.getUser().getUserId();
         if (!bookingOwnerId.equals(authenticatedUserId)) {
-            throw new RuntimeException("You are not allowed to " + action + " this booking");
+            throw new AccessDeniedException("You are not allowed to " + action + " this booking");
         }
     }
 
@@ -373,16 +387,16 @@ public class BookingService {
         validateAdminTransition(currentStatus, newStatus);
 
         if (newStatus == BookingStatus.CONFIRMED && !PAID_STATUSES.contains(booking.getPaymentStatus())) {
-            throw new RuntimeException("A booking cannot be confirmed before successful payment");
+            throw new BookingConflictException("A booking cannot be confirmed before successful payment");
         }
 
         if (newStatus == BookingStatus.EXPIRED && PAID_STATUSES.contains(booking.getPaymentStatus())) {
-            throw new RuntimeException("A paid booking cannot be marked as expired");
+            throw new BookingConflictException("A paid booking cannot be marked as expired");
         }
 
         booking.setBookingStatus(newStatus);
 
-        if (newStatus == BookingStatus.ACTIVE) {
+        if (newStatus == BookingStatus.ACTIVE && booking.getCar() != null) {
             booking.getCar().setCarStatus(CarStatus.RENTED);
         }
 
@@ -390,7 +404,9 @@ public class BookingService {
                 || newStatus == BookingStatus.CANCELLED
                 || newStatus == BookingStatus.EXPIRED
                 || newStatus == BookingStatus.REJECTED) {
+            if (booking.getCar() != null) {
             booking.getCar().setCarStatus(CarStatus.AVAILABLE);
+            }
         }
 
         if (newStatus == BookingStatus.CANCELLED || newStatus == BookingStatus.REJECTED) {
@@ -399,7 +415,7 @@ public class BookingService {
             }
 
             if (refundAmount != null && refundAmount < 0) {
-                throw new RuntimeException("Refund amount cannot be negative");
+                throw new BookingValidationException("Refund amount cannot be negative");
             }
         }
 
@@ -444,7 +460,7 @@ public class BookingService {
         }
 
         if (!allowedStatuses.contains(newStatus)) {
-            throw new RuntimeException("Invalid status transition: " + currentStatus + " -> " + newStatus);
+            throw new BookingConflictException("Invalid status transition: " + currentStatus + " -> " + newStatus);
         }
     }
 
@@ -472,7 +488,7 @@ public class BookingService {
 
     private Booking findBookingOrThrow(Long bookingId) {
         return bookingRepository.findById(bookingId)
-                .orElseThrow(() -> new RuntimeException("Booking not found with ID: " + bookingId));
+                .orElseThrow(() -> new BookingNotFoundException("Booking not found with ID: " + bookingId));
     }
 
     private List<BookingResponseDTO> mapToDTOList(List<Booking> bookings) {
@@ -493,12 +509,29 @@ public class BookingService {
 
     private void expireBooking(Booking booking, LocalDateTime now, String reason) {
         booking.setBookingStatus(BookingStatus.EXPIRED);
-        booking.getCar().setCarStatus(CarStatus.AVAILABLE);
+        if (booking.getCar() != null) {
+            booking.getCar().setCarStatus(CarStatus.AVAILABLE);
+        }
         if (!booking.isAdminNotificationRead()) {
             booking.setAdminNotificationRead(true);
             booking.setAdminNotificationReadAt(now);
         }
         log.warn("Booking {} marked EXPIRED. Reason: {}", booking.getBookingId(), reason);
+    }
+
+    private void validateBookingIntegrity(Booking booking, String action) {
+        if (booking == null) {
+            throw new BookingConflictException("Booking could not be loaded for " + action + ".");
+        }
+        if (booking.getUser() == null || booking.getUser().getUserId() == null) {
+            throw new BookingConflictException("Booking record is missing customer details. Please contact support.");
+        }
+        if (booking.getCar() == null || booking.getCar().getCarId() == null) {
+            throw new BookingConflictException("Booking record is missing vehicle details. Please contact support.");
+        }
+        if (booking.getBookingStatus() == null) {
+            throw new BookingConflictException("Booking status is invalid. Please contact support.");
+        }
     }
 
     public int expirePendingPaymentBookings() {

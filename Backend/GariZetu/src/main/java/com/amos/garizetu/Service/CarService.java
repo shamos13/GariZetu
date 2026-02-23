@@ -1,10 +1,15 @@
 package com.amos.garizetu.Service;
 
+import com.amos.garizetu.Booking.Entity.Booking;
+import com.amos.garizetu.Booking.Enums.BookingStatus;
+import com.amos.garizetu.Booking.Enums.PaymentStatus;
+import com.amos.garizetu.Booking.repository.BookingRepository;
 import com.amos.garizetu.Car.DTO.Request.CarCreateRequest;
 import com.amos.garizetu.Car.DTO.Request.CarUpdateDTO;
 import com.amos.garizetu.Car.DTO.Response.CarResponseDTO;
 import com.amos.garizetu.Car.Entity.Car;
 import com.amos.garizetu.Car.Entity.Feature;
+import com.amos.garizetu.Car.Enums.CarAvailabilityStatus;
 import com.amos.garizetu.Car.Enums.CarStatus;
 import com.amos.garizetu.Car.Enums.FeaturedCategory;
 import com.amos.garizetu.Repository.CarRepository;
@@ -16,7 +21,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -29,11 +36,25 @@ import java.util.stream.Collectors;
 @Transactional
 public class CarService {
     private static final String LOCAL_IMAGE_PREFIX = "/api/v1/cars/images/";
+    private static final Set<BookingStatus> SOFT_LOCK_STATUSES = Set.of(
+            BookingStatus.PENDING_PAYMENT,
+            BookingStatus.PENDING
+    );
+    private static final Set<BookingStatus> BOOKED_STATUSES = Set.of(
+            BookingStatus.CONFIRMED,
+            BookingStatus.ADMIN_NOTIFIED,
+            BookingStatus.ACTIVE
+    );
+    private static final Set<PaymentStatus> SOFT_LOCK_PAYMENT_STATUSES = Set.of(
+            PaymentStatus.UNPAID,
+            PaymentStatus.FAILED
+    );
 
     private final CarRepository carRepository;
     private final CarMapper carMapper;
     private final FileStorageService fileStorageService;
     private final FeatureService featureService;
+    private final BookingRepository bookingRepository;
 
 
     //Create a new car with image upload
@@ -96,7 +117,7 @@ public class CarService {
         Car savedCar = carRepository.save(car);
         log.info("Car created successfully with ID: {}",savedCar.getCarId());
 
-        return carMapper.toResponseDTO(savedCar);
+        return toResponseWithAvailability(savedCar, LocalDateTime.now());
 
 
     }
@@ -116,16 +137,17 @@ public class CarService {
         Car car = carRepository.findByIdWithFeatures(id)
                 .orElseThrow(() -> new RuntimeException("Car with ID " + id + " not found"));
         log.debug("Car {} has {} features", id, car.getFeatures() != null ? car.getFeatures().size() : 0);
-        return carMapper.toResponseDTO(car);
+        return toResponseWithAvailability(car, LocalDateTime.now());
     }
 
     //Fetch all Cars
     public List<CarResponseDTO> getAllCars(){
         log.debug("Fetching all cars");
         List<Car> cars = carRepository.findAllWithFeatures();
+        LocalDateTime now = LocalDateTime.now();
         log.debug("Fetched {} cars", cars.size());
         return cars.stream()
-                .map(carMapper::toResponseDTO)
+                .map(car -> toResponseWithAvailability(car, now))
                 .collect(Collectors.toList());
 
     }
@@ -135,7 +157,10 @@ public class CarService {
     public List<CarResponseDTO> getCarsByMake(String make) {
         log.debug("Fetching cars by make {}", make);
         List<Car> cars = carRepository.findCarByMakeIgnoreCaseWithFeatures(make);
-        return cars.stream().map(carMapper::toResponseDTO).collect(Collectors.toList());
+        LocalDateTime now = LocalDateTime.now();
+        return cars.stream()
+                .map(car -> toResponseWithAvailability(car, now))
+                .collect(Collectors.toList());
     }
 
     // Updating the car (partial update)
@@ -226,7 +251,7 @@ public class CarService {
         }
 
         Car savedCar = carRepository.save(car);
-        return carMapper.toResponseDTO(savedCar);
+        return toResponseWithAvailability(savedCar, LocalDateTime.now());
     }
 
     // Update car image/photo
@@ -249,7 +274,7 @@ public class CarService {
             cleanupRemovedImageUrls(List.of(previousImageUrl), id);
         }
 
-        return carMapper.toResponseDTO(savedCar);
+        return toResponseWithAvailability(savedCar, LocalDateTime.now());
     }
 
     // Update car gallery by keeping selected existing URLs and appending new uploaded files.
@@ -291,7 +316,7 @@ public class CarService {
 
         cleanupRemovedImageUrls(removedUrls, id);
 
-        return carMapper.toResponseDTO(savedCar);
+        return toResponseWithAvailability(savedCar, LocalDateTime.now());
     }
 
     public void deleteCar(Long id){
@@ -310,6 +335,104 @@ public class CarService {
         carRepository.deleteById(id);
         cleanupRemovedImageUrls(imageUrls, id);
     }
+
+    private CarResponseDTO toResponseWithAvailability(Car car, LocalDateTime asOf) {
+        CarResponseDTO dto = carMapper.toResponseDTO(car);
+        applyAvailability(dto, car, asOf);
+        return dto;
+    }
+
+    private void applyAvailability(CarResponseDTO dto, Car car, LocalDateTime asOf) {
+        dto.setAvailabilityMessage(null);
+        dto.setSoftLockExpiresAt(null);
+        dto.setNextAvailableAt(null);
+        dto.setBlockedFromDate(null);
+        dto.setBlockedToDate(null);
+
+        if (car.getCarStatus() == CarStatus.MAINTENANCE) {
+            dto.setAvailabilityStatus(CarAvailabilityStatus.MAINTENANCE);
+            dto.setAvailabilityMessage("This vehicle is currently under maintenance.");
+            return;
+        }
+
+        LocalDate today = asOf.toLocalDate();
+        List<Booking> carBookings = bookingRepository.findByCarCarId(car.getCarId());
+        List<Booking> bookedBlocks = carBookings.stream()
+                .filter(booking -> isBookedBlocking(booking, today))
+                .sorted(
+                        Comparator.comparing(booking -> {
+                            if (booking.getReturnDate() != null) {
+                                return booking.getReturnDate().atStartOfDay();
+                            }
+                            if (booking.getPickupDate() != null) {
+                                return booking.getPickupDate().atStartOfDay();
+                            }
+                            return LocalDateTime.MAX;
+                        })
+                )
+                .collect(Collectors.toList());
+        List<Booking> softLockBlocks = carBookings.stream()
+                .filter(booking -> isSoftLockBlocking(booking, asOf))
+                .sorted(Comparator.comparing(Booking::getPaymentExpiresAt))
+                .collect(Collectors.toList());
+
+        if (bookedBlocks.isEmpty() && softLockBlocks.isEmpty()) {
+            if (car.getCarStatus() == CarStatus.RENTED) {
+                dto.setAvailabilityStatus(CarAvailabilityStatus.BOOKED);
+                dto.setAvailabilityMessage("This vehicle is currently in an active rental.");
+                return;
+            }
+
+            dto.setAvailabilityStatus(CarAvailabilityStatus.AVAILABLE);
+            dto.setAvailabilityMessage("Available for booking.");
+            return;
+        }
+
+        Booking blocker = !bookedBlocks.isEmpty() ? bookedBlocks.get(0) : softLockBlocks.get(0);
+        dto.setBlockedFromDate(blocker.getPickupDate());
+        dto.setBlockedToDate(blocker.getReturnDate());
+
+        if (isSoftLockBlocking(blocker, asOf)) {
+            dto.setAvailabilityStatus(CarAvailabilityStatus.SOFT_LOCKED);
+            dto.setSoftLockExpiresAt(blocker.getPaymentExpiresAt());
+            dto.setNextAvailableAt(blocker.getPaymentExpiresAt());
+            dto.setAvailabilityMessage(
+                    "This vehicle is temporarily reserved while another customer completes payment."
+            );
+            return;
+        }
+
+        dto.setAvailabilityStatus(CarAvailabilityStatus.BOOKED);
+        if (blocker.getReturnDate() != null) {
+            dto.setNextAvailableAt(blocker.getReturnDate().atStartOfDay());
+            dto.setAvailabilityMessage(
+                    "This vehicle is booked from " + blocker.getPickupDate() + " to " + blocker.getReturnDate() + "."
+            );
+        } else {
+            dto.setAvailabilityMessage("This vehicle is currently booked.");
+        }
+    }
+
+    private boolean isSoftLockBlocking(Booking booking, LocalDateTime asOf) {
+        return booking != null
+                && SOFT_LOCK_STATUSES.contains(booking.getBookingStatus())
+                && SOFT_LOCK_PAYMENT_STATUSES.contains(booking.getPaymentStatus())
+                && booking.getPaymentExpiresAt() != null
+                && booking.getPaymentExpiresAt().isAfter(asOf);
+    }
+
+    private boolean isBookedBlocking(Booking booking, LocalDate today) {
+        if (booking == null || !BOOKED_STATUSES.contains(booking.getBookingStatus())) {
+            return false;
+        }
+
+        if (booking.getReturnDate() == null) {
+            return true;
+        }
+
+        return !booking.getReturnDate().isBefore(today);
+    }
+
     private void validateCarYear(int carYear) {
         int currentYear = LocalDate.now().getYear();
 

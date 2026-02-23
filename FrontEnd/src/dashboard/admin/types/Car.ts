@@ -1,4 +1,5 @@
 export type CarStatus = "AVAILABLE" | "RENTED" | "MAINTENANCE";
+export type CarAvailabilityStatus = "AVAILABLE" | "SOFT_LOCKED" | "BOOKED" | "MAINTENANCE";
 export type FuelType = "PETROL" | "DIESEL" | "ELECTRIC" | "HYBRID";
 export type TransmissionType = "MANUAL" | "AUTOMATIC";
 export type BodyType = "SUV" | "SEDAN" | "HATCHBACK" | "COUPE" | "VAN" | "MINIVAN" | "TRUCK";
@@ -29,6 +30,12 @@ export interface Car {
     featuredCategory: FeaturedCategory;
     description: string;
     featureName: string[];
+    availabilityStatus?: CarAvailabilityStatus;
+    availabilityMessage?: string | null;
+    softLockExpiresAt?: string | null;
+    nextAvailableAt?: string | null;
+    blockedFromDate?: string | null;
+    blockedToDate?: string | null;
     // Backend may also return a features array with rich objects
     features?: Array<{
         featureId?: number;

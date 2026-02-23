@@ -9,7 +9,15 @@
  */
 
 import type { Car as BackendCar } from "../dashboard/admin/types/Car";
-import type { Car as CustomerCar, BodyType, CarStatus, FuelType, TransmissionType, CarFeature } from "../data/cars";
+import type {
+    Car as CustomerCar,
+    BodyType,
+    CarStatus,
+    FeaturedCategory,
+    FuelType,
+    TransmissionType,
+    CarFeature,
+} from "../data/cars";
 
 /**
  * Transform a backend Car to customer Car format
@@ -61,11 +69,20 @@ export function transformBackendCarToCustomer(backendCar: BackendCar): CustomerC
 
         // Normalize status (AVAILABLE → available)
         status: normalizeStatus(backendCar.carStatus),
+        availabilityStatus: normalizeAvailabilityStatus(
+            backendCar.availabilityStatus ?? backendCar.carStatus
+        ),
+        availabilityMessage: backendCar.availabilityMessage ?? null,
+        softLockExpiresAt: backendCar.softLockExpiresAt ?? null,
+        nextAvailableAt: backendCar.nextAvailableAt ?? null,
+        blockedFromDate: backendCar.blockedFromDate ?? null,
+        blockedToDate: backendCar.blockedToDate ?? null,
 
         // ✅ UPDATED: Use real bodyType from backend (with fallback)
         bodyType: backendCar.bodyType
             ? normalizeBodyType(backendCar.bodyType)
             : inferBodyType(backendCar.vehicleModel),
+        featuredCategory: normalizeFeaturedCategory(backendCar.featuredCategory),
 
         // ✅ UPDATED: Use real description from backend (with fallback)
         description: backendCar.description && backendCar.description.trim() !== ""
@@ -95,7 +112,13 @@ export function transformBackendCarsToCustomer(backendCars: BackendCar[]): Custo
  * Backend gives: ["GPS Navigation", "Bluetooth", "Leather Seats"]
  * Customer needs: [{ name: "GPS Navigation", available: true }, ...]
  */
-function transformFeatures(features?: any[] , featureNames?: string[]): CarFeature[] {
+type BackendFeatureShape = {
+    featureName?: string;
+    name?: string;
+    available?: boolean;
+};
+
+function transformFeatures(features?: BackendFeatureShape[], featureNames?: string[]): CarFeature[] {
     // Prefer rich features array from backend if available
     if (features && features.length > 0) {
         return features.map((f) => ({
@@ -154,6 +177,18 @@ function normalizeStatus(backendStatus: string): CarStatus {
     return backendStatus.toLowerCase() as CarStatus;
 }
 
+function normalizeAvailabilityStatus(backendStatus: string): CustomerCar["availabilityStatus"] {
+    if (!backendStatus) {
+        return "available";
+    }
+
+    if (backendStatus === "RENTED") {
+        return "booked";
+    }
+
+    return backendStatus.toLowerCase() as CustomerCar["availabilityStatus"];
+}
+
 /**
  * Normalize backend TransmissionType to customer format
  * AUTOMATIC → Automatic
@@ -172,8 +207,30 @@ function normalizeTransmission(backendTransmission: string): TransmissionType {
  * HYBRID → Hybrid
  */
 function normalizeFuelType(backendFuel: string): FuelType {
+    if (backendFuel === "PLUG_IN_HYBRID") {
+        return "Plug-In Hybrid";
+    }
+
     return (backendFuel.charAt(0).toUpperCase() +
         backendFuel.slice(1).toLowerCase()) as FuelType;
+}
+
+function normalizeFeaturedCategory(value?: string): FeaturedCategory {
+    if (!value) {
+        return "Popular Car";
+    }
+
+    const normalized = value.trim();
+    switch (normalized) {
+        case "Popular Car":
+        case "Luxury Car":
+        case "Vintage Car":
+        case "Family Car":
+        case "Off-Road Car":
+            return normalized;
+        default:
+            return "Popular Car";
+    }
 }
 
 /**
