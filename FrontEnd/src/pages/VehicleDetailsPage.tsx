@@ -16,10 +16,18 @@ import {
 } from "lucide-react";
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
-import { Car, CARS_DATA } from "../data/cars";
+import { Car } from "../data/cars";
 import { getImageUrl } from "../lib/ImageUtils";
 import { carService } from "../services/carService";
 import { CarDetailsModal } from "../components/CarDetailsModal";
+import {
+    formatTimeRemaining,
+    getAvailabilityClassName,
+    getAvailabilityLabel,
+    getAvailabilityMessage,
+    getCarAvailabilityStatus,
+    isCarBookable,
+} from "../lib/carAvailability.ts";
 
 export default function VehicleDetailsPage() {
     const { id } = useParams<{ id: string }>();
@@ -27,6 +35,7 @@ export default function VehicleDetailsPage() {
 
     // ✅ ALL STATE DECLARED FIRST - BEFORE ANY CONDITIONAL RETURNS
     const [car, setCar] = useState<Car | null>(null);
+    const [fleetCars, setFleetCars] = useState<Car[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -47,33 +56,27 @@ export default function VehicleDetailsPage() {
                 setError(null);
 
                 const carId = Number(id);
-                
-                // Check if it's a mock/featured car (IDs >= 9000) first
-                if (carId >= 9000) {
-                    const mockCar = CARS_DATA.find(c => c.id === carId);
-                    if (mockCar) {
-                        setCar(mockCar);
-                        setIsLoading(false);
-                        return;
-                    }
+                if (Number.isNaN(carId)) {
+                    setCar(null);
+                    setError("Invalid vehicle ID.");
+                    return;
                 }
 
-                // Try backend first
+                const fetchedCar = await carService.getById(carId);
+                setCar(fetchedCar);
+
                 try {
-                    const fetchedCar = await carService.getById(carId);
-                    setCar(fetchedCar);
-                } catch (backendError) {
-                    // If backend fails, try mock data
-                    const fallbackCar = CARS_DATA.find(c => c.id === carId);
-                    if (fallbackCar) {
-                        setCar(fallbackCar);
-                    } else {
-                        throw backendError;
-                    }
+                    const fetchedCars = await carService.getAll();
+                    setFleetCars(fetchedCars);
+                } catch (fleetError) {
+                    console.error("Failed to fetch related fleet cars:", fleetError);
+                    setFleetCars([]);
                 }
             } catch (error) {
                 console.error("Failed to fetch car:", error);
-                setError("Failed to load vehicle details");
+                setCar(null);
+                setFleetCars([]);
+                setError("Failed to load vehicle details.");
             } finally {
                 setIsLoading(false);
             }
@@ -167,12 +170,45 @@ export default function VehicleDetailsPage() {
     const totalPrice = car ? rentalDays * car.dailyPrice : 0;
     const serviceFee = Math.round(totalPrice * 0.1);
     const insuranceFee = rentalDays * 500;
+    const availabilityStatus = car ? getCarAvailabilityStatus(car) : "available";
+    const availabilityMessage = car ? getAvailabilityMessage(car) : "";
+    const carCanBeBooked = car ? isCarBookable(car) : false;
+
+    const [availabilityTick, setAvailabilityTick] = useState(0);
+    const softLockCountdownLabel = useMemo(() => {
+        void availabilityTick;
+        if (!car?.softLockExpiresAt) {
+            return null;
+        }
+        return formatTimeRemaining(car.softLockExpiresAt);
+    }, [car?.softLockExpiresAt, availabilityTick]);
+
+    useEffect(() => {
+        if (!car?.softLockExpiresAt || availabilityStatus !== "soft_locked") {
+            return;
+        }
+
+        const timer = window.setInterval(() => {
+            setAvailabilityTick((value) => value + 1);
+        }, 1000);
+
+        return () => window.clearInterval(timer);
+    }, [car?.softLockExpiresAt, availabilityStatus]);
+
+    useEffect(() => {
+        if (carCanBeBooked) {
+            return;
+        }
+        setSelectedDates({ start: null, end: null });
+    }, [carCanBeBooked]);
 
     // Related cars (same body type, excluding current)
     const relatedCars = useMemo(() => {
         if (!car) return [];
-        return CARS_DATA.filter(c => c.bodyType === car.bodyType && c.id !== car.id).slice(0, 3);
-    }, [car]);
+        return fleetCars
+            .filter((candidate) => candidate.bodyType === car.bodyType && candidate.id !== car.id)
+            .slice(0, 3);
+    }, [car, fleetCars]);
 
     const toModalCar = (c: Car) => ({
         id: c.id,
@@ -264,7 +300,7 @@ export default function VehicleDetailsPage() {
             {error && (
                 <div className="bg-yellow-50 border-b border-yellow-200">
                     <div className="layout-container py-3">
-                        <p className="text-yellow-800 text-sm">{error} - Showing cached data</p>
+                        <p className="text-yellow-800 text-sm">{error}</p>
                     </div>
                 </div>
             )}
@@ -336,6 +372,9 @@ export default function VehicleDetailsPage() {
                             <div className="mb-2 flex items-center gap-2 text-sm text-white/90">
                                 <span className="px-3 py-1 rounded-full bg-black/35 border border-white/30 backdrop-blur text-[11px] font-semibold uppercase tracking-wide text-white">
                                     {car.bodyType}
+                                </span>
+                                <span className={`px-3 py-1 rounded-full border border-white/20 text-[11px] font-semibold uppercase tracking-wide ${getAvailabilityClassName(availabilityStatus)}`}>
+                                    {getAvailabilityLabel(availabilityStatus)}
                                 </span>
                                 <div className="flex items-center gap-0.5">
                                     {Array.from({ length: 5 }).map((_, idx) => (
@@ -528,10 +567,21 @@ export default function VehicleDetailsPage() {
                                                 Ksh {car.dailyPrice.toLocaleString()}
                                             </p>
                                         </div>
-                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-xs font-semibold">
-                                            Available
+                                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${getAvailabilityClassName(availabilityStatus)}`}>
+                                            {getAvailabilityLabel(availabilityStatus)}
                                         </span>
                                     </div>
+
+                                    {!carCanBeBooked && (
+                                        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+                                            <p className="text-sm font-medium text-amber-900">{availabilityMessage}</p>
+                                            {availabilityStatus === "soft_locked" && softLockCountdownLabel && (
+                                                <p className="mt-1 text-xs font-semibold text-amber-800">
+                                                    Next availability in {softLockCountdownLabel}
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
 
                                     <div className="mb-4 space-y-2.5">
                                         <div>
@@ -567,6 +617,7 @@ export default function VehicleDetailsPage() {
                                             setCurrentMonth={setCurrentMonth}
                                             selectedDates={selectedDates}
                                             setSelectedDates={setSelectedDates}
+                                            disabled={!carCanBeBooked}
                                         />
                                     </div>
 
@@ -650,6 +701,9 @@ export default function VehicleDetailsPage() {
 
                                     <button
                                         onClick={() => {
+                                            if (!carCanBeBooked) {
+                                                return;
+                                            }
                                             const params = new URLSearchParams();
                                             params.set("carId", car.id.toString());
                                             if (selectedDates.start) {
@@ -660,14 +714,18 @@ export default function VehicleDetailsPage() {
                                             }
                                             navigate(`/booking?${params.toString()}`);
                                         }}
-                                        disabled={rentalDays === 0}
+                                        disabled={rentalDays === 0 || !carCanBeBooked}
                                         className={`w-full rounded-lg py-3 font-semibold transition-all ${
-                                            rentalDays > 0
+                                            rentalDays > 0 && carCanBeBooked
                                                 ? "bg-black text-white hover:bg-zinc-800"
                                                 : "bg-gray-100 text-gray-400 cursor-not-allowed"
                                         }`}
                                     >
-                                        {rentalDays > 0 ? "Proceed to Booking" : "Select dates to book"}
+                                        {!carCanBeBooked
+                                            ? "Currently unavailable"
+                                            : rentalDays > 0
+                                                ? "Proceed to Booking"
+                                                : "Select dates to book"}
                                     </button>
 
                                     <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-gray-500">
@@ -855,6 +913,9 @@ export default function VehicleDetailsPage() {
                                     <span className="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-white/90 text-[11px] font-semibold text-gray-700 border border-gray-200">
                                         {relatedCar.bodyType}
                                     </span>
+                                    <span className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-white/30 ${getAvailabilityClassName(getCarAvailabilityStatus(relatedCar))}`}>
+                                        {getAvailabilityLabel(getCarAvailabilityStatus(relatedCar))}
+                                    </span>
                                 </div>
 
                                 <div className="p-4">
@@ -922,9 +983,16 @@ interface MiniCalendarProps {
     setCurrentMonth: (date: Date) => void;
     selectedDates: { start: Date | null; end: Date | null };
     setSelectedDates: (dates: { start: Date | null; end: Date | null }) => void;
+    disabled?: boolean;
 }
 
-function MiniCalendar({ currentMonth, setCurrentMonth, selectedDates, setSelectedDates }: MiniCalendarProps) {
+function MiniCalendar({
+    currentMonth,
+    setCurrentMonth,
+    selectedDates,
+    setSelectedDates,
+    disabled = false,
+}: MiniCalendarProps) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -951,6 +1019,10 @@ function MiniCalendar({ currentMonth, setCurrentMonth, selectedDates, setSelecte
     };
 
     const handleDateClick = (day: number) => {
+        if (disabled) {
+            return;
+        }
+
         const clickedDate = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day);
 
         if (clickedDate < today) return;
@@ -1030,9 +1102,9 @@ function MiniCalendar({ currentMonth, setCurrentMonth, selectedDates, setSelecte
                         <button
                             key={day}
                             onClick={() => handleDateClick(day)}
-                            disabled={past}
+                            disabled={past || disabled}
                             className={`h-7 text-xs rounded-lg transition-all ${
-                                past
+                                past || disabled
                                     ? "text-gray-300 cursor-not-allowed"
                                     : selected
                                         ? "bg-black text-white font-medium"
