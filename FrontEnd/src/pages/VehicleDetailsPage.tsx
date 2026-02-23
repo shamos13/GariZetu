@@ -197,10 +197,25 @@ export default function VehicleDetailsPage() {
         url: car?.mainImageUrl ?? "/placeholder-car.jpg",
         alt: car?.name ?? "Vehicle image",
     };
-    const activeGalleryCaption = activeGalleryImage.alt?.trim() || car?.name || "Vehicle";
-    const safeDescription = car?.description ?? "";
-    const activeGallerySubCaption =
-        safeDescription.length > 110 ? `${safeDescription.slice(0, 107)}...` : safeDescription;
+    const galleryCurrentLabel = String(
+        Math.min(Math.max(currentImageIndex + 1, 1), Math.max(images.length, 1))
+    ).padStart(2, "0");
+    const galleryTotalLabel = String(Math.max(images.length, 1)).padStart(2, "0");
+    const galleryHeading = (car?.name ?? "Vehicle Gallery").toUpperCase();
+    const galleryCaptionTitle =
+        activeGalleryImage.alt?.trim() && activeGalleryImage.alt !== "Vehicle image"
+            ? activeGalleryImage.alt
+            : car
+                ? `${car.make} ${car.model} ${car.year}`
+                : "Vehicle";
+    const rawGalleryCaptionText = car?.description?.trim() ?? "";
+    const galleryCaptionText =
+        rawGalleryCaptionText.length > 135
+            ? `${rawGalleryCaptionText.slice(0, 132)}...`
+            : rawGalleryCaptionText;
+    const maxPreviewThumbs = 7;
+    const previewThumbs = images.slice(0, maxPreviewThumbs);
+    const overflowThumbCount = Math.max(images.length - maxPreviewThumbs, 0);
 
     // ✅ NOW CONDITIONAL RETURNS ARE SAFE - ALL HOOKS CALLED
     // Loading state
@@ -677,79 +692,99 @@ export default function VehicleDetailsPage() {
 
             {isGalleryModalOpen && (
                 <div
-                    className="fixed inset-0 z-[80] bg-slate-900/55 backdrop-blur-lg"
+                    className="fixed inset-0 z-[80] bg-[#02050c]/90 backdrop-blur-xl"
                     onClick={closeGalleryModal}
                 >
                     <div
-                        className="relative h-full w-full"
+                        className="relative mx-auto flex h-full w-full max-w-[1240px] items-center justify-center px-3 py-5 sm:px-5 md:px-8"
                         onClick={(event) => event.stopPropagation()}
                     >
-                        <div className="absolute left-4 top-4 z-20 text-[11px] font-medium tracking-wide text-white/80 md:left-7 md:top-7 md:text-xs">
-                            <span className="font-semibold text-amber-300">
-                                {String(currentImageIndex + 1).padStart(2, "0")}
-                            </span>
-                            <span className="mx-1 text-white/60">
-                                / {String(images.length).padStart(2, "0")}
-                            </span>
-                            <span className="mx-2 text-white/30">|</span>
-                            <span className="uppercase text-white/85">{car.name}</span>
-                        </div>
+                        <div className="relative w-full overflow-hidden rounded-[30px] border border-[#302a18] bg-gradient-to-br from-[#060b16] via-[#050915] to-[#080d19] p-3 shadow-[0_34px_110px_rgba(0,0,0,0.7)] sm:p-5">
+                            <div className="pointer-events-none absolute inset-2 rounded-[24px] border border-[#41361b]/60" />
 
-                        <button
-                            onClick={closeGalleryModal}
-                            className="absolute right-4 top-4 z-20 inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/25 bg-white/15 text-white backdrop-blur-xl transition-colors hover:bg-white/25 md:right-7 md:top-7"
-                            aria-label="Close gallery"
-                        >
-                            <X className="h-4 w-4" />
-                        </button>
+                            <div className="relative z-10 flex items-center justify-between gap-3 px-1 py-1 sm:px-2">
+                                <p className="min-w-[76px] text-sm font-semibold tracking-[0.18em]">
+                                    <span className="text-[#d8b34f]">{galleryCurrentLabel}</span>
+                                    <span className="text-white/35"> / {galleryTotalLabel}</span>
+                                </p>
 
-                        {images.length > 1 && (
-                            <button
-                                onClick={handlePrevImage}
-                                className="absolute left-4 top-1/2 z-20 h-12 w-12 -translate-y-1/2 rounded-full border border-white/25 bg-white/15 text-white backdrop-blur-xl transition-colors hover:bg-white/25 md:left-7"
-                                aria-label="Previous image"
-                            >
-                                <ChevronLeft className="mx-auto h-5 w-5" />
-                            </button>
-                        )}
+                                <h3 className="flex-1 truncate text-center text-[11px] uppercase tracking-[0.36em] text-white/85 sm:text-sm md:text-base">
+                                    {galleryHeading}
+                                </h3>
 
-                        {images.length > 1 && (
-                            <button
-                                onClick={handleNextImage}
-                                className="absolute right-4 top-1/2 z-20 h-12 w-12 -translate-y-1/2 rounded-full border border-white/25 bg-white/15 text-white backdrop-blur-xl transition-colors hover:bg-white/25 md:right-7"
-                                aria-label="Next image"
-                            >
-                                <ChevronRight className="mx-auto h-5 w-5" />
-                            </button>
-                        )}
-
-                        <div className="mx-auto flex h-full w-full max-w-5xl flex-col items-center justify-center px-4 pb-5 pt-16 md:pb-7 md:pt-20">
-                            <div className="w-full max-w-[760px] overflow-hidden bg-black/30">
-                                <img
-                                    src={getImageUrl(activeGalleryImage.url)}
-                                    alt={activeGalleryImage.alt}
-                                    className="h-[50vh] min-h-[280px] max-h-[620px] w-full object-cover md:h-[58vh]"
-                                    onError={(e) => {
-                                        e.currentTarget.src = "/placeholder-car.jpg";
-                                    }}
-                                />
+                                <button
+                                    onClick={closeGalleryModal}
+                                    className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-white/5 text-white/85 transition-colors hover:bg-white/15"
+                                    aria-label="Close gallery"
+                                >
+                                    <X className="h-5 w-5" />
+                                </button>
                             </div>
 
-                            <div className="mt-3 text-center md:mt-4">
-                                <p className="text-xl font-semibold text-white/90">{activeGalleryCaption}</p>
-                                <p className="mt-1 text-sm text-white/65">{activeGallerySubCaption}</p>
+                            <div className="relative z-10 mt-3 sm:mt-4">
+                                {images.length > 1 && (
+                                    <button
+                                        onClick={handlePrevImage}
+                                        className="absolute left-1 top-1/2 z-20 h-11 w-11 -translate-y-1/2 rounded-full border border-white/20 bg-black/45 text-white backdrop-blur transition-colors hover:bg-black/65 sm:left-2"
+                                        aria-label="Previous image"
+                                    >
+                                        <ChevronLeft className="mx-auto h-5 w-5" />
+                                    </button>
+                                )}
+
+                                {images.length > 1 && (
+                                    <button
+                                        onClick={handleNextImage}
+                                        className="absolute right-1 top-1/2 z-20 h-11 w-11 -translate-y-1/2 rounded-full border border-white/20 bg-black/45 text-white backdrop-blur transition-colors hover:bg-black/65 sm:right-2"
+                                        aria-label="Next image"
+                                    >
+                                        <ChevronRight className="mx-auto h-5 w-5" />
+                                    </button>
+                                )}
+
+                                <div className="relative mx-auto aspect-[16/10] w-full max-w-[980px] overflow-hidden rounded-[20px] border border-[#6f5a22]/55 bg-[#070c14]">
+                                    <img
+                                        src={getImageUrl(activeGalleryImage.url)}
+                                        alt=""
+                                        aria-hidden="true"
+                                        className="absolute inset-0 h-full w-full scale-110 object-cover opacity-45 blur-2xl"
+                                        onError={(e) => {
+                                            e.currentTarget.src = "/placeholder-car.jpg";
+                                        }}
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-b from-black/10 via-black/20 to-black/40" />
+                                    <img
+                                        src={getImageUrl(activeGalleryImage.url)}
+                                        alt={activeGalleryImage.alt}
+                                        className="relative z-10 h-full w-full object-contain p-2 sm:p-3 md:p-4"
+                                        onError={(e) => {
+                                            e.currentTarget.src = "/placeholder-car.jpg";
+                                        }}
+                                    />
+
+                                    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-black/75 via-black/40 to-transparent px-4 pb-4 pt-12 text-center sm:px-8 sm:pb-6">
+                                        <p className="text-lg font-semibold text-white sm:text-2xl">
+                                            {galleryCaptionTitle}
+                                        </p>
+                                        {galleryCaptionText && (
+                                            <p className="mt-1 text-xs text-white/70 sm:text-base">
+                                                {galleryCaptionText}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="mt-4 w-full max-w-[860px] rounded-2xl border border-white/20 bg-white/10 p-2.5 backdrop-blur-2xl">
-                                <div className="flex gap-2 overflow-x-auto pb-1">
-                                    {images.map((img, index) => (
+                            <div className="relative z-10 mx-auto mt-4 w-full max-w-[1030px] rounded-[18px] border border-white/10 bg-[#060b14]/90 px-3 py-2 sm:px-4 sm:py-3">
+                                <div className="flex items-center justify-center gap-2 overflow-x-auto pb-1">
+                                    {previewThumbs.map((img, index) => (
                                         <button
                                             key={`modal-thumb-${img.id}`}
                                             onClick={() => setCurrentImageIndex(index)}
-                                            className={`relative h-14 w-20 flex-shrink-0 overflow-hidden rounded-md border-2 transition-all md:h-16 md:w-24 ${
+                                            className={`relative h-12 w-16 flex-shrink-0 overflow-hidden rounded-xl border transition-all sm:h-14 sm:w-20 ${
                                                 currentImageIndex === index
-                                                    ? "border-amber-300 shadow-[0_0_0_1px_rgba(252,211,77,0.35)]"
-                                                    : "border-transparent opacity-80 hover:border-white/55 hover:opacity-100"
+                                                    ? "border-[#d8b34f] ring-1 ring-[#d8b34f]/60"
+                                                    : "border-white/15 opacity-80 hover:border-white/35 hover:opacity-100"
                                             }`}
                                         >
                                             <img
@@ -762,6 +797,20 @@ export default function VehicleDetailsPage() {
                                             />
                                         </button>
                                     ))}
+
+                                    {overflowThumbCount > 0 && (
+                                        <button
+                                            type="button"
+                                            onClick={() => setCurrentImageIndex(maxPreviewThumbs)}
+                                            className={`h-12 min-w-[64px] flex-shrink-0 rounded-xl border text-sm font-semibold tracking-wide transition-all sm:h-14 sm:min-w-[80px] ${
+                                                currentImageIndex >= maxPreviewThumbs
+                                                    ? "border-[#d8b34f] bg-[#d8b34f]/20 text-[#e4c56f]"
+                                                    : "border-white/15 bg-white/5 text-white/75 hover:border-white/35"
+                                            }`}
+                                        >
+                                            +{overflowThumbCount}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         </div>

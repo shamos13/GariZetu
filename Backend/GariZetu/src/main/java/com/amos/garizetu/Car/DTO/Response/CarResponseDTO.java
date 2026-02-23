@@ -22,6 +22,7 @@ public class CarResponseDTO {
     private double dailyPrice;
     private int seatingCapacity;
     private String mainImageUrl;
+    private List<String> galleryImageUrls;
     private String description;
     private CarStatus carStatus;
     private TransmissionType transmissionType;
