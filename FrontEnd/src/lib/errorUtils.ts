@@ -33,6 +33,7 @@ export const getHttpStatus = (error: unknown): number | null =>
 
 export const isUnauthorizedError = (error: unknown): boolean => getHttpStatus(error) === 401;
 export const isForbiddenError = (error: unknown): boolean => getHttpStatus(error) === 403;
+export const isConflictError = (error: unknown): boolean => getHttpStatus(error) === 409;
 
 export const getErrorMessage = (error: unknown, fallback: string): string => {
     if (axios.isAxiosError(error)) {
@@ -53,6 +54,7 @@ export const getErrorMessage = (error: unknown, fallback: string): string => {
 
         if (status === 401) return "Your session is not authorized for this request.";
         if (status === 403) return "You do not have permission to perform this action.";
+        if (status === 409) return "This booking cannot be completed right now because the selected car is unavailable.";
         if (status >= 500) return "A server error occurred. Please try again shortly.";
     }
 

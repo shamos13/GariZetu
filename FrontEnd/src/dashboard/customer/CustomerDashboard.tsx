@@ -9,7 +9,15 @@ import { Button } from "../../components/ui/button.tsx";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card.tsx";
 import { bookingService, type Booking, type BookingStatus } from "../../services/BookingService.ts";
 import { getImageUrl } from "../../lib/ImageUtils.ts";
-import { getErrorMessage } from "../../lib/errorUtils.ts";
+import { getErrorMessage, getHttpStatus, isUnauthorizedError } from "../../lib/errorUtils.ts";
+import { toast } from "sonner";
+import { pushUserNotification } from "../../lib/userNotifications.ts";
+import {
+    getAvailabilityClassName,
+    getAvailabilityLabel,
+    getCarAvailabilityStatus,
+    isCarBookable,
+} from "../../lib/carAvailability.ts";
 
 interface CustomerDashboardProps {
     onBack: () => void;
@@ -69,7 +77,12 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
             setBookings(fetchedBookings);
         } catch (error) {
             console.error("Failed to fetch customer bookings:", error);
-            setBookingsError(getErrorMessage(error, "Unable to load bookings right now."));
+            const resolvedMessage = getErrorMessage(error, "Unable to load bookings right now.");
+            if (isUnauthorizedError(error) && authService.isAuthenticated()) {
+                setBookingsError("Unable to load your bookings right now. Please refresh and try again.");
+                return;
+            }
+            setBookingsError(resolvedMessage);
         } finally {
             setIsLoadingBookings(false);
         }
@@ -132,7 +145,7 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
     }, [cars, featuredBooking]);
 
     const recommendedCars = useMemo(
-        () => cars.filter((car) => car.status === "available").slice(0, 3),
+        () => cars.filter((car) => isCarBookable(car)).slice(0, 3),
         [cars]
     );
 
@@ -218,10 +231,39 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
             setBookingActionMessage(null);
             await bookingService.simulatePayment(bookingId, { paymentMethod: "M_PESA" });
             await fetchBookings();
-            setBookingActionMessage("Payment completed and booking confirmed.");
+            const successMessage = "Payment completed and booking confirmed.";
+            setBookingActionMessage(successMessage);
+            toast.success(successMessage);
+            pushUserNotification({
+                title: "Booking confirmed",
+                message: "Your payment was completed successfully. The booking is now confirmed.",
+                level: "success",
+                actionPath: "/dashboard/bookings",
+                actionLabel: "View bookings",
+            });
         } catch (error) {
             console.error("Failed to simulate payment:", error);
-            setBookingActionMessage(getErrorMessage(error, "Could not process payment. Please try again."));
+            const resolvedMessage = getErrorMessage(error, "Could not process payment. Please try again.");
+            const status = getHttpStatus(error);
+
+            if (isUnauthorizedError(error) && authService.isAuthenticated()) {
+                const message =
+                    "Payment could not be completed because your booking session could not be verified. Refresh your bookings and try again."
+                setBookingActionMessage(message);
+                toast.warning(message);
+                return;
+            }
+
+            if (status === 500 && authService.isAuthenticated()) {
+                const message =
+                    "Payment could not be completed due to a temporary booking processing issue. Please refresh and retry."
+                setBookingActionMessage(message);
+                toast.error(message);
+                return;
+            }
+
+            setBookingActionMessage(resolvedMessage);
+            toast.error(resolvedMessage);
         } finally {
             setProcessingBookingId(null);
         }
@@ -244,99 +286,99 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
 
     const renderDashboard = () => (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="rounded-3xl border border-gray-200 bg-white p-5">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                            <Calendar className="w-5 h-5" />
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                <div className="rounded-3xl border border-gray-800 bg-[#1a1a1a] p-5">
+                    <div className="mb-3 flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-500/20 text-blue-400">
+                            <Calendar className="h-5 w-5" />
                         </div>
-                        <p className="text-sm text-gray-500">Upcoming Rentals</p>
+                        <p className="text-sm text-gray-400">Upcoming Rentals</p>
                     </div>
-                    <p className="text-4xl font-semibold text-[#111827]">{activeBookingsCount.toString().padStart(2, "0")}</p>
+                    <p className="text-4xl font-semibold text-white">{activeBookingsCount.toString().padStart(2, "0")}</p>
                 </div>
 
-                <div className="rounded-3xl border border-gray-200 bg-white p-5">
-                    <div className="flex items-center gap-3 mb-3">
-                        <div className="w-11 h-11 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center">
-                            <Clock3 className="w-5 h-5" />
+                <div className="rounded-3xl border border-gray-800 bg-[#1a1a1a] p-5">
+                    <div className="mb-3 flex items-center gap-3">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-violet-500/20 text-violet-400">
+                            <Clock3 className="h-5 w-5" />
                         </div>
-                        <p className="text-sm text-gray-500">Past Trips</p>
+                        <p className="text-sm text-gray-400">Past Trips</p>
                     </div>
-                    <p className="text-4xl font-semibold text-[#111827]">{completedTripsCount}</p>
+                    <p className="text-4xl font-semibold text-white">{completedTripsCount}</p>
                 </div>
 
-                <div className="rounded-3xl border border-black bg-[#0c0c0f] p-5 text-white">
-                    <div className="flex items-center justify-between mb-3">
-                        <div className="w-11 h-11 rounded-2xl bg-white/10 text-amber-300 flex items-center justify-center">
-                            <Star className="w-5 h-5" />
+                <div className="rounded-3xl border border-gray-700 bg-[#0f0f12] p-5 text-white">
+                    <div className="mb-3 flex items-center justify-between">
+                        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-amber-300">
+                            <Star className="h-5 w-5" />
                         </div>
-                        <button className="px-3 py-1.5 text-xs rounded-full bg-white text-black font-semibold">Redeem</button>
+                        <button className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-black">Redeem</button>
                     </div>
                     <p className="text-sm text-gray-400">Reward Points</p>
                     <p className="text-4xl font-semibold">{rewardPoints.toLocaleString()}</p>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
-                <div className="xl:col-span-8 space-y-4">
+            <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+                <div className="space-y-4 xl:col-span-8">
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                        <h3 className="text-2xl md:text-3xl font-semibold text-[#111827]">Active Booking</h3>
+                        <h3 className="text-2xl font-semibold text-white md:text-3xl">Active Booking</h3>
                         <button
                             onClick={() => setCurrentPage("bookings")}
-                            className="text-sm text-gray-500 hover:text-gray-700 inline-flex items-center gap-1"
+                            className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-white"
                         >
-                            View Details <ArrowRight className="w-4 h-4" />
+                            View Details <ArrowRight className="h-4 w-4" />
                         </button>
                     </div>
 
-                    <div className="rounded-3xl border border-gray-200 bg-white p-3 md:p-4">
+                    <div className="rounded-3xl border border-gray-800 bg-[#1a1a1a] p-3 md:p-4">
                         {isLoadingBookings || isLoadingCars ? (
-                            <div className="h-[280px] rounded-2xl bg-gray-100 animate-pulse" />
+                            <div className="h-[280px] animate-pulse rounded-2xl bg-gray-800/60" />
                         ) : featuredBooking ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="relative rounded-2xl overflow-hidden bg-black min-h-[260px]">
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div className="relative min-h-[260px] overflow-hidden rounded-2xl bg-black">
                                     <img
                                         src={getImageUrl(featuredCar?.mainImageUrl || "/porsche-cayenne-black.jpg")}
                                         alt={featuredCar?.name || "Booked Vehicle"}
-                                        className="w-full h-full object-cover"
+                                        className="h-full w-full object-cover"
                                     />
-                                    <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-emerald-500 text-white text-xs font-semibold">
+                                    <span className="absolute left-3 top-3 rounded-full bg-emerald-500 px-3 py-1 text-xs font-semibold text-white">
                                         {getFeaturedBookingCaption(featuredBooking.bookingStatus)}
                                     </span>
                                 </div>
 
-                                <div className="p-1 space-y-4">
+                                <div className="space-y-4 p-1">
                                     <div>
-                                        <h4 className="text-2xl md:text-3xl font-semibold text-[#111827]">
+                                        <h4 className="text-2xl font-semibold text-white md:text-3xl">
                                             {featuredBooking.carMake} {featuredBooking.carModel}
                                         </h4>
-                                        <p className="text-gray-500">{featuredBooking.carYear} • Premium Package</p>
+                                        <p className="text-gray-400">{featuredBooking.carYear} • Premium Package</p>
                                     </div>
 
                                     <div className="grid grid-cols-2 gap-3">
-                                        <div className="rounded-2xl bg-gray-100 p-3">
-                                            <p className="text-xs text-gray-500 uppercase tracking-wide">Pick-up</p>
-                                            <p className="text-[#111827] font-semibold mt-1">{formatBookingDate(featuredBooking.pickupDate)}</p>
-                                            <p className="text-xs text-gray-500 mt-1">{featuredBooking.pickupLocation}</p>
+                                        <div className="rounded-2xl border border-gray-800 bg-[#111111] p-3">
+                                            <p className="text-xs uppercase tracking-wide text-gray-500">Pick-up</p>
+                                            <p className="mt-1 font-semibold text-white">{formatBookingDate(featuredBooking.pickupDate)}</p>
+                                            <p className="mt-1 text-xs text-gray-500">{featuredBooking.pickupLocation}</p>
                                         </div>
-                                        <div className="rounded-2xl bg-gray-100 p-3">
-                                            <p className="text-xs text-gray-500 uppercase tracking-wide">Drop-off</p>
-                                            <p className="text-[#111827] font-semibold mt-1">{formatBookingDate(featuredBooking.returnDate)}</p>
-                                            <p className="text-xs text-gray-500 mt-1">{featuredBooking.returnLocation}</p>
+                                        <div className="rounded-2xl border border-gray-800 bg-[#111111] p-3">
+                                            <p className="text-xs uppercase tracking-wide text-gray-500">Drop-off</p>
+                                            <p className="mt-1 font-semibold text-white">{formatBookingDate(featuredBooking.returnDate)}</p>
+                                            <p className="mt-1 text-xs text-gray-500">{featuredBooking.returnLocation}</p>
                                         </div>
                                     </div>
 
                                     <div className="flex flex-wrap gap-2">
                                         <Button
                                             onClick={() => navigate("/dashboard/bookings")}
-                                            className="bg-black hover:bg-black/90 text-white rounded-xl"
+                                            className="rounded-xl bg-white text-black hover:bg-gray-200"
                                         >
                                             Get Directions
                                         </Button>
                                         <Button
                                             onClick={() => setCurrentPage("bookings")}
                                             variant="outline"
-                                            className="border-gray-300 text-gray-700 hover:bg-gray-100 rounded-xl"
+                                            className="rounded-xl border-gray-700 bg-transparent text-gray-200 hover:bg-gray-800 hover:text-white"
                                         >
                                             Modify
                                         </Button>
@@ -344,10 +386,10 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                                 </div>
                             </div>
                         ) : (
-                            <div className="text-center py-14">
-                                <CarIcon className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                                <p className="text-gray-500 mb-4">No active bookings yet.</p>
-                                <Button onClick={() => navigate("/vehicles")} className="bg-black hover:bg-black/90 text-white">
+                            <div className="py-14 text-center">
+                                <CarIcon className="mx-auto mb-3 h-12 w-12 text-gray-500" />
+                                <p className="mb-4 text-gray-400">No active bookings yet.</p>
+                                <Button onClick={() => navigate("/vehicles")} className="bg-white text-black hover:bg-gray-200">
                                     Browse Vehicles
                                 </Button>
                             </div>
@@ -355,33 +397,41 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                     </div>
 
                     <div>
-                        <h3 className="text-2xl md:text-3xl font-semibold text-[#111827] mb-4">Recommended for You</h3>
+                        <h3 className="mb-4 text-2xl font-semibold text-white md:text-3xl">Recommended for You</h3>
                         {isLoadingCars ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                                 {[1, 2, 3].map((i) => (
-                                    <div key={i} className="h-[280px] rounded-3xl bg-gray-100 animate-pulse" />
+                                    <div key={i} className="h-[280px] animate-pulse rounded-3xl bg-gray-800/60" />
                                 ))}
                             </div>
                         ) : recommendedCars.length > 0 ? (
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                                 {recommendedCars.map((car) => (
-                                    <div key={car.id} className="rounded-3xl border border-gray-200 bg-white overflow-hidden">
-                                        <div className="h-40 overflow-hidden">
-                                            <img src={getImageUrl(car.mainImageUrl)} alt={car.name} className="w-full h-full object-cover" />
+                                    <div key={car.id} className="overflow-hidden rounded-3xl border border-gray-800 bg-[#1a1a1a]">
+                                        <div className="relative h-40 overflow-hidden">
+                                            <img src={getImageUrl(car.mainImageUrl)} alt={car.name} className="h-full w-full object-cover" />
+                                            <span className={`absolute left-3 top-3 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${getAvailabilityClassName(getCarAvailabilityStatus(car))}`}>
+                                                {getAvailabilityLabel(getCarAvailabilityStatus(car))}
+                                            </span>
                                         </div>
                                         <div className="p-4">
-                                            <h4 className="text-[#111827] text-xl font-semibold">{car.make} {car.model}</h4>
-                                            <p className="text-xs text-gray-500 mt-1">{car.transmission} • {car.seatingCapacity} seats • {car.bodyType}</p>
+                                            <h4 className="text-xl font-semibold text-white">{car.make} {car.model}</h4>
+                                            <p className="mt-1 text-xs text-gray-400">{car.transmission} • {car.seatingCapacity} seats • {car.bodyType}</p>
                                             <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-                                                <p className="text-2xl font-semibold text-[#111827] leading-none">
+                                                <p className="text-2xl font-semibold leading-none text-white">
                                                     KES {car.dailyPrice.toLocaleString()}
-                                                    <span className="ml-1 text-sm text-gray-500 font-normal">/day</span>
+                                                    <span className="ml-1 text-sm font-normal text-gray-400">/day</span>
                                                 </p>
                                                 <button
                                                     onClick={() => navigate(`/booking?carId=${car.id}`)}
-                                                    className="inline-flex items-center justify-center rounded-xl bg-[#111827] px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-black sm:shrink-0"
+                                                    disabled={!isCarBookable(car)}
+                                                    className={`inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition-colors sm:shrink-0 ${
+                                                        isCarBookable(car)
+                                                            ? "bg-white text-black hover:bg-gray-200"
+                                                            : "cursor-not-allowed bg-gray-700 text-gray-400"
+                                                    }`}
                                                 >
-                                                    Book Now
+                                                    {isCarBookable(car) ? "Book Now" : "Unavailable"}
                                                 </button>
                                             </div>
                                         </div>
@@ -389,51 +439,51 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                                 ))}
                             </div>
                         ) : (
-                            <div className="rounded-3xl border border-gray-200 bg-white p-8 text-center">
-                                <p className="text-gray-500">No recommendations available right now.</p>
+                            <div className="rounded-3xl border border-gray-800 bg-[#1a1a1a] p-8 text-center">
+                                <p className="text-gray-400">No recommendations available right now.</p>
                             </div>
                         )}
                     </div>
                 </div>
 
                 <div className="xl:col-span-4">
-                    <div className="rounded-3xl border border-gray-200 bg-white p-5">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-2xl md:text-3xl font-semibold text-[#111827]">Recent Activity</h3>
+                    <div className="rounded-3xl border border-gray-800 bg-[#1a1a1a] p-5">
+                        <div className="mb-4 flex items-center justify-between">
+                            <h3 className="text-2xl font-semibold text-white md:text-3xl">Recent Activity</h3>
                         </div>
                         <div className="space-y-5">
                             <div className="flex gap-3">
-                                <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mt-1">
-                                    <CheckCircle2 className="w-4 h-4" />
+                                <div className="mt-1 flex h-9 w-9 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400">
+                                    <CheckCircle2 className="h-4 w-4" />
                                 </div>
                                 <div>
-                                    <p className="font-medium text-[#111827]">Booking Confirmed</p>
-                                    <p className="text-sm text-gray-500">
+                                    <p className="font-medium text-white">Booking Confirmed</p>
+                                    <p className="text-sm text-gray-400">
                                         {featuredBooking ? `${featuredBooking.carMake} ${featuredBooking.carModel} was confirmed.` : "Your latest booking was confirmed."}
                                     </p>
-                                    <p className="text-xs text-gray-400 mt-1">2 hours ago</p>
+                                    <p className="mt-1 text-xs text-gray-500">2 hours ago</p>
                                 </div>
                             </div>
 
                             <div className="flex gap-3">
-                                <div className="w-9 h-9 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center mt-1">
-                                    <FileText className="w-4 h-4" />
+                                <div className="mt-1 flex h-9 w-9 items-center justify-center rounded-full bg-blue-500/20 text-blue-400">
+                                    <FileText className="h-4 w-4" />
                                 </div>
                                 <div>
-                                    <p className="font-medium text-[#111827]">Invoice Available</p>
-                                    <p className="text-sm text-gray-500">Your latest trip invoice is ready for download.</p>
-                                    <p className="text-xs text-blue-600 mt-1 cursor-pointer">Download PDF</p>
+                                    <p className="font-medium text-white">Invoice Available</p>
+                                    <p className="text-sm text-gray-400">Your latest trip invoice is ready for download.</p>
+                                    <p className="mt-1 cursor-pointer text-xs text-blue-400">Download PDF</p>
                                 </div>
                             </div>
 
                             <div className="flex gap-3">
-                                <div className="w-9 h-9 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mt-1">
-                                    <Star className="w-4 h-4" />
+                                <div className="mt-1 flex h-9 w-9 items-center justify-center rounded-full bg-amber-500/20 text-amber-400">
+                                    <Star className="h-4 w-4" />
                                 </div>
                                 <div>
-                                    <p className="font-medium text-[#111827]">Points Earned</p>
-                                    <p className="text-sm text-gray-500">You earned {Math.max(75, completedTripsCount * 50)} points from recent rentals.</p>
-                                    <p className="text-xs text-gray-400 mt-1">Today</p>
+                                    <p className="font-medium text-white">Points Earned</p>
+                                    <p className="text-sm text-gray-400">You earned {Math.max(75, completedTripsCount * 50)} points from recent rentals.</p>
+                                    <p className="mt-1 text-xs text-gray-500">Today</p>
                                 </div>
                             </div>
                         </div>
@@ -591,7 +641,7 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                         <Calendar className="w-5 h-5 text-emerald-400" />
                         My Bookings
                     </CardTitle>
-                    <CardDescription>Your rental history and upcoming reservations</CardDescription>
+                    <CardDescription className="text-gray-400">All your bookings and upcoming reservations</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {bookingActionMessage && (
@@ -602,7 +652,7 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
 
                     {!isAuthenticated ? (
                         <div className="text-center py-10">
-                            <p className="text-gray-400 mb-4">Log in to view your booking history.</p>
+                            <p className="text-gray-400 mb-4">Log in to view your bookings.</p>
                             <Button onClick={() => navigate("/")} className="bg-emerald-500 hover:bg-emerald-600 text-white">
                                 Go to Home
                             </Button>

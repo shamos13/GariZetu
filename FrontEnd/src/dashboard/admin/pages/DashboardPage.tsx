@@ -23,6 +23,7 @@ import {
 } from "recharts";
 import { adminDashboardService, type DashboardStats, type Booking, type RevenueDataPoint, type CarAvailability } from "../service/AdminDashboardService.ts";
 import { useIsMobile } from "../../../components/ui/use-mobile.ts";
+import { getAdminActionErrorMessage } from "../../../lib/adminErrorUtils.ts";
 
 const COLORS = {
     available: "#10b981", // emerald-500
@@ -38,11 +39,13 @@ export function DashboardPage() {
     const [revenueTrend, setRevenueTrend] = useState<RevenueDataPoint[]>([]);
     const [carAvailability, setCarAvailability] = useState<CarAvailability | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [loadError, setLoadError] = useState<string | null>(null);
 
     // Load all dashboard data
     useEffect(() => {
         const loadDashboardData = async () => {
             setIsLoading(true);
+            setLoadError(null);
             try {
                 // Load all data in parallel for better performance
                 const [statsData, bookingsData, revenueData, availabilityData] = await Promise.all([
@@ -58,6 +61,13 @@ export function DashboardPage() {
                 setCarAvailability(availabilityData);
             } catch (error) {
                 console.error("Failed to load dashboard data:", error);
+                setStats(null);
+                setRecentBookings([]);
+                setRevenueTrend([]);
+                setCarAvailability(null);
+                setLoadError(
+                    getAdminActionErrorMessage(error, "Failed to load admin dashboard data. Please try again.")
+                );
             } finally {
                 setIsLoading(false);
             }
@@ -152,7 +162,7 @@ export function DashboardPage() {
     if (!stats) {
         return (
             <div className="text-center py-12">
-                <p className="text-red-400">Failed to load dashboard data</p>
+                <p className="text-red-400">{loadError || "Failed to load dashboard data"}</p>
             </div>
         );
     }
