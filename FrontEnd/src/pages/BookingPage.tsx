@@ -19,14 +19,23 @@ import {
 } from "lucide-react";
 import {Navbar} from "../components/Navbar";
 import {Footer} from "../components/Footer";
-import {Car as CarType, CARS_DATA} from "../data/cars";
+import {Car as CarType} from "../data/cars";
 import {carService} from "../services/carService";
 import {getImageUrl} from "../lib/ImageUtils";
 import {authService} from "../services/AuthService";
 import { AUTH_CHANGED_EVENT } from "../lib/authEvents.ts";
 import {AuthModal} from "../components/AuthModal";
 import {bookingService, type BookingCreateRequest} from "../services/BookingService.ts";
-import { getErrorMessage, isForbiddenError, isUnauthorizedError } from "../lib/errorUtils.ts";
+import { getErrorMessage, isConflictError, isForbiddenError, isUnauthorizedError } from "../lib/errorUtils.ts";
+import {
+    formatTimeRemaining,
+    getAvailabilityMessage,
+    getAvailabilityLabel,
+    getCarAvailabilityStatus,
+    isCarBookable,
+} from "../lib/carAvailability.ts";
+import { pushUserNotification } from "../lib/userNotifications.ts";
+import { toast } from "sonner";
 
 // Pickup locations
 const PICKUP_LOCATIONS = [
@@ -42,6 +51,14 @@ const formatDateForApi = (date: Date): string => {
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
+};
+
+const looksLikeCarAvailabilityFailure = (message: string): boolean => {
+    const normalized = message.toLowerCase();
+    return normalized.includes("not available")
+        || normalized.includes("temporarily reserved")
+        || normalized.includes("soft lock")
+        || normalized.includes("payment window");
 };
 
 export default function BookingPage() {
@@ -155,12 +172,7 @@ export default function BookingPage() {
             } catch (error) {
                 console.error("Failed to fetch car:", error);
                 setCarError(getErrorMessage(error, "Failed to load vehicle details."));
-
-                // Fallback to CARS_DATA
-                const fallbackCar = CARS_DATA.find(c => c.id === Number(carId));
-                if (fallbackCar) {
-                    setCar(fallbackCar);
-                }
+                setCar(null);
             } finally {
                 setIsLoadingCar(false);
             }
@@ -194,8 +206,37 @@ export default function BookingPage() {
         return { subtotal, insurance, gps, childSeat, additionalDriver, serviceFee, total };
     }, [car, rentalDays, extras]);
 
+    const [availabilityTick, setAvailabilityTick] = useState(0);
+
+    const availabilityStatus = car ? getCarAvailabilityStatus(car) : "available";
+    const carCanBeBooked = car ? isCarBookable(car) : false;
+    const availabilityMessage = car ? getAvailabilityMessage(car) : "";
+    const softLockCountdownLabel = useMemo(() => {
+        void availabilityTick;
+        if (!car?.softLockExpiresAt) {
+            return null;
+        }
+        return formatTimeRemaining(car.softLockExpiresAt);
+    }, [car?.softLockExpiresAt, availabilityTick]);
+
+    useEffect(() => {
+        if (!car?.softLockExpiresAt || availabilityStatus !== "soft_locked") {
+            return;
+        }
+
+        const timer = window.setInterval(() => {
+            setAvailabilityTick((value) => value + 1);
+        }, 1000);
+
+        return () => window.clearInterval(timer);
+    }, [car?.softLockExpiresAt, availabilityStatus]);
+
     // Date selection handler
     const handleDateSelect = (date: Date) => {
+        if (!carCanBeBooked) {
+            return;
+        }
+
         if (!pickupDate || (pickupDate && dropoffDate)) {
             setPickupDate(date);
             setDropoffDate(null);
@@ -219,6 +260,21 @@ export default function BookingPage() {
 
         if (!car) {
             setBookingError("Unable to submit booking because vehicle details are missing.");
+            return;
+        }
+
+        if (!carCanBeBooked) {
+            const blockedMessage = availabilityStatus === "soft_locked" && softLockCountdownLabel
+                ? `${availabilityMessage} Try again in ${softLockCountdownLabel}.`
+                : availabilityMessage;
+            setBookingError(blockedMessage);
+            pushUserNotification({
+                title: "Booking blocked",
+                message: blockedMessage,
+                level: "warning",
+                actionPath: `/vehicles/${car.id}`,
+                actionLabel: "View vehicle status",
+            });
             return;
         }
 
@@ -270,30 +326,39 @@ export default function BookingPage() {
             specialRequests: specialRequestsParts.length > 0 ? specialRequestsParts.join(" | ") : undefined,
         };
 
-        let createdBookingId: number | null = null;
-
         try {
             setIsSubmittingBooking(true);
             const createdBooking = await bookingService.create(payload);
-            createdBookingId = createdBooking.bookingId;
-            await bookingService.simulatePayment(createdBooking.bookingId, {
-                paymentMethod: selectedPaymentMethod,
+
+            const bookingNotice = `Booking #${createdBooking.bookingId} has been created and is awaiting payment. Complete payment from My Bookings before the payment window expires.`;
+            sessionStorage.setItem("garizetu_booking_notice", bookingNotice);
+            pushUserNotification({
+                title: "Booking awaiting payment",
+                message: bookingNotice,
+                level: "info",
+                actionPath: "/dashboard/bookings",
+                actionLabel: "Complete payment",
             });
+            toast.success("Booking created. Awaiting payment in My Bookings.");
             navigate("/dashboard/bookings");
         } catch (error) {
-            if (createdBookingId !== null) {
-                const recoveryMessage = getErrorMessage(
-                    error,
-                    "Booking was created, but payment was not completed. Retry payment from My Bookings."
-                );
-                sessionStorage.setItem("garizetu_booking_notice", recoveryMessage);
-                navigate("/dashboard/bookings");
+            const resolvedMessage = getErrorMessage(error, "Failed to complete booking. Please try again.");
+            const looksLikeAvailabilityFailure = looksLikeCarAvailabilityFailure(resolvedMessage);
+
+            if (isConflictError(error) || looksLikeAvailabilityFailure) {
+                setBookingError(resolvedMessage);
+                pushUserNotification({
+                    title: "Booking not completed",
+                    message: resolvedMessage,
+                    level: "warning",
+                    actionPath: `/vehicles/${car.id}`,
+                    actionLabel: "View vehicle status",
+                });
                 return;
             }
 
-            const resolvedMessage = getErrorMessage(error, "Failed to complete booking. Please try again.");
-
             if (isUnauthorizedError(error)) {
+                const stillAuthenticated = authService.isAuthenticated();
                 const normalized = resolvedMessage.toLowerCase();
                 const looksLikeSessionIssue =
                     normalized.includes("token")
@@ -301,11 +366,34 @@ export default function BookingPage() {
                     || normalized.includes("unauthorized")
                     || normalized.includes("authentication");
 
-                setBookingError(
-                    looksLikeSessionIssue
-                        ? "Your session may have expired. Please sign in again from the top menu, then retry the booking."
-                        : resolvedMessage
-                );
+                if (stillAuthenticated) {
+                    const authenticatedUserMessage = looksLikeAvailabilityFailure
+                        ? resolvedMessage
+                        : "Booking could not be completed right now. This vehicle may be temporarily reserved. Please refresh availability and try again.";
+                    setBookingError(authenticatedUserMessage);
+                    pushUserNotification({
+                        title: "Booking not completed",
+                        message: authenticatedUserMessage,
+                        level: "warning",
+                        actionPath: `/vehicles/${car.id}`,
+                        actionLabel: "View vehicle status",
+                    });
+                    return;
+                }
+
+                if (!looksLikeSessionIssue || looksLikeAvailabilityFailure) {
+                    setBookingError(resolvedMessage);
+                    pushUserNotification({
+                        title: "Booking not completed",
+                        message: resolvedMessage,
+                        level: "warning",
+                        actionPath: `/vehicles/${car.id}`,
+                        actionLabel: "View vehicle status",
+                    });
+                    return;
+                }
+
+                setBookingError("Your session may have expired. Please sign in again from the top menu, then retry the booking.");
                 return;
             }
             if (isForbiddenError(error)) {
@@ -314,13 +402,22 @@ export default function BookingPage() {
             }
             console.error("Failed to create booking:", error);
             setBookingError(resolvedMessage);
+            pushUserNotification({
+                title: "Booking not completed",
+                message: resolvedMessage,
+                level: "warning",
+                actionPath: `/vehicles/${car.id}`,
+                actionLabel: "View vehicle status",
+            });
         } finally {
             setIsSubmittingBooking(false);
         }
     };
 
     // Validation
-    const canProceedStep1 = Boolean(pickupDate && dropoffDate && pickupLocation && (sameLocation || dropoffLocation));
+    const canProceedStep1 = Boolean(
+        carCanBeBooked && pickupDate && dropoffDate && pickupLocation && (sameLocation || dropoffLocation)
+    );
     const canProceedStep2 = isAuthenticated;
 
     // ✅ LOADING STATE
@@ -380,7 +477,22 @@ export default function BookingPage() {
             {carError && (
                 <div className="bg-yellow-50 border-b border-yellow-200">
                     <div className="layout-container py-3">
-                        <p className="text-yellow-800 text-sm">{carError} - Showing cached data</p>
+                        <p className="text-yellow-800 text-sm">{carError}</p>
+                    </div>
+                </div>
+            )}
+
+            {!carCanBeBooked && (
+                <div className="bg-amber-50 border-b border-amber-200">
+                    <div className="layout-container py-3 flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-amber-800 text-sm font-medium">
+                            {getAvailabilityLabel(availabilityStatus)}: {availabilityMessage}
+                        </p>
+                        {availabilityStatus === "soft_locked" && softLockCountdownLabel && (
+                            <p className="text-amber-900 text-sm font-semibold">
+                                Retry in {softLockCountdownLabel}
+                            </p>
+                        )}
                     </div>
                 </div>
             )}
@@ -466,6 +578,7 @@ export default function BookingPage() {
                                                 pickupDate={pickupDate}
                                                 dropoffDate={dropoffDate}
                                                 onDateSelect={handleDateSelect}
+                                                disabled={!carCanBeBooked}
                                             />
                                         </div>
 
@@ -852,18 +965,18 @@ export default function BookingPage() {
                                         <div className="p-4 bg-green-50 border border-green-200 rounded-xl">
                                             <h3 className="font-medium text-green-900 mb-2">M-Pesa Payment</h3>
                                             <ol className="text-sm text-green-800 space-y-1">
-                                                <li>1. Click "Complete Booking" below</li>
-                                                <li>2. Payment is simulated for now</li>
-                                                <li>3. The booking moves to admin review instantly</li>
+                                                <li>1. Click "Create Booking (Pay Later)" below</li>
+                                                <li>2. Booking is created and marked as awaiting payment</li>
+                                                <li>3. In My Bookings, click "Complete Payment" to finish payment</li>
                                             </ol>
                                         </div>
                                     ) : (
                                         <div className="p-4 bg-blue-50 border border-blue-200 rounded-xl">
                                             <h3 className="font-medium text-blue-900 mb-2">Card Payment</h3>
                                             <ol className="text-sm text-blue-800 space-y-1">
-                                                <li>1. Click "Complete Booking" below</li>
-                                                <li>2. Card payment is simulated for now</li>
-                                                <li>3. The booking is sent to admin for confirmation</li>
+                                                <li>1. Click "Create Booking (Pay Later)" below</li>
+                                                <li>2. Booking is created and marked as awaiting payment</li>
+                                                <li>3. In My Bookings, click "Complete Payment" to finish payment</li>
                                             </ol>
                                         </div>
                                     )}
@@ -933,16 +1046,18 @@ export default function BookingPage() {
                             ) : (
                                 <button
                                     onClick={handleCompleteBooking}
-                                    disabled={isSubmittingBooking || !isAuthenticated}
+                                    disabled={isSubmittingBooking || !isAuthenticated || !carCanBeBooked}
                                     className={`px-8 py-3 rounded-xl font-semibold transition-colors ${
-                                        isSubmittingBooking || !isAuthenticated
+                                        isSubmittingBooking || !isAuthenticated || !carCanBeBooked
                                             ? "bg-emerald-300 text-white cursor-not-allowed"
                                             : "bg-emerald-600 text-white hover:bg-emerald-700"
                                     }`}
                                 >
                                     {isSubmittingBooking
                                         ? "Submitting booking..."
-                                        : `Complete Booking - Ksh ${pricing.total.toLocaleString()}`}
+                                        : !carCanBeBooked
+                                            ? "Currently unavailable"
+                                        : `Create Booking (Pay Later) - Ksh ${pricing.total.toLocaleString()}`}
                                 </button>
                             )}
                         </div>
@@ -1073,9 +1188,17 @@ interface BookingCalendarProps {
     pickupDate: Date | null;
     dropoffDate: Date | null;
     onDateSelect: (date: Date) => void;
+    disabled?: boolean;
 }
 
-function BookingCalendar({ currentMonth, setCurrentMonth, pickupDate, dropoffDate, onDateSelect }: BookingCalendarProps) {
+function BookingCalendar({
+    currentMonth,
+    setCurrentMonth,
+    pickupDate,
+    dropoffDate,
+    onDateSelect,
+    disabled = false,
+}: BookingCalendarProps) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -1141,10 +1264,10 @@ function BookingCalendar({ currentMonth, setCurrentMonth, pickupDate, dropoffDat
                     return (
                         <button
                             key={day}
-                            onClick={() => !past && onDateSelect(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day))}
-                            disabled={past}
+                            onClick={() => !past && !disabled && onDateSelect(new Date(currentMonth.getFullYear(), currentMonth.getMonth(), day))}
+                            disabled={past || disabled}
                             className={`h-9 text-sm rounded-lg transition-all ${
-                                past
+                                past || disabled
                                     ? "text-gray-300 cursor-not-allowed"
                                     : selected === "start"
                                         ? "bg-black text-white font-medium rounded-r-none"

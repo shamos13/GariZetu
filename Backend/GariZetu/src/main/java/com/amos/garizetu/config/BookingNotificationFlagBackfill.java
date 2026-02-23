@@ -1,6 +1,7 @@
 package com.amos.garizetu.config;
 
 import com.amos.garizetu.Booking.Enums.BookingStatus;
+import com.amos.garizetu.Booking.Enums.PaymentStatus;
 import com.amos.garizetu.Booking.repository.BookingRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 public class BookingNotificationFlagBackfill implements CommandLineRunner {
 
     private static final String BOOKING_STATUS_CONSTRAINT = "bookings_booking_status_check";
+    private static final String PAYMENT_STATUS_CONSTRAINT = "bookings_payment_status_check";
 
     private final BookingRepository bookingRepository;
     private final JdbcTemplate jdbcTemplate;
@@ -35,6 +37,7 @@ public class BookingNotificationFlagBackfill implements CommandLineRunner {
 
         enforceColumnDefaults();
         enforceBookingStatusConstraint();
+        enforcePaymentStatusConstraint();
     }
 
     private void enforceColumnDefaults() {
@@ -63,6 +66,25 @@ public class BookingNotificationFlagBackfill implements CommandLineRunner {
             log.debug("Enforced {} with statuses: {}", BOOKING_STATUS_CONSTRAINT, allowedStatuses);
         } catch (DataAccessException ex) {
             log.warn("Could not enforce bookings.booking_status check constraint; stale constraints may reject updates");
+        }
+    }
+
+    private void enforcePaymentStatusConstraint() {
+        try {
+            String allowedStatuses = Arrays.stream(PaymentStatus.values())
+                    .map(PaymentStatus::name)
+                    .map(status -> "'" + status + "'")
+                    .collect(Collectors.joining(", "));
+
+            jdbcTemplate.execute("ALTER TABLE bookings DROP CONSTRAINT IF EXISTS " + PAYMENT_STATUS_CONSTRAINT);
+            jdbcTemplate.execute(
+                    "ALTER TABLE bookings ADD CONSTRAINT " + PAYMENT_STATUS_CONSTRAINT
+                            + " CHECK (payment_status IN (" + allowedStatuses + "))"
+            );
+
+            log.debug("Enforced {} with statuses: {}", PAYMENT_STATUS_CONSTRAINT, allowedStatuses);
+        } catch (DataAccessException ex) {
+            log.warn("Could not enforce bookings.payment_status check constraint; stale constraints may reject updates");
         }
     }
 }

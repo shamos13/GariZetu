@@ -10,6 +10,7 @@ import { CarForm, type CarFormData, type GallerySubmitPayload } from "./componen
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog.tsx";
 import { bookingService } from "../../services/BookingService.ts";
+import { getAdminActionErrorMessage } from "../../lib/adminErrorUtils.ts";
 
 interface AdminDashboardProps {
     onBack: () => void;
@@ -53,6 +54,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
             setBookingNotificationCount(notifications.length);
         } catch (error) {
             console.error("Failed to fetch booking notifications:", error);
+            toast.error(getAdminActionErrorMessage(error, "Unable to load admin notifications."));
         }
     }, []);
 
@@ -135,7 +137,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
 
         } catch (error) {
             console.error("Failed to create car:", error);
-            toast.error("Failed to add car. Please try again.");
+            toast.error(getAdminActionErrorMessage(error, "Failed to add car. Please try again."));
         }
     };
 
@@ -155,7 +157,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
             toast.success("Car deleted successfully");
         } catch (error) {
             console.error("Failed to delete car:", error);
-            toast.error("Failed to delete car. Please try again.");
+            toast.error(getAdminActionErrorMessage(error, "Failed to delete car. Please try again."));
         }
     };
 
@@ -202,7 +204,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
             toast.success("Car updated successfully!");
         } catch (error) {
             console.error("Failed to update car:", error);
-            toast.error("Failed to update car. Please try again.");
+            toast.error(getAdminActionErrorMessage(error, "Failed to update car. Please try again."));
         }
     };
 
@@ -221,7 +223,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
             toast.success(`Car status updated to ${newStatus}`);
         } catch (error) {
             console.error("Failed to update car status:", error);
-            toast.error("Failed to update car status. Please try again.");
+            toast.error(getAdminActionErrorMessage(error, "Failed to update car status. Please try again."));
         }
     };
 

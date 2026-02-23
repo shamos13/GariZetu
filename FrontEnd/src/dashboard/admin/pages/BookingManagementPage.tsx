@@ -4,7 +4,7 @@ import {
     type Booking,
     type BookingStatus,
 } from "../../../services/BookingService.ts";
-import { getErrorMessage } from "../../../lib/errorUtils.ts";
+import { getAdminActionErrorMessage } from "../../../lib/adminErrorUtils.ts";
 
 interface BookingManagementPageProps {
     onNotificationCountChange?: (count: number) => void;
@@ -103,7 +103,7 @@ export function BookingManagementPage({ onNotificationCountChange }: BookingMana
             onNotificationCountChange?.(unreadNotifications.length);
         } catch (fetchError) {
             console.error("Failed to load admin bookings:", fetchError);
-            setError(getErrorMessage(fetchError, "Unable to load bookings at the moment."));
+            setError(getAdminActionErrorMessage(fetchError, "Unable to load bookings at the moment."));
         } finally {
             setIsLoading(false);
         }
@@ -130,7 +130,7 @@ export function BookingManagementPage({ onNotificationCountChange }: BookingMana
             await loadBookings();
         } catch (updateError) {
             console.error("Failed to update booking status:", updateError);
-            setError(getErrorMessage(updateError, "Could not update booking status. Please try again."));
+            setError(getAdminActionErrorMessage(updateError, "Could not update booking status. Please try again."));
         } finally {
             setActiveActionBookingId(null);
         }
@@ -143,7 +143,7 @@ export function BookingManagementPage({ onNotificationCountChange }: BookingMana
             await loadBookings();
         } catch (cancelError) {
             console.error("Failed to cancel booking:", cancelError);
-            setError(getErrorMessage(cancelError, "Could not cancel booking. Please try again."));
+            setError(getAdminActionErrorMessage(cancelError, "Could not cancel booking. Please try again."));
         } finally {
             setActiveActionBookingId(null);
         }
@@ -156,7 +156,7 @@ export function BookingManagementPage({ onNotificationCountChange }: BookingMana
             await loadBookings();
         } catch (readError) {
             console.error("Failed to mark notification as read:", readError);
-            setError(getErrorMessage(readError, "Could not mark notification as read."));
+            setError(getAdminActionErrorMessage(readError, "Could not mark notification as read."));
         } finally {
             setActiveActionBookingId(null);
         }

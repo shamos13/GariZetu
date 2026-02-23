@@ -1,6 +1,7 @@
 import { api } from "../../../lib/api.ts";
 import { adminCarService } from "./AdminCarService.ts";
 import type { Booking as BackendBooking, BookingStats, BookingStatus } from "../../../services/BookingService.ts";
+import { getHttpStatus } from "../../../lib/errorUtils.ts";
 
 /**
  * Dashboard Statistics Interface
@@ -151,6 +152,11 @@ const fetchBookingStats = async (): Promise<BookingStats> => {
     return response.data;
 };
 
+const isAuthorizationFailure = (error: unknown): boolean => {
+    const status = getHttpStatus(error);
+    return status === 401 || status === 403;
+};
+
 /**
  * Admin Dashboard Service
  * Fetches dashboard data from backend, falls back to safe static data on failure.
@@ -211,6 +217,9 @@ export const adminDashboardService = {
             };
         } catch (error) {
             console.error("Failed to fetch dashboard stats:", error);
+            if (isAuthorizationFailure(error)) {
+                throw error;
+            }
             return getMockStats();
         }
     },
@@ -232,6 +241,9 @@ export const adminDashboardService = {
                 .map(toDashboardBooking);
         } catch (error) {
             console.error("Failed to fetch recent bookings:", error);
+            if (isAuthorizationFailure(error)) {
+                throw error;
+            }
             return getMockRecentBookings(limit);
         }
     },
@@ -275,6 +287,9 @@ export const adminDashboardService = {
             }));
         } catch (error) {
             console.error("Failed to fetch revenue trend:", error);
+            if (isAuthorizationFailure(error)) {
+                throw error;
+            }
             return getMockRevenueTrend();
         }
     },
@@ -294,6 +309,9 @@ export const adminDashboardService = {
             };
         } catch (error) {
             console.error("Failed to fetch car availability:", error);
+            if (isAuthorizationFailure(error)) {
+                throw error;
+            }
             return {
                 available: 24,
                 rented: 18,

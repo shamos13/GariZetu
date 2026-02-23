@@ -8,6 +8,7 @@ import ContactPage from "./pages/ContactPage";
 import {Layout} from "./components/Layout.tsx";
 import AdminDashboardRoute from "./dashboard/admin/routes/AdminDashboardRoute.tsx";
 import CustomerDashboardRoute from "./dashboard/customer/routes/CustomerDashboardRoute.tsx";
+import { Toaster } from "sonner";
 
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
                 <Route path="/dashboard" element={<CustomerDashboardRoute />} />
                 <Route path="/dashboard/:section" element={<CustomerDashboardRoute />} />
             </Routes>
+            <Toaster richColors position="top-right" />
         </Layout>
     );
 }

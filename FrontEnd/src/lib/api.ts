@@ -49,7 +49,6 @@ const getPathFromUrl = (url?: string): string => {
 };
 
 const isAuthEndpoint = (url?: string): boolean => getPathFromUrl(url).startsWith("/auth/");
-const isBookingEndpoint = (url?: string): boolean => getPathFromUrl(url).startsWith("/bookings/");
 
 const getServerMessage = (payload: unknown): string => {
     if (!payload) {
@@ -191,8 +190,7 @@ api.interceptors.response.use(
         if (error.response?.status === 401) {
             const requestUrl = error.config?.url;
             const shouldClearAuth =
-                !isBookingEndpoint(requestUrl)
-                && !isAuthEndpoint(requestUrl)
+                !isAuthEndpoint(requestUrl)
                 && looksLikeAuthenticationFailure(error.response?.data, error.response?.headers);
 
             // Only clear auth when the server response clearly indicates token/auth failure.
