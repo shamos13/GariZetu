@@ -899,7 +899,7 @@ export default function VehicleDetailsPage() {
                         {relatedCars.map((relatedCar) => (
                             <div
                                 key={relatedCar.id}
-                                className="group bg-white rounded-2xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-all"
+                                className="group flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm transition-all hover:shadow-md"
                             >
                                 <div className="relative aspect-[4/3] bg-gray-100 overflow-hidden">
                                     <img
@@ -918,13 +918,13 @@ export default function VehicleDetailsPage() {
                                     </span>
                                 </div>
 
-                                <div className="p-4">
+                                <div className="flex flex-1 flex-col p-4">
                                     <h3 className="font-bold text-gray-900 mb-1">{relatedCar.name}</h3>
                                     <p className="text-xs text-gray-500 mb-4">
                                         {relatedCar.year} Model • {relatedCar.transmission}
                                     </p>
 
-                                    <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                                    <div className="mt-auto flex items-center justify-between border-t border-gray-100 pt-3">
                                         <div>
                                             <p className="text-xs text-gray-500">Daily Rate</p>
                                             <p className="font-semibold text-gray-900">

@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { X, ChevronLeft, ChevronRight, Users, Settings, Fuel, CheckCircle2, Gauge, Info } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, ChevronLeft, ChevronRight, Users, Settings, Fuel, CheckCircle2, Gauge } from "lucide-react";
 import {
     Dialog,
     DialogContent,
@@ -70,10 +70,14 @@ const getCategory = (car: CarData): string => {
 
 export function CarDetailsModal({ car, isOpen, onClose, onBookNow, onViewDetails }: CarDetailsModalProps) {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
+    const images = car ? getCarImages(car) : ["/placeholder-car.jpg"];
+
+    useEffect(() => {
+        setCurrentImageIndex(0);
+    }, [car?.id]);
 
     if (!car) return null;
 
-    const images = useMemo(() => getCarImages(car), [car]);
     const features = getCarFeatures(car);
     const description = getCarDescription(car);
     const category = getCategory(car);
@@ -90,12 +94,6 @@ export function CarDetailsModal({ car, isOpen, onClose, onBookNow, onViewDetails
     const handleBookNow = () => {
         if (onBookNow) {
             onBookNow(car);
-        }
-    };
-
-    const handleViewDetails = () => {
-        if (onViewDetails) {
-            onViewDetails(car);
         }
     };
 
