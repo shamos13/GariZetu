@@ -22,6 +22,7 @@ import {
     ResponsiveContainer 
 } from "recharts";
 import { adminDashboardService, type DashboardStats, type Booking, type RevenueDataPoint, type CarAvailability } from "../service/AdminDashboardService.ts";
+import { useIsMobile } from "../../../components/ui/use-mobile.ts";
 
 const COLORS = {
     available: "#10b981", // emerald-500
@@ -31,6 +32,7 @@ const COLORS = {
 };
 
 export function DashboardPage() {
+    const isMobile = useIsMobile();
     const [stats, setStats] = useState<DashboardStats | null>(null);
     const [recentBookings, setRecentBookings] = useState<Booking[]>([]);
     const [revenueTrend, setRevenueTrend] = useState<RevenueDataPoint[]>([]);
@@ -142,9 +144,9 @@ export function DashboardPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
             {/* Metric Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4 sm:gap-5 lg:gap-6">
                 {/* Total Cars */}
                 <MetricCard
                     title="Total Cars"
@@ -189,21 +191,26 @@ export function DashboardPage() {
             </div>
 
             {/* Charts Row */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 gap-4 sm:gap-5 lg:grid-cols-2 lg:gap-6">
                 {/* Revenue Trend Chart */}
-                <div className="bg-[#1a1a1a] rounded-xl p-6 border border-gray-800">
+                <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-4 sm:p-5 lg:p-6">
                     <h3 className="text-white font-semibold mb-4">Revenue Trend (Last 6 Months)</h3>
-                    <ResponsiveContainer width="100%" height={300}>
-                        <LineChart data={revenueTrend}>
+                    <ResponsiveContainer width="100%" height={isMobile ? 220 : 300}>
+                        <LineChart
+                            data={revenueTrend}
+                            margin={{ top: 8, right: 8, bottom: 8, left: isMobile ? -12 : 0 }}
+                        >
                             <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
                             <XAxis 
                                 dataKey="month" 
                                 stroke="#9ca3af"
-                                style={{ fontSize: '12px' }}
+                                interval="preserveStartEnd"
+                                tick={{ fontSize: isMobile ? 10 : 12 }}
                             />
                             <YAxis 
                                 stroke="#9ca3af"
-                                style={{ fontSize: '12px' }}
+                                width={isMobile ? 42 : 56}
+                                tick={{ fontSize: isMobile ? 10 : 12 }}
                                 tickFormatter={(value) => `Ksh ${(value / 1000).toFixed(0)}K`}
                             />
                             <Tooltip 
@@ -229,17 +236,21 @@ export function DashboardPage() {
                 </div>
 
                 {/* Car Availability Pie Chart */}
-                <div className="bg-[#1a1a1a] rounded-xl p-6 border border-gray-800">
+                <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-4 sm:p-5 lg:p-6">
                     <h3 className="text-white font-semibold mb-4">Car Availability</h3>
-                    <ResponsiveContainer width="100%" height={300}>
+                    <ResponsiveContainer width="100%" height={isMobile ? 220 : 300}>
                         <PieChart>
                             <Pie
                                 data={pieChartData}
                                 cx="50%"
                                 cy="50%"
                                 labelLine={false}
-                                label={({ name, percent = 0 }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                                outerRadius={100}
+                                label={
+                                    isMobile
+                                        ? false
+                                        : ({ name, percent = 0 }) => `${name}: ${(percent * 100).toFixed(0)}%`
+                                }
+                                outerRadius={isMobile ? 76 : 100}
                                 fill="#8884d8"
                                 dataKey="value"
                             >
@@ -281,10 +292,10 @@ export function DashboardPage() {
             </div>
 
             {/* Recent Bookings Table */}
-            <div className="bg-[#1a1a1a] rounded-xl p-6 border border-gray-800">
+            <div className="bg-[#1a1a1a] rounded-xl border border-gray-800 p-4 sm:p-5 lg:p-6">
                 <h3 className="text-white font-semibold mb-4">Recent Bookings</h3>
-                <div className="overflow-x-auto">
-                    <table className="w-full">
+                <div className="-mx-1 overflow-x-auto px-1">
+                    <table className="w-full min-w-[760px]">
                         <thead>
                             <tr className="border-b border-gray-800">
                                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-400">ID</th>

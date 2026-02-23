@@ -190,8 +190,8 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
 
             <div className="grid grid-cols-1 xl:grid-cols-12 gap-6">
                 <div className="xl:col-span-8 space-y-4">
-                    <div className="flex items-center justify-between">
-                        <h3 className="text-3xl font-semibold text-[#111827]">Active Booking</h3>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <h3 className="text-2xl md:text-3xl font-semibold text-[#111827]">Active Booking</h3>
                         <button
                             onClick={() => setCurrentPage("bookings")}
                             className="text-sm text-gray-500 hover:text-gray-700 inline-flex items-center gap-1"
@@ -218,7 +218,7 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
 
                                 <div className="p-1 space-y-4">
                                     <div>
-                                        <h4 className="text-3xl font-semibold text-[#111827]">
+                                        <h4 className="text-2xl md:text-3xl font-semibold text-[#111827]">
                                             {featuredBooking.carMake} {featuredBooking.carModel}
                                         </h4>
                                         <p className="text-gray-500">{featuredBooking.carYear} • Premium Package</p>
@@ -266,7 +266,7 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                     </div>
 
                     <div>
-                        <h3 className="text-3xl font-semibold text-[#111827] mb-4">Recommended for You</h3>
+                        <h3 className="text-2xl md:text-3xl font-semibold text-[#111827] mb-4">Recommended for You</h3>
                         {isLoadingCars ? (
                             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
                                 {[1, 2, 3].map((i) => (
@@ -310,7 +310,7 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                 <div className="xl:col-span-4">
                     <div className="rounded-3xl border border-gray-200 bg-white p-5">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-3xl font-semibold text-[#111827]">Recent Activity</h3>
+                            <h3 className="text-2xl md:text-3xl font-semibold text-[#111827]">Recent Activity</h3>
                         </div>
                         <div className="space-y-5">
                             <div className="flex gap-3">

@@ -53,6 +53,17 @@ export function CustomerLayout({ children, title, currentPage, onNavigate, onBac
         };
     }, []);
 
+    useEffect(() => {
+        const previousOverflow = document.body.style.overflow;
+        if (isMobileMenuOpen) {
+            document.body.style.overflow = "hidden";
+        }
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [isMobileMenuOpen]);
+
     const handleLogout = () => {
         authService.logout();
         navigate("/");
@@ -62,13 +73,14 @@ export function CustomerLayout({ children, title, currentPage, onNavigate, onBac
     const handleNavigate = (item: MenuItem) => {
         onNavigate(item.targetPage);
         setIsMobileMenuOpen(false);
+        setIsProfileOpen(false);
     };
 
     const userInitial = user?.userName?.charAt(0).toUpperCase() || "U";
 
     return (
-        <div className="bg-[#f3f4f6] text-[#111827]">
-            <aside className={`fixed top-0 left-0 h-full w-[250px] bg-[#070a10] border-r border-white/10 z-50 transition-transform duration-300 ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
+        <div className="min-h-screen overflow-x-hidden bg-[#f3f4f6] text-[#111827] font-sans">
+            <aside className={`fixed top-0 left-0 h-full w-[250px] overflow-y-auto bg-[#070a10] border-r border-white/10 z-50 transition-transform duration-300 ${isMobileMenuOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}>
                 <div className="h-full p-5 md:p-6 flex flex-col">
                     <div className="flex items-center gap-3 mb-8 pb-7 border-b border-white/10">
                         <img src={logoImage} alt="GariZetu" className="w-8 h-8 object-contain" />
@@ -153,9 +165,9 @@ export function CustomerLayout({ children, title, currentPage, onNavigate, onBac
                 />
             )}
 
-            <div className="lg:ml-[250px]">
+            <div className="lg:ml-[250px] min-h-screen flex flex-col">
                 <header className="sticky top-0 z-30 bg-[#f8f8fa]/95 backdrop-blur-sm border-b border-gray-200">
-                    <div className="flex items-center justify-between px-5 py-3.5 md:px-6">
+                    <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5 md:px-6">
                         <div className="flex items-center gap-4">
                             <button
                                 onClick={() => setIsMobileMenuOpen(true)}
@@ -163,15 +175,17 @@ export function CustomerLayout({ children, title, currentPage, onNavigate, onBac
                             >
                                 <Menu className="w-6 h-6" />
                             </button>
-                            <div>
-                                <h1 className="text-[#111827] text-xl md:text-2xl font-semibold">Welcome back, {user?.userName || "Member"}</h1>
+                            <div className="min-w-0">
+                                <h1 className="text-[#111827] text-lg sm:text-xl md:text-2xl font-semibold leading-tight">
+                                    Welcome back, {user?.userName || "Member"}
+                                </h1>
                                 <p className="text-sm text-gray-500">
                                     {title === "Dashboard" ? "Manage your premium fleet experience." : title}
                                 </p>
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 sm:gap-4">
                             <button
                                 onClick={() => onNavigate("bookings")}
                                 className="relative p-2 hover:bg-gray-200 rounded-lg transition-colors"
@@ -181,7 +195,7 @@ export function CustomerLayout({ children, title, currentPage, onNavigate, onBac
                                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
                             </button>
 
-                            <div className="h-8 w-px bg-gray-300" />
+                            <div className="hidden sm:block h-8 w-px bg-gray-300" />
 
                             <div className="relative" ref={profileRef}>
                                 <button
@@ -235,11 +249,11 @@ export function CustomerLayout({ children, title, currentPage, onNavigate, onBac
                     </div>
                 </header>
 
-                <main className="p-5 md:p-6">
+                <main className="flex-1 p-4 sm:p-5 md:p-6">
                     {children}
                 </main>
 
-                <footer className="border-t border-gray-200 px-5 py-3 md:px-6">
+                <footer className="border-t border-gray-200 px-4 py-3 sm:px-5 md:px-6">
                     <p className="text-gray-500 text-sm text-center">© 2025 GariZetu. All rights reserved.</p>
                 </footer>
             </div>

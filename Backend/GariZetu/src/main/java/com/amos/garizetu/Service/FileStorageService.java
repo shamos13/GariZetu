@@ -124,6 +124,30 @@ public class FileStorageService {
         log.error("Could not load file: {}", normalizedFileName);
         throw new RuntimeException("File not found: " + normalizedFileName);
     }
+
+    // Deletes a file from the configured storage locations.
+    // Returns true when at least one file was deleted.
+    public boolean deleteFile(String fileName) {
+        String normalizedFileName = StringUtils.cleanPath(fileName);
+        if (normalizedFileName.contains("..")) {
+            log.warn("Refusing to delete file with invalid path: {}", fileName);
+            return false;
+        }
+
+        boolean deleted = false;
+
+        deleted |= deleteFromLocation(this.fileStorageLocation, normalizedFileName);
+
+        for (Path fallbackLocation : this.fallbackStorageLocations) {
+            deleted |= deleteFromLocation(fallbackLocation, normalizedFileName);
+        }
+
+        if (!deleted) {
+            log.warn("File not found for deletion: {}", normalizedFileName);
+        }
+
+        return deleted;
+    }
     // Validates if the allowed MIME type is an allowed image type
     private boolean isValidImageType(String contentType) {
         return "image/jpeg".equals(contentType) ||
@@ -172,5 +196,15 @@ public class FileStorageService {
         }
 
         return locations;
+    }
+
+    private boolean deleteFromLocation(Path location, String fileName) {
+        try {
+            Path filePath = location.resolve(fileName).normalize();
+            return Files.deleteIfExists(filePath);
+        } catch (IOException ex) {
+            log.warn("Failed to delete file {} from {}", fileName, location, ex);
+            return false;
+        }
     }
 }

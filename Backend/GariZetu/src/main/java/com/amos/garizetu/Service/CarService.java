@@ -19,6 +19,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional
 public class CarService {
+    private static final String LOCAL_IMAGE_PREFIX = "/api/v1/cars/images/";
 
     private final CarRepository carRepository;
     private final CarMapper carMapper;
@@ -232,6 +234,8 @@ public class CarService {
         Car car = carRepository.findByIdWithFeatures(id)
                 .orElseThrow(() -> new RuntimeException("Car with ID " + id + " not found"));
 
+        String previousImageUrl = car.getMainImageUrl();
+
         // Store the new image and update the URL
         String storedFileName = fileStorageService.storeFile(image);
         log.info("Updating image for car {} with file {}", id, storedFileName);
@@ -240,6 +244,11 @@ public class CarService {
         car.setMainImageUrl(imageUrl);
 
         Car savedCar = carRepository.save(car);
+
+        if (previousImageUrl != null && !previousImageUrl.equals(imageUrl)) {
+            cleanupRemovedImageUrls(List.of(previousImageUrl), id);
+        }
+
         return carMapper.toResponseDTO(savedCar);
     }
 
@@ -268,21 +277,38 @@ public class CarService {
                 .map(fileName -> "/api/v1/cars/images/" + fileName)
                 .collect(Collectors.toList());
 
-        List<String> finalGalleryUrls = new ArrayList<>();
-        finalGalleryUrls.addAll(retainedUrls);
-        finalGalleryUrls.addAll(uploadedUrls);
+        LinkedHashSet<String> finalGallerySet = new LinkedHashSet<>();
+        finalGallerySet.addAll(retainedUrls);
+        finalGallerySet.addAll(uploadedUrls);
+        List<String> finalGalleryUrls = new ArrayList<>(finalGallerySet);
         car.setGalleryImageUrls(finalGalleryUrls);
 
+        List<String> removedUrls = currentGallery.stream()
+                .filter(url -> !finalGallerySet.contains(url))
+                .collect(Collectors.toList());
+
         Car savedCar = carRepository.save(car);
+
+        cleanupRemovedImageUrls(removedUrls, id);
+
         return carMapper.toResponseDTO(savedCar);
     }
 
     public void deleteCar(Long id){
         log.debug("Deleting car with ID: {}", id);
-        if(!carRepository.existsById(id)){
-            throw  new RuntimeException("Car with ID " + id + " not found");
+        Car car = carRepository.findByIdWithFeatures(id)
+                .orElseThrow(() -> new RuntimeException("Car with ID " + id + " not found"));
+
+        List<String> imageUrls = new ArrayList<>();
+        if (car.getMainImageUrl() != null && !car.getMainImageUrl().isBlank()) {
+            imageUrls.add(car.getMainImageUrl());
         }
+        if (car.getGalleryImageUrls() != null && !car.getGalleryImageUrls().isEmpty()) {
+            imageUrls.addAll(car.getGalleryImageUrls());
+        }
+
         carRepository.deleteById(id);
+        cleanupRemovedImageUrls(imageUrls, id);
     }
     private void validateCarYear(int carYear) {
         int currentYear = LocalDate.now().getYear();
@@ -294,6 +320,57 @@ public class CarService {
         if (carYear < currentYear - 30) {
             throw new RuntimeException("We do not take cars over 30 years old");
         }
+    }
+
+    private void cleanupRemovedImageUrls(List<String> imageUrls, Long currentCarId) {
+        if (imageUrls == null || imageUrls.isEmpty()) {
+            return;
+        }
+
+        LinkedHashSet<String> uniqueUrls = imageUrls.stream()
+                .filter(url -> url != null && !url.isBlank())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        for (String imageUrl : uniqueUrls) {
+            if (isImageReferencedByOtherCars(imageUrl, currentCarId)) {
+                log.debug("Skipping delete for image still referenced by another car: {}", imageUrl);
+                continue;
+            }
+            deleteImageByUrl(imageUrl);
+        }
+    }
+
+    private boolean isImageReferencedByOtherCars(String imageUrl, Long currentCarId) {
+        return carRepository.findAll().stream()
+                .filter(car -> !Objects.equals(car.getCarId(), currentCarId))
+                .anyMatch(car ->
+                        imageUrl.equals(car.getMainImageUrl())
+                                || (car.getGalleryImageUrls() != null && car.getGalleryImageUrls().contains(imageUrl))
+                );
+    }
+
+    private void deleteImageByUrl(String imageUrl) {
+        String fileName = extractLocalFileName(imageUrl);
+        if (fileName == null) {
+            // Non-local URLs (e.g. cloud storage URLs) are intentionally not deleted here.
+            log.debug("Skipping storage delete for non-local image URL: {}", imageUrl);
+            return;
+        }
+
+        fileStorageService.deleteFile(fileName);
+    }
+
+    private String extractLocalFileName(String imageUrl) {
+        if (imageUrl == null || !imageUrl.startsWith(LOCAL_IMAGE_PREFIX)) {
+            return null;
+        }
+
+        String fileName = imageUrl.substring(LOCAL_IMAGE_PREFIX.length()).trim();
+        if (fileName.isEmpty()) {
+            return null;
+        }
+
+        return fileName;
     }
 
 }
