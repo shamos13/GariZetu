@@ -74,7 +74,8 @@ export const adminCarService = {
             description?: string;
             featureName?: string[];
         },
-        image?: File
+        image?: File,
+        galleryImages?: File[]
     ): Promise<BackendCar> => {
         try {
             // First update JSON fields (status, mileage, dailyPrice)
@@ -101,6 +102,23 @@ export const adminCarService = {
                 );
 
                 updatedCar = imageRes.data;
+            }
+
+            if (galleryImages && galleryImages.length > 0) {
+                const formData = new FormData();
+                galleryImages.forEach((file) => formData.append("images", file));
+
+                const galleryRes = await api.patch<BackendCar>(
+                    `/cars/${id}/gallery`,
+                    formData,
+                    {
+                        headers: {
+                            "Content-Type": "multipart/form-data"
+                        }
+                    }
+                );
+
+                updatedCar = galleryRes.data;
             }
 
             return updatedCar;

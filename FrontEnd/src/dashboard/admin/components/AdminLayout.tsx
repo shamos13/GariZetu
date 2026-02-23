@@ -91,6 +91,16 @@ export function AdminLayout({ children, title, currentPage, onNavigate, onBack }
                         ))}
                     </nav>
 
+                    {onBack && (
+                        <Button
+                            onClick={onBack}
+                            variant="outline"
+                            className="w-full mt-4 bg-transparent border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white"
+                        >
+                            Back to Site
+                        </Button>
+                    )}
+
                     {/* User Profile Section */}
                     <div className="pt-6 mt-6 border-t border-gray-800">
                         <div className="flex items-center gap-3 px-4 py-3">
@@ -102,15 +112,6 @@ export function AdminLayout({ children, title, currentPage, onNavigate, onBack }
                                 <p className="text-xs text-gray-400 truncate">{user?.email || "admin@garizetu.com"}</p>
                             </div>
                         </div>
-                        {onBack && (
-                            <Button
-                                onClick={onBack}
-                                variant="outline"
-                                className="w-full mt-3 bg-transparent border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white"
-                            >
-                                Back to Site
-                            </Button>
-                        )}
                     </div>
                 </div>
             </aside>

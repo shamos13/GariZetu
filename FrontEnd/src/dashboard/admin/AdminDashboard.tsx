@@ -56,7 +56,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         }
     }, [currentPage, carsLoaded]);
 
-    const handleAddCar = async (carData: CarCreateRequest, image: File | null) => {
+    const handleAddCar = async (carData: CarCreateRequest, image: File | null, galleryImages: File[]) => {
         try {
             // Step 1: Validate we have an image
             if (!image) {
@@ -99,6 +99,12 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                 });
             }
 
+            if (galleryImages && galleryImages.length > 0) {
+                galleryImages.forEach((file) => {
+                    formData.append("galleryImages", file);
+                });
+            }
+
             // Step 3: Send to backend
             const createdCar = await adminCarService.createCar(formData);
 
@@ -136,7 +142,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         }
     };
 
-    const handleUpdateCar = async (carData: CarCreateRequest, image: File | null) => {
+    const handleUpdateCar = async (carData: CarCreateRequest, image: File | null, galleryImages: File[]) => {
         if (!editingCar) return;
 
         try {
@@ -162,7 +168,8 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
             const updatedCar = await adminCarService.updateCar(
                 editingCar.carId,
                 payload,
-                image ?? undefined
+                image ?? undefined,
+                galleryImages
             );
 
             setCars(prev =>
