@@ -1,4 +1,4 @@
-import React, {useEffect, useState, useMemo} from "react";
+import React, {useEffect, useState, useMemo, useRef} from "react";
 import {Button} from "../../../components/ui/button";
 import {Input} from "../../../components/ui/input";
 import {Label} from "../../../components/ui/label";
@@ -37,9 +37,25 @@ interface Feature {
     featureCategory: string;
 }
 
+type PendingGalleryImage = {
+    id: string;
+    file: File;
+    preview: string;
+};
+
+export type GallerySubmitPayload = {
+    newImages: File[];
+    existingUrls: string[];
+    hasChanges: boolean;
+};
+
 interface CarFormProps {
     car?: CarFormData;
-    onSubmit: (car: CarFormData, image: File | null, galleryImages: File[]) => void | Promise<void>;
+    onSubmit: (
+        car: CarFormData,
+        image: File | null,
+        gallery: GallerySubmitPayload
+    ) => void | Promise<void>;
     onCancel: () => void;
 }
 
@@ -91,12 +107,19 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
     const [imagePreview, setImagePreview] = useState<string | null>(
         car?.mainImageUrl ? getImageUrl(car.mainImageUrl) : null
     );
-    const [selectedGalleryImages, setSelectedGalleryImages] = useState<File[]>([]);
-    const [galleryPreviews, setGalleryPreviews] = useState<string[]>([]);
+    const [existingGalleryUrls, setExistingGalleryUrls] = useState<string[]>(car?.galleryImageUrls || []);
+    const [pendingGalleryImages, setPendingGalleryImages] = useState<PendingGalleryImage[]>([]);
+    const pendingGalleryImagesRef = useRef<PendingGalleryImage[]>([]);
     const existingGalleryPreviews = useMemo(
-        () => car?.galleryImageUrls?.map(getImageUrl) || [],
-        [car?.galleryImageUrls]
+        () => existingGalleryUrls.map(getImageUrl),
+        [existingGalleryUrls]
     );
+    const hasGalleryChanges = useMemo(() => {
+        if (!car) return pendingGalleryImages.length > 0;
+        const original = (car.galleryImageUrls || []).slice().sort().join(",");
+        const current = existingGalleryUrls.slice().sort().join(",");
+        return original !== current || pendingGalleryImages.length > 0;
+    }, [car, existingGalleryUrls, pendingGalleryImages.length]);
 
     // Features state
     const [availableFeatures, setAvailableFeatures] = useState<Feature[]>([]);
@@ -125,7 +148,9 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
             return selectedImage !== null; // Image changed if a new file is selected
         }
         if (fieldName === 'galleryImageUrls') {
-            return selectedGalleryImages.length > 0;
+            const originalGallery = (originalValues.galleryImageUrls || []).slice().sort().join(',');
+            const currentGallery = existingGalleryUrls.slice().sort().join(',');
+            return currentGallery !== originalGallery || pendingGalleryImages.length > 0;
         }
         
         return currentValue !== originalValue;
@@ -283,10 +308,15 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         // Add selected features to formData (can be empty array)
         const dataToSubmit = {
             ...formData,
-            featureName: selectedFeatures
+            featureName: selectedFeatures,
+            galleryImageUrls: existingGalleryUrls
         };
 
-        onSubmit(dataToSubmit, selectedImage, selectedGalleryImages);
+        onSubmit(dataToSubmit, selectedImage, {
+            newImages: pendingGalleryImages.map((item) => item.file),
+            existingUrls: existingGalleryUrls,
+            hasChanges: hasGalleryChanges
+        });
     };
 
     const handleChange = (field: keyof CarFormData, value: string | number | string[]) => {
@@ -341,23 +371,75 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
             return;
         }
 
-        setSelectedGalleryImages(files);
-        const previews = files.map((file) => URL.createObjectURL(file));
-        setGalleryPreviews(previews);
+        setPendingGalleryImages((prev) => {
+            const existingSignatures = new Set(
+                prev.map((item) => `${item.file.name}-${item.file.size}-${item.file.lastModified}`)
+            );
+
+            const newItems: PendingGalleryImage[] = [];
+            files.forEach((file, index) => {
+                const signature = `${file.name}-${file.size}-${file.lastModified}`;
+                if (existingSignatures.has(signature)) {
+                    return;
+                }
+
+                existingSignatures.add(signature);
+                newItems.push({
+                    id: `${signature}-${Date.now()}-${index}`,
+                    file,
+                    preview: URL.createObjectURL(file)
+                });
+            });
+
+            return [...prev, ...newItems];
+        });
+
+        // Allow selecting the same file again on the next change.
+        e.target.value = "";
     };
 
-    const handleClearGallery = () => {
-        setSelectedGalleryImages([]);
-        setGalleryPreviews([]);
+    const handleRemoveExistingGalleryImage = (index: number) => {
+        setExistingGalleryUrls((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
+    };
+
+    const handleRemovePendingGalleryImage = (imageId: string) => {
+        setPendingGalleryImages((prev) => {
+            const target = prev.find((item) => item.id === imageId);
+            if (target) {
+                URL.revokeObjectURL(target.preview);
+            }
+            return prev.filter((item) => item.id !== imageId);
+        });
+    };
+
+    const handleClearPendingGallery = () => {
+        setPendingGalleryImages((prev) => {
+            prev.forEach((item) => URL.revokeObjectURL(item.preview));
+            return [];
+        });
+        const fileInput = document.getElementById('galleryImages') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+    };
+
+    const handleClearAllGallery = () => {
+        setExistingGalleryUrls([]);
+        setPendingGalleryImages((prev) => {
+            prev.forEach((item) => URL.revokeObjectURL(item.preview));
+            return [];
+        });
         const fileInput = document.getElementById('galleryImages') as HTMLInputElement;
         if (fileInput) fileInput.value = '';
     };
 
     useEffect(() => {
+        pendingGalleryImagesRef.current = pendingGalleryImages;
+    }, [pendingGalleryImages]);
+
+    useEffect(() => {
         return () => {
-            galleryPreviews.forEach((url) => URL.revokeObjectURL(url));
+            pendingGalleryImagesRef.current.forEach((item) => URL.revokeObjectURL(item.preview));
         };
-    }, [galleryPreviews]);
+    }, []);
 
     const handleClearImage = () => {
         setSelectedImage(null);
@@ -492,15 +574,46 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                     )}
                 </div>
 
-                {(galleryPreviews.length > 0 || existingGalleryPreviews.length > 0) && (
+                {(pendingGalleryImages.length > 0 || existingGalleryPreviews.length > 0) && (
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                        {(galleryPreviews.length > 0 ? galleryPreviews : existingGalleryPreviews).map((url, index) => (
-                            <div key={`${url}-${index}`} className="relative">
+                        {existingGalleryPreviews.map((url, index) => (
+                            <div key={`existing-${url}-${index}`} className="relative">
                                 <img
                                     src={url}
                                     alt={`Gallery preview ${index + 1}`}
                                     className="h-28 w-full rounded-lg border border-gray-700 object-cover"
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemoveExistingGalleryImage(index)}
+                                    className="absolute right-2 top-2 rounded-full bg-red-500 p-1 text-white hover:bg-red-600 transition-colors"
+                                    aria-label="Remove existing gallery image"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                                <span className="absolute left-2 bottom-2 rounded bg-black/70 px-1.5 py-0.5 text-[10px] text-white">
+                                    Saved
+                                </span>
+                            </div>
+                        ))}
+                        {pendingGalleryImages.map((item, index) => (
+                            <div key={item.id} className="relative">
+                                <img
+                                    src={item.preview}
+                                    alt={`New gallery preview ${index + 1}`}
+                                    className="h-28 w-full rounded-lg border border-gray-700 object-cover"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => handleRemovePendingGalleryImage(item.id)}
+                                    className="absolute right-2 top-2 rounded-full bg-red-500 p-1 text-white hover:bg-red-600 transition-colors"
+                                    aria-label="Remove new gallery image"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                                <span className="absolute left-2 bottom-2 rounded bg-emerald-600/90 px-1.5 py-0.5 text-[10px] text-white">
+                                    New
+                                </span>
                             </div>
                         ))}
                     </div>
@@ -512,16 +625,26 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                         className="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-[#0a0a0a] px-3 py-2 text-sm text-gray-300 hover:border-gray-500 hover:bg-[#141414] transition-colors cursor-pointer"
                     >
                         <Upload className="h-4 w-4" />
-                        {galleryPreviews.length > 0 ? "Replace Gallery" : "Upload Gallery"}
+                        Add Gallery Images
                     </label>
-                    {(galleryPreviews.length > 0 || selectedGalleryImages.length > 0) && (
+                    {pendingGalleryImages.length > 0 && (
                         <button
                             type="button"
-                            onClick={handleClearGallery}
+                            onClick={handleClearPendingGallery}
+                            className="inline-flex items-center gap-2 rounded-lg border border-orange-500/40 bg-orange-500/10 px-3 py-2 text-sm text-orange-300 hover:bg-orange-500/20 transition-colors"
+                        >
+                            <X className="h-4 w-4" />
+                            Clear New Images
+                        </button>
+                    )}
+                    {(existingGalleryUrls.length > 0 || pendingGalleryImages.length > 0) && (
+                        <button
+                            type="button"
+                            onClick={handleClearAllGallery}
                             className="inline-flex items-center gap-2 rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300 hover:bg-red-500/20 transition-colors"
                         >
                             <X className="h-4 w-4" />
-                            Clear Selection
+                            Clear All Gallery
                         </button>
                     )}
                 </div>
@@ -536,7 +659,7 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                 />
 
                 <p className="text-xs text-gray-500">
-                    Optional. You can upload multiple images to show in the vehicle gallery.
+                    Optional. Add images in batches, remove individual images, and keep only the gallery images you want to save.
                 </p>
             </div>
 

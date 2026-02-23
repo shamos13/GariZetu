@@ -77,7 +77,9 @@ export const adminCarService = {
             featureName?: string[];
         },
         image?: File,
-        galleryImages?: File[]
+        galleryImages?: File[],
+        existingGalleryUrls: string[] = [],
+        syncGallery = false
     ): Promise<BackendCar> => {
         try {
             // First update JSON fields (status, mileage, dailyPrice)
@@ -106,9 +108,11 @@ export const adminCarService = {
                 updatedCar = imageRes.data;
             }
 
-            if (galleryImages && galleryImages.length > 0) {
+            const shouldSyncGallery = syncGallery || (galleryImages && galleryImages.length > 0);
+            if (shouldSyncGallery) {
                 const formData = new FormData();
-                galleryImages.forEach((file) => formData.append("images", file));
+                existingGalleryUrls.forEach((url) => formData.append("existingUrls", url));
+                (galleryImages || []).forEach((file) => formData.append("images", file));
 
                 const galleryRes = await api.patch<BackendCar>(
                     `/cars/${id}/gallery`,

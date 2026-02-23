@@ -16,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -241,21 +243,35 @@ public class CarService {
         return carMapper.toResponseDTO(savedCar);
     }
 
-    // Replace car gallery images
-    public CarResponseDTO updateCarGallery(Long id, List<MultipartFile> images) {
+    // Update car gallery by keeping selected existing URLs and appending new uploaded files.
+    public CarResponseDTO updateCarGallery(Long id, List<MultipartFile> images, List<String> existingUrls) {
         Car car = carRepository.findByIdWithFeatures(id)
                 .orElseThrow(() -> new RuntimeException("Car with ID " + id + " not found"));
 
-        if (images == null || images.isEmpty()) {
-            throw new RuntimeException("Gallery images are required");
+        List<String> currentGallery = car.getGalleryImageUrls() != null
+                ? car.getGalleryImageUrls()
+                : List.of();
+
+        // Keep only URLs that already belong to this car to avoid arbitrary URL injection.
+        List<String> retainedUrls = new ArrayList<>();
+        if (existingUrls != null) {
+            Set<String> allowed = new LinkedHashSet<>(currentGallery);
+            retainedUrls = existingUrls.stream()
+                    .filter(url -> url != null && !url.isBlank())
+                    .filter(allowed::contains)
+                    .collect(Collectors.toList());
         }
 
-        List<String> galleryUrls = images.stream()
+        List<String> uploadedUrls = (images == null ? List.<MultipartFile>of() : images).stream()
                 .filter(file -> file != null && !file.isEmpty())
                 .map(fileStorageService::storeFile)
                 .map(fileName -> "/api/v1/cars/images/" + fileName)
                 .collect(Collectors.toList());
-        car.setGalleryImageUrls(galleryUrls);
+
+        List<String> finalGalleryUrls = new ArrayList<>();
+        finalGalleryUrls.addAll(retainedUrls);
+        finalGalleryUrls.addAll(uploadedUrls);
+        car.setGalleryImageUrls(finalGalleryUrls);
 
         Car savedCar = carRepository.save(car);
         return carMapper.toResponseDTO(savedCar);
