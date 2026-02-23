@@ -48,7 +48,7 @@ export interface CarAvailability {
     total: number;
 }
 
-const REVENUE_INCLUDED_STATUSES: BookingStatus[] = ["CONFIRMED", "ACTIVE", "COMPLETED"];
+const REVENUE_INCLUDED_STATUSES: BookingStatus[] = ["CONFIRMED", "ACTIVE", "COMPLETED", "ADMIN_NOTIFIED"];
 let pendingBookingsRequest: Promise<BackendBooking[]> | null = null;
 
 const parseDate = (dateValue: string): Date | null => {
@@ -198,7 +198,11 @@ export const adminDashboardService = {
                 availableCars,
                 rentedCars,
                 maintenanceCars,
-                activeBookings: bookingStats.confirmedCount + bookingStats.activeCount,
+                activeBookings:
+                    bookingStats.pendingCount
+                    + bookingStats.adminNotifiedCount
+                    + bookingStats.confirmedCount
+                    + bookingStats.activeCount,
                 totalRevenue,
                 monthlyRevenue,
                 revenueChange: calculatePercentageChange(monthlyRevenue, previousMonthlyRevenue),

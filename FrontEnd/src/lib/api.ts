@@ -1,4 +1,5 @@
 import axios from "axios";
+import { emitAuthChanged } from "./authEvents.ts";
 
 /**
  * Base URL for your backend API
@@ -20,6 +21,94 @@ export const api = axios.create({
     },
     withCredentials: true,
 });
+
+const AUTH_MESSAGE_MARKERS = [
+    "jwt",
+    "token",
+    "expired",
+    "invalid",
+    "unauthorized",
+    "authentication",
+    "not authenticated",
+    "full authentication is required",
+];
+
+const getPathFromUrl = (url?: string): string => {
+    if (!url) {
+        return "";
+    }
+
+    try {
+        // Supports relative axios URLs like "/bookings/create" and absolute URLs.
+        const parsed = new URL(url, BASE_URL);
+        const normalized = parsed.pathname.replace(/^\/api\/v1/, "");
+        return normalized || "/";
+    } catch {
+        return url;
+    }
+};
+
+const isAuthEndpoint = (url?: string): boolean => getPathFromUrl(url).startsWith("/auth/");
+const isBookingEndpoint = (url?: string): boolean => getPathFromUrl(url).startsWith("/bookings/");
+
+const getServerMessage = (payload: unknown): string => {
+    if (!payload) {
+        return "";
+    }
+
+    if (typeof payload === "string") {
+        return payload.trim();
+    }
+
+    if (typeof payload === "object") {
+        const data = payload as Record<string, unknown>;
+        const candidates = [data.message, data.error, data.details, data.title];
+        for (const candidate of candidates) {
+            if (typeof candidate === "string" && candidate.trim().length > 0) {
+                return candidate.trim();
+            }
+        }
+    }
+
+    return "";
+};
+
+const looksLikeAuthenticationFailure = (
+    responseData: unknown,
+    responseHeaders: unknown
+): boolean => {
+    const message = getServerMessage(responseData).toLowerCase();
+    if (message) {
+        return AUTH_MESSAGE_MARKERS.some((marker) => message.includes(marker));
+    }
+
+    if (responseHeaders && typeof responseHeaders === "object") {
+        const headerValue = (responseHeaders as Record<string, unknown>)["www-authenticate"];
+        if (typeof headerValue === "string" && headerValue.toLowerCase().includes("bearer")) {
+            return true;
+        }
+    }
+
+    return false;
+};
+
+const getUsableToken = (): string | null => {
+    const rawToken = localStorage.getItem("garizetu_token");
+
+    if (!rawToken) {
+        return null;
+    }
+
+    const trimmedToken = rawToken.trim();
+    if (!trimmedToken || trimmedToken === "undefined" || trimmedToken === "null") {
+        localStorage.removeItem("garizetu_token");
+        localStorage.removeItem("garizetu_user");
+        emitAuthChanged();
+        return null;
+    }
+
+    return trimmedToken;
+};
 
 /**
  * REQUEST INTERCEPTOR
@@ -45,9 +134,13 @@ export const api = axios.create({
  */
 api.interceptors.request.use(
     (config) => {
+        if (isAuthEndpoint(config.url)) {
+            return config;
+        }
+
         // Get the token from localStorage
         // We use the same key that authService uses
-        const token = localStorage.getItem("garizetu_token");
+        const token = getUsableToken();
 
         if (token) {
             // Add the Authorization header
@@ -96,14 +189,22 @@ api.interceptors.response.use(
     (error) => {
         // Check if the error is due to authentication failure
         if (error.response?.status === 401) {
-            console.log("🚫 Token expired or invalid - logging out user");
+            const requestUrl = error.config?.url;
+            const shouldClearAuth =
+                !isBookingEndpoint(requestUrl)
+                && !isAuthEndpoint(requestUrl)
+                && looksLikeAuthenticationFailure(error.response?.data, error.response?.headers);
 
-            // Clear the invalid token
-            localStorage.removeItem("garizetu_token");
-            localStorage.removeItem("garizetu_user");
-
-            // Optionally redirect to login page
-            // window.location.href = "/";
+            // Only clear auth when the server response clearly indicates token/auth failure.
+            // This avoids logging users out for business-rule failures that are incorrectly sent as 401.
+            if (shouldClearAuth) {
+                console.log("🚫 Authentication failure detected from API - clearing session");
+                localStorage.removeItem("garizetu_token");
+                localStorage.removeItem("garizetu_user");
+                emitAuthChanged();
+            } else {
+                console.warn("⚠️  Received 401 without clear auth-expiry signal; preserving local session state");
+            }
         }
 
         // Re-throw the error so the calling code can handle it

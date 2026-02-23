@@ -23,6 +23,7 @@ interface AdminLayoutProps {
     title: string;
     currentPage: string;
     onNavigate: (page: string) => void;
+    bookingNotificationCount?: number;
     onBack?: () => void;
 }
 
@@ -37,7 +38,7 @@ type SidebarMenuItem = {
 const mainMenuItems: SidebarMenuItem[] = [
     { id: "dashboard", label: "Dashboard", icon: LayoutGrid },
     { id: "cars", label: "Fleet Management", icon: CarFront },
-    { id: "bookings", label: "Bookings", icon: CalendarDays, badge: "3" },
+    { id: "bookings", label: "Bookings", icon: CalendarDays },
     { id: "users", label: "Customers", icon: Users },
     { id: "reports", label: "Analytics", icon: BarChart3 },
 ];
@@ -47,7 +48,14 @@ const settingsMenuItems: SidebarMenuItem[] = [
     { id: "logout", label: "Log Out", icon: LogOut, action: "logout" },
 ];
 
-export function AdminLayout({ children, title, currentPage, onNavigate, onBack }: AdminLayoutProps) {
+export function AdminLayout({
+    children,
+    title,
+    currentPage,
+    onNavigate,
+    bookingNotificationCount = 0,
+    onBack,
+}: AdminLayoutProps) {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const profileRef = useRef<HTMLDivElement>(null);
@@ -124,6 +132,9 @@ export function AdminLayout({ children, title, currentPage, onNavigate, onBack }
                                 {mainMenuItems.map((item) => {
                                     const Icon = item.icon;
                                     const isActive = currentPage === item.id;
+                                    const badgeValue = item.id === "bookings" && bookingNotificationCount > 0
+                                        ? bookingNotificationCount.toString()
+                                        : item.badge;
 
                                     return (
                                         <button
@@ -136,10 +147,10 @@ export function AdminLayout({ children, title, currentPage, onNavigate, onBack }
                                             }`}
                                         >
                                             <Icon className="w-5 h-5 flex-shrink-0" />
-                                            <span className="flex-1 text-left">{item.label}</span>
-                                            {item.badge && (
+                                            <span className="flex-1 text-left text-sm whitespace-nowrap">{item.label}</span>
+                                            {badgeValue && (
                                                 <span className="inline-flex items-center justify-center rounded-full bg-amber-400 px-2 py-0.5 text-[11px] font-semibold text-black">
-                                                    {item.badge}
+                                                    {badgeValue}
                                                 </span>
                                             )}
                                         </button>
@@ -168,7 +179,7 @@ export function AdminLayout({ children, title, currentPage, onNavigate, onBack }
                                             }`}
                                         >
                                             <Icon className="w-5 h-5 flex-shrink-0" />
-                                            <span className="text-left">{item.label}</span>
+                                            <span className="text-left text-sm whitespace-nowrap">{item.label}</span>
                                         </button>
                                     );
                                 })}

@@ -4,10 +4,12 @@ import { Car } from "./types/Car.ts";
 import { CarManagementPage } from "./pages/CarManagementPage.tsx";
 import { UserManagementPage } from "./pages/UserManagementPage.tsx";
 import { DashboardPage } from "./pages/DashboardPage.tsx";
+import { BookingManagementPage } from "./pages/BookingManagementPage.tsx";
 import { adminCarService } from "../admin/service/AdminCarService.ts";
 import { CarForm, type CarFormData, type GallerySubmitPayload } from "./components/CarForm.tsx";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog.tsx";
+import { bookingService } from "../../services/BookingService.ts";
 
 interface AdminDashboardProps {
     onBack: () => void;
@@ -25,6 +27,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     const [editingCar, setEditingCar] = useState<Car | null>(null);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [carsLoaded, setCarsLoaded] = useState(false);
+    const [bookingNotificationCount, setBookingNotificationCount] = useState(0);
     const closeForm = () => setIsFormOpen(false);
 
     // Save current page to localStorage whenever it changes
@@ -44,6 +47,15 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         setEditingCar(null);
     }
 
+    const refreshBookingNotifications = useCallback(async () => {
+        try {
+            const notifications = await bookingService.getAdminNotifications(false);
+            setBookingNotificationCount(notifications.length);
+        } catch (error) {
+            console.error("Failed to fetch booking notifications:", error);
+        }
+    }, []);
+
     // Load cars from backend only when cars page is active and not already loaded
     useEffect(() => {
         if (currentPage === "cars" && !carsLoaded) {
@@ -55,6 +67,10 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                 .catch(console.error);
         }
     }, [currentPage, carsLoaded]);
+
+    useEffect(() => {
+        void refreshBookingNotifications();
+    }, [refreshBookingNotifications]);
 
     const handleAddCar = async (carData: CarFormData, image: File | null, gallery: GallerySubmitPayload) => {
         try {
@@ -247,6 +263,13 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                 );
             case "users":
                 return <UserManagementPage key="users" />;
+            case "bookings":
+                return (
+                    <BookingManagementPage
+                        key="bookings"
+                        onNotificationCountChange={setBookingNotificationCount}
+                    />
+                );
             default:
                 return <DashboardPage key="dashboard-default" />;
         }
@@ -258,6 +281,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                 title={getPageTitle()}
                 currentPage={currentPage}
                 onNavigate={handlePageChange}
+                bookingNotificationCount={bookingNotificationCount}
                 onBack={onBack}
             >
                 {renderPage()}

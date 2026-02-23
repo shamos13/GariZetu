@@ -35,3 +35,7 @@ cloudinary:
 jwt:
   secret: "garizetu-super-secret-key-change-this-in-production-minimum-32-characters-required"
   expiration: 86400000
+
+booking:
+  payment-window-minutes: 15
+  expiry-scan-ms: 60000
