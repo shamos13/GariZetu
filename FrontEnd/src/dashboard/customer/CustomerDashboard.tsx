@@ -71,9 +71,57 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
     const [bookingsError, setBookingsError] = useState<string | null>(null);
     const [bookingActionMessage, setBookingActionMessage] = useState<string | null>(null);
     const [processingBookingId, setProcessingBookingId] = useState<number | null>(null);
+    const [profileDetails, setProfileDetails] = useState<CustomerProfileDetails>({
+        userName: "",
+        email: "",
+        phoneNumber: "",
+        location: "Kenya",
+        bio: "",
+    });
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [isSavingProfile, setIsSavingProfile] = useState(false);
+    const [profileFormError, setProfileFormError] = useState<string | null>(null);
     const navigate = useNavigate();
     const user = authService.getUser();
     const isAuthenticated = authService.isAuthenticated();
+
+    const getProfileStorageKey = useCallback((): string => {
+        if (!user?.userId) {
+            return `${PROFILE_STORAGE_KEY_PREFIX}:guest`;
+        }
+        return `${PROFILE_STORAGE_KEY_PREFIX}:${user.userId}`;
+    }, [user?.userId]);
+
+    const loadProfileDetails = useCallback(() => {
+        const baseDetails: CustomerProfileDetails = {
+            userName: user?.userName || "",
+            email: user?.email || "",
+            phoneNumber: "",
+            location: "Kenya",
+            bio: "",
+        };
+
+        const storageKey = getProfileStorageKey();
+        const rawStoredProfile = localStorage.getItem(storageKey);
+
+        if (!rawStoredProfile) {
+            setProfileDetails(baseDetails);
+            return;
+        }
+
+        try {
+            const stored = JSON.parse(rawStoredProfile) as Partial<CustomerProfileDetails>;
+            setProfileDetails({
+                userName: typeof stored.userName === "string" && stored.userName.trim() ? stored.userName : baseDetails.userName,
+                email: typeof stored.email === "string" && stored.email.trim() ? stored.email : baseDetails.email,
+                phoneNumber: typeof stored.phoneNumber === "string" ? stored.phoneNumber : baseDetails.phoneNumber,
+                location: typeof stored.location === "string" && stored.location.trim() ? stored.location : baseDetails.location,
+                bio: typeof stored.bio === "string" ? stored.bio : baseDetails.bio,
+            });
+        } catch {
+            setProfileDetails(baseDetails);
+        }
+    }, [getProfileStorageKey, user?.email, user?.userName]);
 
     const fetchCars = useCallback(async () => {
         try {
@@ -125,6 +173,10 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
     useEffect(() => {
         setCurrentPage(initialPage);
     }, [initialPage]);
+
+    useEffect(() => {
+        loadProfileDetails();
+    }, [loadProfileDetails]);
 
     useEffect(() => {
         const bookingNotice = sessionStorage.getItem("garizetu_booking_notice");
@@ -413,6 +465,82 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
         }
     };
 
+    const handleProfileFieldChange = (field: keyof CustomerProfileDetails, value: string) => {
+        setProfileFormError(null);
+        setProfileDetails((previous) => ({
+            ...previous,
+            [field]: value,
+        }));
+    };
+
+    const validateProfileDetails = (details: CustomerProfileDetails): string | null => {
+        if (details.userName.trim().length < 2) {
+            return "Full name must be at least 2 characters.";
+        }
+
+        const emailValue = details.email.trim();
+        if (!emailValue) {
+            return "Email is required.";
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) {
+            return "Please enter a valid email address.";
+        }
+
+        const phoneValue = details.phoneNumber.trim();
+        if (phoneValue && !/^\+?[0-9]{7,15}$/.test(phoneValue)) {
+            return "Phone number should contain 7 to 15 digits and may start with +.";
+        }
+
+        return null;
+    };
+
+    const handleSaveProfile = () => {
+        const sanitizedDetails: CustomerProfileDetails = {
+            userName: profileDetails.userName.trim(),
+            email: profileDetails.email.trim(),
+            phoneNumber: profileDetails.phoneNumber.trim(),
+            location: profileDetails.location.trim() || "Kenya",
+            bio: profileDetails.bio.trim(),
+        };
+
+        const validationError = validateProfileDetails(sanitizedDetails);
+        if (validationError) {
+            setProfileFormError(validationError);
+            return;
+        }
+
+        try {
+            setIsSavingProfile(true);
+            setProfileFormError(null);
+            localStorage.setItem(getProfileStorageKey(), JSON.stringify(sanitizedDetails));
+
+            const storedUser = authService.getUser();
+            if (storedUser) {
+                const updatedUser = {
+                    ...storedUser,
+                    userName: sanitizedDetails.userName,
+                    email: sanitizedDetails.email,
+                };
+                localStorage.setItem("garizetu_user", JSON.stringify(updatedUser));
+                emitAuthChanged();
+            }
+
+            setProfileDetails(sanitizedDetails);
+            setIsEditingProfile(false);
+            toast.success("Profile updated successfully.");
+        } catch {
+            setProfileFormError("Could not save profile right now. Please try again.");
+        } finally {
+            setIsSavingProfile(false);
+        }
+    };
+
+    const handleCancelProfileEdit = () => {
+        loadProfileDetails();
+        setProfileFormError(null);
+        setIsEditingProfile(false);
+    };
+
     const renderDashboard = () => (
         <div className="space-y-6">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -625,7 +753,6 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
     const renderProfile = () => {
         if (!user) return null;
 
-        // Get initials from user name (first and second name)
         const getInitials = (name: string): string => {
             const parts = name.trim().split(/\s+/);
             if (parts.length >= 2) {
@@ -634,53 +761,78 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
             return name.charAt(0).toUpperCase();
         };
 
-        // Get member since date
         const getMemberSince = () => {
             const now = new Date();
-            const month = now.toLocaleString('default', { month: 'long' });
+            const month = now.toLocaleString("default", { month: "long" });
             return `Member since ${month} ${now.getFullYear()}`;
         };
 
         return (
             <div className="space-y-6">
-                {/* Header Card with Avatar and Edit Button */}
                 <Card className="bg-[#1a1a1a] border-gray-800">
                     <CardContent className="p-6">
                         <div className="flex items-center justify-between flex-wrap gap-4">
                             <div className="flex items-center gap-4">
                                 <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-lg">
                                     <span className="text-3xl font-semibold text-white">
-                                        {getInitials(user.userName || "User")}
+                                        {getInitials(profileDetails.userName || "User")}
                                     </span>
                                 </div>
                                 <div>
-                                    <h2 className="text-2xl font-bold text-white mb-1">{user.userName}</h2>
+                                    <h2 className="text-2xl font-bold text-white mb-1">{profileDetails.userName || "Customer"}</h2>
                                     <p className="text-gray-400 text-sm">{getMemberSince()}</p>
                                 </div>
                             </div>
-                            <Button
-                                onClick={() => {
-                                    // TODO: Implement edit profile functionality
-                                    console.log("Edit profile clicked");
-                                }}
-                                className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-6 py-2 rounded-lg flex items-center gap-2"
-                            >
-                                <Edit className="w-4 h-4" />
-                                Edit Profile
-                            </Button>
+
+                            {!isEditingProfile ? (
+                                <Button
+                                    onClick={() => {
+                                        setProfileFormError(null);
+                                        setIsEditingProfile(true);
+                                    }}
+                                    className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-6 py-2 rounded-lg flex items-center gap-2"
+                                >
+                                    <Edit className="w-4 h-4" />
+                                    Edit Profile
+                                </Button>
+                            ) : (
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Button
+                                        onClick={handleSaveProfile}
+                                        disabled={isSavingProfile}
+                                        className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 rounded-lg"
+                                    >
+                                        {isSavingProfile ? "Saving..." : "Save Changes"}
+                                    </Button>
+                                    <Button
+                                        onClick={handleCancelProfileEdit}
+                                        disabled={isSavingProfile}
+                                        variant="outline"
+                                        className="border-gray-700 bg-transparent text-gray-200 hover:bg-gray-800 hover:text-white"
+                                    >
+                                        Cancel
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* Profile Information Card */}
                 <Card className="bg-[#1a1a1a] border-gray-800">
                     <CardHeader>
                         <CardTitle className="text-white text-xl">Profile Information</CardTitle>
-                        <CardDescription className="text-gray-400">Your account details</CardDescription>
+                        <CardDescription className="text-gray-400">
+                            {isEditingProfile ? "Update your editable account details." : "Your account details"}
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
+                        {profileFormError && (
+                            <div className="mb-5 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                                {profileFormError}
+                            </div>
+                        )}
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Left Column */}
                             <div className="space-y-6">
                                 <div className="flex items-start gap-4">
                                     <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -688,7 +840,16 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                                     </div>
                                     <div className="flex-1">
                                         <p className="text-sm text-gray-400 mb-1">Full Name</p>
-                                        <p className="text-white font-medium">{user.userName || "Not specified"}</p>
+                                        {isEditingProfile ? (
+                                            <input
+                                                value={profileDetails.userName}
+                                                onChange={(event) => handleProfileFieldChange("userName", event.target.value)}
+                                                className="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white outline-none focus:border-emerald-500"
+                                                placeholder="Enter full name"
+                                            />
+                                        ) : (
+                                            <p className="text-white font-medium">{profileDetails.userName || "Not specified"}</p>
+                                        )}
                                     </div>
                                 </div>
 
@@ -708,7 +869,16 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                                     </div>
                                     <div className="flex-1">
                                         <p className="text-sm text-gray-400 mb-1">Phone Number</p>
-                                        <p className="text-white font-medium">Not specified</p>
+                                        {isEditingProfile ? (
+                                            <input
+                                                value={profileDetails.phoneNumber}
+                                                onChange={(event) => handleProfileFieldChange("phoneNumber", event.target.value)}
+                                                className="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white outline-none focus:border-emerald-500"
+                                                placeholder="+254700000000"
+                                            />
+                                        ) : (
+                                            <p className="text-white font-medium">{profileDetails.phoneNumber || "Not specified"}</p>
+                                        )}
                                     </div>
                                 </div>
 
@@ -718,12 +888,20 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                                     </div>
                                     <div className="flex-1">
                                         <p className="text-sm text-gray-400 mb-1">Bio</p>
-                                        <p className="text-white font-medium">No bio yet.</p>
+                                        {isEditingProfile ? (
+                                            <textarea
+                                                value={profileDetails.bio}
+                                                onChange={(event) => handleProfileFieldChange("bio", event.target.value)}
+                                                className="min-h-24 w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white outline-none focus:border-emerald-500"
+                                                placeholder="Tell us something about yourself"
+                                            />
+                                        ) : (
+                                            <p className="text-white font-medium">{profileDetails.bio || "No bio yet."}</p>
+                                        )}
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Right Column */}
                             <div className="space-y-6">
                                 <div className="flex items-start gap-4">
                                     <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -731,17 +909,17 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                                     </div>
                                     <div className="flex-1">
                                         <p className="text-sm text-gray-400 mb-1">Email</p>
-                                        <p className="text-white font-medium">{user.email || "Not specified"}</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-start gap-4">
-                                    <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
-                                        <User className="w-5 h-5 text-emerald-400" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="text-sm text-gray-400 mb-1">Role</p>
-                                        <p className="text-white font-medium capitalize">{user.role?.toLowerCase() || "Not specified"}</p>
+                                        {isEditingProfile ? (
+                                            <input
+                                                type="email"
+                                                value={profileDetails.email}
+                                                onChange={(event) => handleProfileFieldChange("email", event.target.value)}
+                                                className="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white outline-none focus:border-emerald-500"
+                                                placeholder="Enter email"
+                                            />
+                                        ) : (
+                                            <p className="text-white font-medium">{profileDetails.email || "Not specified"}</p>
+                                        )}
                                     </div>
                                 </div>
 
@@ -751,7 +929,27 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                                     </div>
                                     <div className="flex-1">
                                         <p className="text-sm text-gray-400 mb-1">Location</p>
-                                        <p className="text-white font-medium">Kenya</p>
+                                        {isEditingProfile ? (
+                                            <input
+                                                value={profileDetails.location}
+                                                onChange={(event) => handleProfileFieldChange("location", event.target.value)}
+                                                className="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white outline-none focus:border-emerald-500"
+                                                placeholder="City, Country"
+                                            />
+                                        ) : (
+                                            <p className="text-white font-medium">{profileDetails.location || "Not specified"}</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="flex items-start gap-4">
+                                    <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
+                                        <CreditCard className="w-5 h-5 text-emerald-400" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-sm text-gray-400 mb-1">Account Type</p>
+                                        <p className="text-white font-medium capitalize">{user.role?.toLowerCase() || "Customer"}</p>
+                                        <p className="mt-1 text-xs text-gray-500">Role changes are managed by administrators.</p>
                                     </div>
                                 </div>
                             </div>
