@@ -177,10 +177,6 @@ api.interceptors.request.use(
             } else {
                 (config.headers as any).Authorization = `Bearer ${token}`;
             }
-
-            console.log("🔐 Request interceptor: Token attached to request");
-        } else {
-            console.log("⚠️  Request interceptor: No token found (user not logged in)");
         }
 
         // Return the modified config so the request can proceed
@@ -219,12 +215,9 @@ api.interceptors.response.use(
             // Only clear auth when the server response clearly indicates token/auth failure.
             // This avoids logging users out for business-rule failures that are incorrectly sent as 401.
             if (shouldClearAuth) {
-                console.log("🚫 Authentication failure detected from API - clearing session");
                 localStorage.removeItem("garizetu_token");
                 localStorage.removeItem("garizetu_user");
                 emitAuthChanged();
-            } else {
-                console.warn("⚠️  Received 401 without clear auth-expiry signal; preserving local session state");
             }
         }
 

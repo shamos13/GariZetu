@@ -23,10 +23,11 @@ import org.springframework.web.multipart.MultipartFile;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Objects;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -145,9 +146,14 @@ public class CarService {
         log.debug("Fetching all cars");
         List<Car> cars = carRepository.findAllWithFeatures();
         LocalDateTime now = LocalDateTime.now();
+        Map<Long, List<Booking>> bookingsByCarId = loadBlockingBookingsByCar(cars, now);
         log.debug("Fetched {} cars", cars.size());
         return cars.stream()
-                .map(car -> toResponseWithAvailability(car, now))
+                .map(car -> toResponseWithAvailability(
+                        car,
+                        now,
+                        bookingsByCarId.getOrDefault(car.getCarId(), List.of())
+                ))
                 .collect(Collectors.toList());
 
     }
@@ -158,8 +164,13 @@ public class CarService {
         log.debug("Fetching cars by make {}", make);
         List<Car> cars = carRepository.findCarByMakeIgnoreCaseWithFeatures(make);
         LocalDateTime now = LocalDateTime.now();
+        Map<Long, List<Booking>> bookingsByCarId = loadBlockingBookingsByCar(cars, now);
         return cars.stream()
-                .map(car -> toResponseWithAvailability(car, now))
+                .map(car -> toResponseWithAvailability(
+                        car,
+                        now,
+                        bookingsByCarId.getOrDefault(car.getCarId(), List.of())
+                ))
                 .collect(Collectors.toList());
     }
 
@@ -337,12 +348,16 @@ public class CarService {
     }
 
     private CarResponseDTO toResponseWithAvailability(Car car, LocalDateTime asOf) {
+        return toResponseWithAvailability(car, asOf, null);
+    }
+
+    private CarResponseDTO toResponseWithAvailability(Car car, LocalDateTime asOf, List<Booking> preloadedBookings) {
         CarResponseDTO dto = carMapper.toResponseDTO(car);
-        applyAvailability(dto, car, asOf);
+        applyAvailability(dto, car, asOf, preloadedBookings);
         return dto;
     }
 
-    private void applyAvailability(CarResponseDTO dto, Car car, LocalDateTime asOf) {
+    private void applyAvailability(CarResponseDTO dto, Car car, LocalDateTime asOf, List<Booking> preloadedBookings) {
         dto.setAvailabilityMessage(null);
         dto.setSoftLockExpiresAt(null);
         dto.setNextAvailableAt(null);
@@ -356,7 +371,9 @@ public class CarService {
         }
 
         LocalDate today = asOf.toLocalDate();
-        List<Booking> carBookings = bookingRepository.findByCarCarId(car.getCarId());
+        List<Booking> carBookings = preloadedBookings != null
+                ? preloadedBookings
+                : bookingRepository.findByCarCarId(car.getCarId());
         List<Booking> bookedBlocks = carBookings.stream()
                 .filter(booking -> isBookedBlocking(booking, today))
                 .sorted(
@@ -464,12 +481,28 @@ public class CarService {
     }
 
     private boolean isImageReferencedByOtherCars(String imageUrl, Long currentCarId) {
-        return carRepository.findAll().stream()
-                .filter(car -> !Objects.equals(car.getCarId(), currentCarId))
-                .anyMatch(car ->
-                        imageUrl.equals(car.getMainImageUrl())
-                                || (car.getGalleryImageUrls() != null && car.getGalleryImageUrls().contains(imageUrl))
-                );
+        Long excludedCarId = currentCarId != null ? currentCarId : -1L;
+        return carRepository.existsByMainImageUrlAndCarIdNot(imageUrl, excludedCarId)
+                || carRepository.existsGalleryImageReference(imageUrl, excludedCarId);
+    }
+
+    private Map<Long, List<Booking>> loadBlockingBookingsByCar(List<Car> cars, LocalDateTime asOf) {
+        if (cars == null || cars.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<Long> carIds = cars.stream()
+                .map(Car::getCarId)
+                .filter(id -> id != null)
+                .collect(Collectors.toList());
+
+        if (carIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        return bookingRepository.findBlockingBookingsForCars(carIds, asOf).stream()
+                .filter(booking -> booking.getCar() != null && booking.getCar().getCarId() != null)
+                .collect(Collectors.groupingBy(booking -> booking.getCar().getCarId()));
     }
 
     private void deleteImageByUrl(String imageUrl) {

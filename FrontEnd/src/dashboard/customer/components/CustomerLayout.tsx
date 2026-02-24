@@ -83,8 +83,7 @@ export function CustomerLayout({ children, title, currentPage, onNavigate, onBac
 
     const handleLogout = () => {
         authService.logout();
-        navigate("/");
-        window.location.reload();
+        navigate("/", { replace: true });
     };
 
     const handleSidebarItemClick = (item: SidebarMenuItem) => {

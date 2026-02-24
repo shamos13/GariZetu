@@ -3,6 +3,14 @@ import type { Car as BackendCar } from "../dashboard/admin/types/Car";
 import type { Car as CustomerCar } from "../data/cars";
 import { transformBackendCarsToCustomer, transformBackendCarToCustomer } from "../utils/CarTransformer.ts";
 
+const CARS_CACHE_TTL_MS = 30_000;
+let carsCache: CustomerCar[] | null = null;
+let carsCacheTimestamp = 0;
+let pendingCarsRequest: Promise<CustomerCar[]> | null = null;
+
+const hasFreshCarsCache = (): boolean =>
+    carsCache !== null && (Date.now() - carsCacheTimestamp) < CARS_CACHE_TTL_MS;
+
 /**
  * Customer-facing car service
  * Fetches cars from backend and transforms them for display on website
@@ -16,12 +24,30 @@ export const carService = {
      * 2. Transform to customer format (CustomerCar[])
      * 3. Return transformed data
      */
-    getAll: async (): Promise<CustomerCar[]> => {
-        try {
-            const res = await api.get<BackendCar[]>("/cars/getcars");
+    getAll: async (options?: { forceRefresh?: boolean }): Promise<CustomerCar[]> => {
+        const forceRefresh = options?.forceRefresh === true;
 
-            // Transform backend cars to customer format
-            return transformBackendCarsToCustomer(res.data);
+        if (!forceRefresh && hasFreshCarsCache()) {
+            return carsCache as CustomerCar[];
+        }
+
+        if (!forceRefresh && pendingCarsRequest) {
+            return pendingCarsRequest;
+        }
+
+        try {
+            pendingCarsRequest = api.get<BackendCar[]>("/cars/getcars")
+                .then((res) => {
+                    const transformed = transformBackendCarsToCustomer(res.data);
+                    carsCache = transformed;
+                    carsCacheTimestamp = Date.now();
+                    return transformed;
+                })
+                .finally(() => {
+                    pendingCarsRequest = null;
+                });
+
+            return await pendingCarsRequest;
         } catch (error) {
             console.error("Failed to fetch cars:", error);
             throw error;  // Let component handle the error
@@ -41,5 +67,10 @@ export const carService = {
             console.error(`Failed to fetch car ${id}:`, error);
             throw error;
         }
+    },
+
+    invalidateCache: (): void => {
+        carsCache = null;
+        carsCacheTimestamp = 0;
     },
 };

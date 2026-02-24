@@ -1,5 +1,6 @@
 // File: services/adminCarService.ts
 import { api } from "../../../lib/api";
+import { carService } from "../../../services/carService.ts";
 import type {
     BodyType,
     Car as BackendCar,
@@ -44,6 +45,7 @@ export const adminCarService = {
                 }
             );
 
+            carService.invalidateCache();
             return res.data;
         } catch (error) {
             console.error("Failed to create car:", error);
@@ -127,6 +129,7 @@ export const adminCarService = {
                 updatedCar = galleryRes.data;
             }
 
+            carService.invalidateCache();
             return updatedCar;
         } catch (error) {
             console.error(`Failed to update car ${id}:`, error);
@@ -137,6 +140,7 @@ export const adminCarService = {
     deleteCar: async (id: number): Promise<void> => {
         try {
             await api.delete(`/cars/${id}`);
+            carService.invalidateCache();
         } catch (error) {
             console.error(`Failed to delete car ${id}:`, error);
             throw error;

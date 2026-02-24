@@ -10,9 +10,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -37,14 +39,41 @@ public class FeatureService {
     //Process a list of Feature names
     @Transactional
     public Set<Feature> processFeatureNames(List<String> featureNames) {
-        Set<Feature> features = new HashSet<>();
-        for (String name : featureNames) {
-            if (name != null && !name.trim().isEmpty()) {
-                Feature feature = findOrCreateFeature(name.trim());
-                features.add(feature);
-            }
+        if (featureNames == null || featureNames.isEmpty()) {
+            return Set.of();
         }
-        return features;
+
+        Set<String> normalizedNames = featureNames.stream()
+                .filter(Objects::nonNull)
+                .map(String::trim)
+                .filter(name -> !name.isEmpty())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        if (normalizedNames.isEmpty()) {
+            return Set.of();
+        }
+
+        List<Feature> existingFeatures = featureRepository.findByFeatureNameIn(normalizedNames);
+        Set<String> existingNames = existingFeatures.stream()
+                .map(Feature::getFeatureName)
+                .collect(Collectors.toSet());
+
+        List<Feature> missingFeatures = normalizedNames.stream()
+                .filter(name -> !existingNames.contains(name))
+                .map(name -> {
+                    Feature newFeature = new Feature();
+                    newFeature.setFeatureName(name);
+                    newFeature.setFeatureDescription("");
+                    newFeature.setFeatureCategory("GENERAL");
+                    return newFeature;
+                })
+                .collect(Collectors.toList());
+
+        if (!missingFeatures.isEmpty()) {
+            existingFeatures.addAll(featureRepository.saveAll(missingFeatures));
+        }
+
+        return new LinkedHashSet<>(existingFeatures);
     }
 
     // Get all available features for frontend dropdown
