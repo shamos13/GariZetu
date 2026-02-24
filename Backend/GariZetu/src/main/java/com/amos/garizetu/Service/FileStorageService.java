@@ -43,13 +43,27 @@ public class FileStorageService {
     @PostConstruct
     public void init() {
         try{
+            String configuredDir = properties.getDirectory();
+
+            // If no directory configured or empty, use /tmp/uploads for ephemeral environments
+            if (configuredDir == null || configuredDir.trim().isEmpty()) {
+                configuredDir = "/tmp/uploads";
+                log.warn("No file upload directory configured, using fallback: {}", configuredDir);
+            }
 
             //Configure the configured directory string to a path object
-            this.fileStorageLocation = Paths.get(properties.getDirectory())
+            this.fileStorageLocation = Paths.get(configuredDir)
                     .toAbsolutePath().normalize();
 
             //Create the directory if they don't exist
             Files.createDirectories(this.fileStorageLocation);
+
+            // Verify directory is writable
+            if (!Files.isWritable(this.fileStorageLocation)) {
+                log.error("File storage directory is not writable: {}", this.fileStorageLocation);
+                throw new RuntimeException("File storage directory is not writable: " + this.fileStorageLocation);
+            }
+
             this.fallbackStorageLocations = resolveFallbackLocations(this.fileStorageLocation);
             log.info("File storage initialized successfully at: {}", this.fileStorageLocation);
             if (!this.fallbackStorageLocations.isEmpty()) {
