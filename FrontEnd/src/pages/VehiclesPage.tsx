@@ -76,6 +76,10 @@ const BOOKING_CONTEXT_QUERY_KEYS = [
     "pickupLocationId",
     "dropoffLocationId",
     "sameLocation",
+    "extraInsurance",
+    "extraGps",
+    "extraChildSeat",
+    "extraAdditionalDriver",
 ] as const;
 
 function parseSortOption(value: string | null): SortOption {

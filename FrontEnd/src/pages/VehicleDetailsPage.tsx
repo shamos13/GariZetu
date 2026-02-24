@@ -58,6 +58,42 @@ const parseDateFromQuery = (value: string | null): Date | null => {
     return parsedDate;
 };
 
+const parseBooleanFromQuery = (value: string | null): boolean => {
+    if (!value) {
+        return false;
+    }
+
+    const normalizedValue = value.trim().toLowerCase();
+    return normalizedValue === "1" || normalizedValue === "true" || normalizedValue === "yes" || normalizedValue === "on";
+};
+
+const EXTRA_OPTIONS = [
+    {
+        key: "insurance",
+        label: "Full Insurance Coverage",
+        description: "Comprehensive protection against damage",
+        pricePerDay: 500,
+    },
+    {
+        key: "gps",
+        label: "GPS Navigation",
+        description: "Navigation support for your full trip",
+        pricePerDay: 200,
+    },
+    {
+        key: "childSeat",
+        label: "Child Seat",
+        description: "Safe seating option for children",
+        pricePerDay: 300,
+    },
+    {
+        key: "additionalDriver",
+        label: "Additional Driver",
+        description: "Add one more authorized driver",
+        pricePerDay: 400,
+    },
+] as const;
+
 const BOOKING_CONTEXT_QUERY_KEYS = [
     "pickupDate",
     "dropoffDate",
@@ -68,6 +104,10 @@ const BOOKING_CONTEXT_QUERY_KEYS = [
     "pickupLocationId",
     "dropoffLocationId",
     "sameLocation",
+    "extraInsurance",
+    "extraGps",
+    "extraChildSeat",
+    "extraAdditionalDriver",
 ] as const;
 
 export default function VehicleDetailsPage() {
@@ -92,6 +132,12 @@ export default function VehicleDetailsPage() {
         ? initialPickupLocationId
         : (queryDropoffLocationId ?? initialPickupLocationId);
     const hasQueryLocationContext = queryPickupLocationId !== null || queryDropoffLocationId !== null;
+    const initialExtras = {
+        insurance: parseBooleanFromQuery(searchParams.get("extraInsurance") ?? searchParams.get("insurance")),
+        gps: parseBooleanFromQuery(searchParams.get("extraGps") ?? searchParams.get("gps")),
+        childSeat: parseBooleanFromQuery(searchParams.get("extraChildSeat") ?? searchParams.get("childSeat")),
+        additionalDriver: parseBooleanFromQuery(searchParams.get("extraAdditionalDriver") ?? searchParams.get("additionalDriver")),
+    };
 
     // ✅ ALL STATE DECLARED FIRST - BEFORE ANY CONDITIONAL RETURNS
     const [car, setCar] = useState<Car | null>(null);
@@ -110,6 +156,7 @@ export default function VehicleDetailsPage() {
     const [pickupLocationId, setPickupLocationId] = useState(initialPickupLocationId);
     const [dropoffLocationId, setDropoffLocationId] = useState(initialDropoffLocationId);
     const [sameLocation, setSameLocation] = useState(initialSameLocation);
+    const [extras, setExtras] = useState(initialExtras);
     const currentCarId = car?.id ?? null;
     const currentCarLocation = car?.location ?? "";
 
@@ -252,9 +299,22 @@ export default function VehicleDetailsPage() {
         return 0;
     }, [selectedDates]);
 
-    const totalPrice = car ? rentalDays * car.dailyPrice : 0;
-    const serviceFee = Math.round(totalPrice * 0.1);
-    const insuranceFee = rentalDays * 500;
+    const pricing = useMemo(() => {
+        if (!car || rentalDays === 0) {
+            return { subtotal: 0, insurance: 0, gps: 0, childSeat: 0, additionalDriver: 0, serviceFee: 0, total: 0 };
+        }
+
+        const subtotal = car.dailyPrice * rentalDays;
+        const insurance = extras.insurance ? rentalDays * 500 : 0;
+        const gps = extras.gps ? rentalDays * 200 : 0;
+        const childSeat = extras.childSeat ? rentalDays * 300 : 0;
+        const additionalDriver = extras.additionalDriver ? rentalDays * 400 : 0;
+        const serviceFee = Math.round(subtotal * 0.05);
+        const total = subtotal + insurance + gps + childSeat + additionalDriver + serviceFee;
+
+        return { subtotal, insurance, gps, childSeat, additionalDriver, serviceFee, total };
+    }, [car, rentalDays, extras]);
+
     const availabilityStatus = car ? getCarAvailabilityStatus(car) : "available";
     const availabilityMessage = car ? getAvailabilityMessage(car) : "";
     const carCanBeBooked = car ? isCarBookable(car) : false;
@@ -753,25 +813,40 @@ export default function VehicleDetailsPage() {
                                         />
                                     </div>
 
-                                    <details className="mb-4 rounded-lg border border-gray-100 bg-gray-50 p-3">
-                                        <summary className="cursor-pointer text-sm font-medium text-gray-800">
-                                            Add Extras
-                                        </summary>
-                                        <div className="mt-3 space-y-2 text-sm text-gray-600">
-                                            <label className="flex items-center justify-between">
-                                                <span>Chauffeur Service</span>
-                                                <span>+ Ksh 3,000</span>
-                                            </label>
-                                            <label className="flex items-center justify-between">
-                                                <span>Child Seat</span>
-                                                <span>+ Ksh 500</span>
-                                            </label>
-                                            <label className="flex items-center justify-between">
-                                                <span>Premium Insurance</span>
-                                                <span>+ Ksh 2,500</span>
-                                            </label>
+                                    <div className="mb-4 rounded-lg border border-gray-100 bg-gray-50 p-3">
+                                        <p className="text-sm font-medium text-gray-800">Add Extras</p>
+                                        <div className="mt-3 space-y-2.5">
+                                            {EXTRA_OPTIONS.map((extraOption) => (
+                                                <label
+                                                    key={extraOption.key}
+                                                    className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 transition-colors ${
+                                                        extras[extraOption.key]
+                                                            ? "border-gray-300 bg-white"
+                                                            : "border-gray-100 bg-transparent hover:bg-white/70"
+                                                    }`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={extras[extraOption.key]}
+                                                        onChange={(event) => {
+                                                            setExtras((currentExtras) => ({
+                                                                ...currentExtras,
+                                                                [extraOption.key]: event.target.checked,
+                                                            }));
+                                                        }}
+                                                        className="mt-0.5 h-4 w-4 rounded border-gray-300 text-black focus:ring-black"
+                                                    />
+                                                    <div className="flex-1">
+                                                        <p className="text-sm font-medium text-gray-800">{extraOption.label}</p>
+                                                        <p className="mt-0.5 text-xs text-gray-500">{extraOption.description}</p>
+                                                    </div>
+                                                    <span className="text-xs font-semibold text-gray-700">
+                                                        + Ksh {extraOption.pricePerDay.toLocaleString()}/day
+                                                    </span>
+                                                </label>
+                                            ))}
                                         </div>
-                                    </details>
+                                    </div>
 
                                     {selectedDates.start && (
                                         <div className="mb-4 rounded-xl border border-gray-100 bg-gray-50 p-3">
@@ -807,25 +882,51 @@ export default function VehicleDetailsPage() {
                                                     Ksh {car.dailyPrice.toLocaleString()} × {rentalDays} days
                                                 </span>
                                                 <span className="font-medium text-gray-900">
-                                                    Ksh {totalPrice.toLocaleString()}
+                                                    Ksh {pricing.subtotal.toLocaleString()}
                                                 </span>
                                             </div>
+                                            {pricing.insurance > 0 && (
+                                                <div className="flex justify-between text-sm text-gray-600">
+                                                    <span>Insurance</span>
+                                                    <span className="font-medium text-gray-900">
+                                                        Ksh {pricing.insurance.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {pricing.gps > 0 && (
+                                                <div className="flex justify-between text-sm text-gray-600">
+                                                    <span>GPS Navigation</span>
+                                                    <span className="font-medium text-gray-900">
+                                                        Ksh {pricing.gps.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {pricing.childSeat > 0 && (
+                                                <div className="flex justify-between text-sm text-gray-600">
+                                                    <span>Child Seat</span>
+                                                    <span className="font-medium text-gray-900">
+                                                        Ksh {pricing.childSeat.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            {pricing.additionalDriver > 0 && (
+                                                <div className="flex justify-between text-sm text-gray-600">
+                                                    <span>Additional Driver</span>
+                                                    <span className="font-medium text-gray-900">
+                                                        Ksh {pricing.additionalDriver.toLocaleString()}
+                                                    </span>
+                                                </div>
+                                            )}
                                             <div className="flex justify-between text-sm text-gray-600">
                                                 <span>Service fee</span>
                                                 <span className="font-medium text-gray-900">
-                                                    Ksh {serviceFee.toLocaleString()}
-                                                </span>
-                                            </div>
-                                            <div className="flex justify-between text-sm text-gray-600">
-                                                <span>Insurance</span>
-                                                <span className="font-medium text-gray-900">
-                                                    Ksh {insuranceFee.toLocaleString()}
+                                                    Ksh {pricing.serviceFee.toLocaleString()}
                                                 </span>
                                             </div>
                                             <div className="flex justify-between pt-3 border-t border-gray-100">
                                                 <span className="font-semibold text-gray-900">Total</span>
                                                 <span className="font-bold text-gray-900 text-lg">
-                                                    Ksh {(totalPrice + serviceFee + insuranceFee).toLocaleString()}
+                                                    Ksh {pricing.total.toLocaleString()}
                                                 </span>
                                             </div>
                                         </div>
@@ -849,6 +950,10 @@ export default function VehicleDetailsPage() {
                                             if (!sameLocation) {
                                                 params.set("dropoffLocationId", dropoffLocationId.toString());
                                             }
+                                            if (extras.insurance) params.set("extraInsurance", "1");
+                                            if (extras.gps) params.set("extraGps", "1");
+                                            if (extras.childSeat) params.set("extraChildSeat", "1");
+                                            if (extras.additionalDriver) params.set("extraAdditionalDriver", "1");
                                             navigate(`/booking?${params.toString()}`);
                                         }}
                                         disabled={rentalDays === 0 || !carCanBeBooked}

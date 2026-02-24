@@ -57,6 +57,15 @@ const looksLikeCarAvailabilityFailure = (message: string): boolean => {
         || normalized.includes("payment window");
 };
 
+const parseBooleanFromQuery = (value: string | null): boolean => {
+    if (!value) {
+        return false;
+    }
+
+    const normalizedValue = value.trim().toLowerCase();
+    return normalizedValue === "1" || normalizedValue === "true" || normalizedValue === "yes" || normalizedValue === "on";
+};
+
 export default function BookingPage() {
     const [searchParams] = useSearchParams();
     const navigate = useNavigate();
@@ -94,6 +103,12 @@ export default function BookingPage() {
         parseBookingLocationIdParam(searchParams.get("dropoffLocationId"))
         ?? resolveBookingLocationIdByQuery(searchParams.get("dropoff") ?? searchParams.get("dropoffLocation"));
     const initialDropoffLocation = initialSameLocation ? urlPickupLocationId : urlDropoffLocationId;
+    const initialExtras = {
+        insurance: parseBooleanFromQuery(searchParams.get("extraInsurance") ?? searchParams.get("insurance")),
+        gps: parseBooleanFromQuery(searchParams.get("extraGps") ?? searchParams.get("gps")),
+        childSeat: parseBooleanFromQuery(searchParams.get("extraChildSeat") ?? searchParams.get("childSeat")),
+        additionalDriver: parseBooleanFromQuery(searchParams.get("extraAdditionalDriver") ?? searchParams.get("additionalDriver")),
+    };
 
     // Booking states - initialize with URL dates if available
     const [step, setStep] = useState(hasPreselectedDates ? 1 : 1);
@@ -153,12 +168,7 @@ export default function BookingPage() {
     }, [isAuthenticated, user]);
 
     // Extras
-    const [extras, setExtras] = useState({
-        insurance: false,
-        gps: false,
-        childSeat: false,
-        additionalDriver: false
-    });
+    const [extras, setExtras] = useState(initialExtras);
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"M_PESA" | "CARD">("M_PESA");
 
     useEffect(() => {
