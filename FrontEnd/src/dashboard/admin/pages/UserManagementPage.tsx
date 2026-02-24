@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { adminUserService, User, UserStats } from "../service/AdminUserService.ts";
 import { authService } from "../../../services/AuthService.ts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card.tsx";
@@ -55,6 +55,7 @@ export function UserManagementPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "CUSTOMER">("ALL");
     const [actionLoading, setActionLoading] = useState<number | null>(null); // Track which user action is loading
+    const searchDebounceRef = useRef<number | null>(null);
 
     // Modal states
     const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -78,22 +79,12 @@ export function UserManagementPage() {
 
     // Check authentication and redirect if not admin
     useEffect(() => {
-        const user = authService.getUser();
         const isAdmin = authService.isAdmin();
         const isAuthenticated = authService.isAuthenticated();
 
-        console.log("UserManagementPage - Auth check:", {
-            user,
-            isAdmin,
-            isAuthenticated,
-            token: authService.getToken()?.substring(0, 20) + "..."
-        });
-
         if (!isAuthenticated) {
-            console.warn("UserManagementPage - User is not authenticated");
             toast.error("Please log in as admin to access user management");
         } else if (!isAdmin) {
-            console.warn("UserManagementPage - User is authenticated but not admin");
             toast.error("Admin privileges required to manage users");
         }
     }, []);
@@ -104,37 +95,23 @@ export function UserManagementPage() {
         const isAdmin = authService.isAdmin();
 
         if (!isAuthenticated || !isAdmin) {
-            console.warn("UserManagementPage - Cannot fetch data: not authenticated as admin");
             setIsLoading(false);
             return false;
         }
 
         try {
             setIsLoading(true);
-            console.log("UserManagementPage - Starting to fetch data...");
 
             const [fetchedUsers, fetchedStats] = await Promise.all([
                 adminUserService.getAll(),
                 adminUserService.getStats()
             ]);
 
-            console.log("UserManagementPage - Fetched data:", {
-                usersCount: fetchedUsers.length,
-                stats: fetchedStats,
-                sampleUser: fetchedUsers[0]
-            });
-
             setUsers(fetchedUsers);
             setStats(fetchedStats);
             return true;
         } catch (err: any) {
-            console.error("UserManagementPage - Failed to fetch users or stats:", err);
-            console.error("UserManagementPage - Error details:", {
-                message: err.message,
-                response: err.response,
-                status: err.response?.status,
-                data: err.response?.data
-            });
+            console.error("Failed to fetch users or stats:", err);
             toast.error(getAdminActionErrorMessage(err, "Failed to load user data."));
             return false;
         } finally {
@@ -147,9 +124,31 @@ export function UserManagementPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Only run once on mount
 
-    const handleSearch = async (query: string) => {
+    useEffect(() => {
+        return () => {
+            if (searchDebounceRef.current !== null) {
+                window.clearTimeout(searchDebounceRef.current);
+            }
+        };
+    }, []);
+
+    const handleSearch = (query: string) => {
         setSearchQuery(query);
-        if (query.length > 2) {
+
+        if (searchDebounceRef.current !== null) {
+            window.clearTimeout(searchDebounceRef.current);
+        }
+
+        if (query.length === 0) {
+            void fetchData();
+            return;
+        }
+
+        if (query.length < 3) {
+            return;
+        }
+
+        searchDebounceRef.current = window.setTimeout(async () => {
             try {
                 const results = await adminUserService.search(query);
                 setUsers(results);
@@ -157,9 +156,7 @@ export function UserManagementPage() {
                 console.error("Search failed:", err);
                 toast.error(getAdminActionErrorMessage(err, "Failed to search users."));
             }
-        } else if (query.length === 0) {
-            fetchData();
-        }
+        }, 300);
     };
 
     const handleBlockUser = async (userId: number) => {

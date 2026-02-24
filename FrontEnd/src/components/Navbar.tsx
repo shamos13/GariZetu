@@ -83,8 +83,7 @@ export function Navbar() {
         setUser(null);
         setIsNotificationsOpen(false);
         setIsNotificationsPinned(false);
-        navigate("/");
-        window.location.reload();
+        navigate("/", { replace: true });
     };
 
     const handleLoginSuccess = () => {
