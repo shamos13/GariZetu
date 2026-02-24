@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { adminUserService, User, UserStats } from "../service/AdminUserService.ts";
 import { authService } from "../../../services/AuthService.ts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../../components/ui/card.tsx";
@@ -49,13 +49,16 @@ import { Label } from "../../../components/ui/label.tsx";
 import { getAdminActionErrorMessage } from "../../../lib/adminErrorUtils.ts";
 
 export function UserManagementPage() {
+    const pageSize = 20;
     const [users, setUsers] = useState<User[]>([]);
     const [stats, setStats] = useState<UserStats | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
     const [roleFilter, setRoleFilter] = useState<"ALL" | "ADMIN" | "CUSTOMER">("ALL");
+    const [currentPage, setCurrentPage] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalUsersCount, setTotalUsersCount] = useState(0);
     const [actionLoading, setActionLoading] = useState<number | null>(null); // Track which user action is loading
-    const searchDebounceRef = useRef<number | null>(null);
 
     // Modal states
     const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -101,13 +104,19 @@ export function UserManagementPage() {
 
         try {
             setIsLoading(true);
+            const normalizedQuery = searchQuery.trim();
+            const queryForSearch = normalizedQuery.length >= 3 ? normalizedQuery : "";
 
-            const [fetchedUsers, fetchedStats] = await Promise.all([
-                adminUserService.getAll(),
+            const [fetchedUsersPage, fetchedStats] = await Promise.all([
+                queryForSearch
+                    ? adminUserService.search(queryForSearch, currentPage, pageSize)
+                    : adminUserService.getAll(currentPage, pageSize),
                 adminUserService.getStats()
             ]);
 
-            setUsers(fetchedUsers);
+            setUsers(fetchedUsersPage.content);
+            setTotalPages(Math.max(1, fetchedUsersPage.totalPages));
+            setTotalUsersCount(fetchedUsersPage.totalElements);
             setStats(fetchedStats);
             return true;
         } catch (err: any) {
@@ -117,46 +126,21 @@ export function UserManagementPage() {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [currentPage, pageSize, searchQuery]);
 
     useEffect(() => {
-        fetchData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []); // Only run once on mount
+        void fetchData();
+    }, [fetchData]);
 
     useEffect(() => {
-        return () => {
-            if (searchDebounceRef.current !== null) {
-                window.clearTimeout(searchDebounceRef.current);
-            }
-        };
-    }, []);
+        if (currentPage > 0 && currentPage >= totalPages) {
+            setCurrentPage(totalPages - 1);
+        }
+    }, [currentPage, totalPages]);
 
     const handleSearch = (query: string) => {
         setSearchQuery(query);
-
-        if (searchDebounceRef.current !== null) {
-            window.clearTimeout(searchDebounceRef.current);
-        }
-
-        if (query.length === 0) {
-            void fetchData();
-            return;
-        }
-
-        if (query.length < 3) {
-            return;
-        }
-
-        searchDebounceRef.current = window.setTimeout(async () => {
-            try {
-                const results = await adminUserService.search(query);
-                setUsers(results);
-            } catch (err) {
-                console.error("Search failed:", err);
-                toast.error(getAdminActionErrorMessage(err, "Failed to search users."));
-            }
-        }, 300);
+        setCurrentPage(0);
     };
 
     const handleBlockUser = async (userId: number) => {
@@ -470,7 +454,10 @@ export function UserManagementPage() {
                     <div className="flex items-center justify-between">
                         <div>
                             <CardTitle className="text-white">User List</CardTitle>
-                            <CardDescription className="text-gray-400">Manage your system users</CardDescription>
+                            <CardDescription className="text-gray-400">
+                                Manage your system users
+                                {` • ${totalUsersCount.toLocaleString()} total`}
+                            </CardDescription>
                         </div>
                         <Button
                             variant="outline"
@@ -579,6 +566,30 @@ export function UserManagementPage() {
                                 )}
                             </tbody>
                         </table>
+                    </div>
+
+                    <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-800 pt-4">
+                        <p className="text-sm text-gray-400">
+                            Page {Math.min(currentPage + 1, totalPages)} of {Math.max(1, totalPages)}
+                        </p>
+                        <div className="flex items-center gap-2">
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={isLoading || currentPage <= 0}
+                                onClick={() => setCurrentPage((prev) => Math.max(0, prev - 1))}
+                            >
+                                Previous
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                disabled={isLoading || currentPage + 1 >= totalPages}
+                                onClick={() => setCurrentPage((prev) => prev + 1)}
+                            >
+                                Next
+                            </Button>
+                        </div>
                     </div>
                 </CardContent>
             </Card>

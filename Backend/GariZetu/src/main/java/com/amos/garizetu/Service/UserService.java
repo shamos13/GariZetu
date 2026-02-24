@@ -14,6 +14,8 @@ import com.amos.garizetu.User.mapper.UserMapper;
 import com.amos.garizetu.util.JWTUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -176,6 +178,7 @@ public class UserService {
      * @return The user entity
      * @throws RuntimeException if user not found
      */
+    @Transactional(readOnly = true)
     public UserResponseDTO getUserByIdDTO(Long userId) {
         log.debug("Fetching user with ID: {}", userId);
         User user = userRepository.findById(userId)
@@ -186,6 +189,7 @@ public class UserService {
     /**
      * Get user entity by ID (for internal use)
      */
+    @Transactional(readOnly = true)
     public User getUserById(Long userId) {
         log.debug("Fetching user entity with ID: {}", userId);
         return userRepository.findById(userId)
@@ -201,6 +205,7 @@ public class UserService {
      * @return The user entity
      * @throws RuntimeException if user not found
      */
+    @Transactional(readOnly = true)
     public User getUserByEmail(String email) {
         log.debug("Fetching user with email: {}", email);
         return userRepository.findByEmailIgnoreCase(email)
@@ -209,6 +214,7 @@ public class UserService {
 
 
     // Get all Users for admin view only
+    @Transactional(readOnly = true)
     public List<UserResponseDTO> getAllUsers(){
         log.info("Admin Fetching all users");
 
@@ -225,8 +231,14 @@ public class UserService {
         return userDTOs;
     }
 
+    @Transactional(readOnly = true)
+    public Page<UserResponseDTO> getUsersPage(Pageable pageable) {
+        return userRepository.findAll(pageable)
+                .map(userMapper::toUserResponseDTO);
+    }
 
     // New Methods admin search functionality
+    @Transactional(readOnly = true)
     public List<UserResponseDTO> searchUsers(String searchTerm){
         log.info("Searching for users with search term: {}", searchTerm);
 
@@ -239,6 +251,16 @@ public class UserService {
         return users.stream()
                 .map(userMapper::toUserResponseDTO)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public Page<UserResponseDTO> searchUsers(String searchTerm, Pageable pageable) {
+        if (searchTerm == null || searchTerm.trim().isEmpty()) {
+            return getUsersPage(pageable);
+        }
+
+        return userRepository.searchUsers(searchTerm.trim(), pageable)
+                .map(userMapper::toUserResponseDTO);
     }
 
     //Update operations
@@ -420,6 +442,7 @@ public class UserService {
     //==========Statistics Operations========//
     //provide overview data for admin dashboard
 
+    @Transactional(readOnly = true)
     public UserStatsDTO getUserStats() {
         log.info("Calculating user stats");
 
@@ -461,6 +484,18 @@ public class UserService {
 
         return stats;
 
+    }
+
+    @Transactional(readOnly = true)
+    public LoginResponse refreshUserSession(String email) {
+        User user = userRepository.findByEmailIgnoreCase(email)
+                .orElseThrow(() -> new RuntimeException("User not found with email: " + email));
+
+        if (user.getUserStatus() != UserStatus.ACTIVE) {
+            throw new RuntimeException("Account is not active.");
+        }
+
+        return createAuthResponse(user);
     }
 
 }

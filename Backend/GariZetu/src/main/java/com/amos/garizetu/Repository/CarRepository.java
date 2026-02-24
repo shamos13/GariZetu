@@ -1,6 +1,8 @@
 package com.amos.garizetu.Repository;
 
 import com.amos.garizetu.Car.Entity.Car;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -30,10 +32,18 @@ public interface CarRepository extends JpaRepository<Car, Long> {
     @Query("SELECT c FROM Car c")
     List<Car> findAllWithFeatures();
 
+    @EntityGraph(attributePaths = {"features"})
+    @Query("SELECT c FROM Car c")
+    Page<Car> findAllWithFeatures(Pageable pageable);
+
     // Fetch cars by make with features eagerly loaded
     @EntityGraph(attributePaths = {"features"})
     @Query("SELECT c FROM Car c WHERE LOWER(c.make) = LOWER(:make)")
     List<Car> findCarByMakeIgnoreCaseWithFeatures(@Param("make") String make);
+
+    @EntityGraph(attributePaths = {"features"})
+    @Query("SELECT c FROM Car c WHERE LOWER(c.make) = LOWER(:make)")
+    Page<Car> findCarByMakeIgnoreCaseWithFeatures(@Param("make") String make, Pageable pageable);
 
     @Query(value = "SELECT EXISTS (" +
             "SELECT 1 FROM car_gallery_images cgi " +

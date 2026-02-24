@@ -1,4 +1,5 @@
 import { api } from "../lib/api";
+import type { SpringPage } from "../lib/pagination.ts";
 import type { Car as BackendCar } from "../dashboard/admin/types/Car";
 import type { Car as CustomerCar } from "../data/cars";
 import { transformBackendCarsToCustomer, transformBackendCarToCustomer } from "../utils/CarTransformer.ts";
@@ -36,13 +37,26 @@ export const carService = {
         }
 
         try {
-            pendingCarsRequest = api.get<BackendCar[]>("/cars/getcars")
-                .then((res) => {
-                    const transformed = transformBackendCarsToCustomer(res.data);
+            pendingCarsRequest = (async () => {
+                const pageSize = 50;
+                let page = 0;
+                let totalPages = 1;
+                const allCars: BackendCar[] = [];
+
+                while (page < totalPages) {
+                    const res = await api.get<SpringPage<BackendCar>>("/cars/getcars/paged", {
+                        params: { page, size: pageSize },
+                    });
+                    allCars.push(...res.data.content);
+                    totalPages = Math.max(1, res.data.totalPages);
+                    page += 1;
+                }
+
+                const transformed = transformBackendCarsToCustomer(allCars);
                     carsCache = transformed;
                     carsCacheTimestamp = Date.now();
                     return transformed;
-                })
+                })()
                 .finally(() => {
                     pendingCarsRequest = null;
                 });
