@@ -8,6 +8,10 @@ import com.amos.garizetu.Service.FileStorageService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -81,6 +85,15 @@ public class CarController {
         return ResponseEntity.ok(cars);
     }
 
+    @GetMapping("/getcars/paged")
+    public ResponseEntity<Page<CarResponseDTO>> getAllCarsPaged(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        Pageable pageable = buildPageable(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return ResponseEntity.ok(carService.getAllCarsPage(pageable));
+    }
+
     //Retrieving a car by ID
     @GetMapping("/{id}")
     public ResponseEntity<CarResponseDTO> getCarById(@PathVariable("id") Long carId) {
@@ -93,6 +106,19 @@ public class CarController {
     public ResponseEntity<List<CarResponseDTO>> getCarByMake(@RequestParam(required = false) String make) {
         List<CarResponseDTO> cars = carService.getCarsByMake(make);
         return ResponseEntity.ok(cars);
+    }
+
+    @GetMapping("/paged")
+    public ResponseEntity<Page<CarResponseDTO>> getCarByMakePaged(
+            @RequestParam(required = false) String make,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        Pageable pageable = buildPageable(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        if (make == null || make.isBlank()) {
+            return ResponseEntity.ok(carService.getAllCarsPage(pageable));
+        }
+        return ResponseEntity.ok(carService.getCarsByMakePage(make, pageable));
     }
 
     // Updating car in patches (partial update of selected fields)
@@ -142,5 +168,11 @@ public class CarController {
         } else {
             return "image/jpeg"; // Default to JPEG
         }
+    }
+
+    private Pageable buildPageable(int page, int size, Sort sort) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.min(100, Math.max(1, size));
+        return PageRequest.of(safePage, safeSize, sort);
     }
 }

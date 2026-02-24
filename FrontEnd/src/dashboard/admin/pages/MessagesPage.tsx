@@ -39,11 +39,15 @@ const formatDateTime = (value: string): string => {
 };
 
 export function MessagesPage() {
+    const pageSize = 20;
     const [messages, setMessages] = useState<AdminContactMessage[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+    const [currentPage, setCurrentPage] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalMessages, setTotalMessages] = useState(0);
     const [selectedMessageId, setSelectedMessageId] = useState<number | null>(null);
     const [replyDraft, setReplyDraft] = useState("");
     const [isSendingReply, setIsSendingReply] = useState(false);
@@ -60,8 +64,15 @@ export function MessagesPage() {
             }
             setError(null);
 
-            const data = await adminContentService.getMessages(statusFilter === "ALL" ? undefined : statusFilter);
+            const dataPage = await adminContentService.getMessages(
+                statusFilter === "ALL" ? undefined : statusFilter,
+                currentPage,
+                pageSize
+            );
+            const data = dataPage.content;
             setMessages(data);
+            setTotalPages(Math.max(1, dataPage.totalPages));
+            setTotalMessages(dataPage.totalElements);
             setSelectedMessageId((current) => {
                 if (data.length === 0) {
                     return null;
@@ -81,11 +92,21 @@ export function MessagesPage() {
                 setIsLoading(false);
             }
         }
-    }, [statusFilter]);
+    }, [currentPage, pageSize, statusFilter]);
 
     useEffect(() => {
         void loadMessages();
     }, [loadMessages]);
+
+    useEffect(() => {
+        setCurrentPage(0);
+    }, [statusFilter]);
+
+    useEffect(() => {
+        if (currentPage > 0 && currentPage >= totalPages) {
+            setCurrentPage(totalPages - 1);
+        }
+    }, [currentPage, totalPages]);
 
     useEffect(() => {
         const interval = window.setInterval(() => {
@@ -201,7 +222,7 @@ export function MessagesPage() {
             <section className="grid min-h-[520px] gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
                 <aside className="overflow-hidden rounded-xl border border-gray-800 bg-[#1a1a1a]">
                     <div className="border-b border-gray-800 px-4 py-3 text-sm text-gray-400">
-                        {messages.length} message{messages.length === 1 ? "" : "s"}
+                        {totalMessages.toLocaleString()} message{totalMessages === 1 ? "" : "s"}
                     </div>
 
                     {messages.length === 0 ? (
@@ -242,6 +263,30 @@ export function MessagesPage() {
                             })}
                         </div>
                     )}
+
+                    <div className="flex items-center justify-between border-t border-gray-800 px-4 py-3">
+                        <span className="text-xs text-gray-500">
+                            Page {Math.min(currentPage + 1, totalPages)} of {Math.max(1, totalPages)}
+                        </span>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                disabled={isLoading || isRefreshing || currentPage <= 0}
+                                onClick={() => setCurrentPage((prev) => Math.max(0, prev - 1))}
+                                className="rounded border border-gray-700 px-2 py-1 text-xs text-gray-300 hover:bg-gray-800 disabled:opacity-60"
+                            >
+                                Prev
+                            </button>
+                            <button
+                                type="button"
+                                disabled={isLoading || isRefreshing || currentPage + 1 >= totalPages}
+                                onClick={() => setCurrentPage((prev) => prev + 1)}
+                                className="rounded border border-gray-700 px-2 py-1 text-xs text-gray-300 hover:bg-gray-800 disabled:opacity-60"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
                 </aside>
 
                 <div className="rounded-xl border border-gray-800 bg-[#1a1a1a] p-5">

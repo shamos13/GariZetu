@@ -63,9 +63,17 @@ public class JWTUtil {
         return extractClaim(token, Claims::getSubject);
     }
 
+    public String extractEmailAllowExpired(String token) {
+        return extractClaimAllowExpired(token, Claims::getSubject);
+    }
+
     //Extracting the role
     public String extractRole(String token){
         return extractClaim(token, claims -> claims.get("role", String.class));
+    }
+
+    public String extractRoleAllowExpired(String token) {
+        return extractClaimAllowExpired(token, claims -> claims.get("role", String.class));
     }
 
     //Extracting the Expiration date
@@ -77,6 +85,12 @@ public class JWTUtil {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
     }
+
+    public <T> T extractClaimAllowExpired(String token, Function<Claims, T> claimsResolver) {
+        final Claims claims = extractAllClaimsAllowExpired(token);
+        return claimsResolver.apply(claims);
+    }
+
     private Claims extractAllClaims(String token) {
         return Jwts.parser()
                 .verifyWith(getSigningKey())  // Verify signature with our secret
@@ -84,6 +98,32 @@ public class JWTUtil {
                 .parseSignedClaims(token)     // Parse and verify the token
                 .getPayload();                 // Get the payload (claims)
     }
+
+    private Claims extractAllClaimsAllowExpired(String token) {
+        try {
+            return extractAllClaims(token);
+        } catch (ExpiredJwtException expiredJwtException) {
+            return expiredJwtException.getClaims();
+        }
+    }
+
+    public boolean isRefreshAllowed(String token, long refreshGraceMs) {
+        try {
+            extractAllClaims(token);
+            return true;
+        } catch (ExpiredJwtException expiredJwtException) {
+            Date expiration = expiredJwtException.getClaims().getExpiration();
+            if (expiration == null) {
+                return false;
+            }
+            long nowMillis = System.currentTimeMillis();
+            long graceMillis = Math.max(0L, refreshGraceMs);
+            return expiration.getTime() + graceMillis > nowMillis;
+        } catch (JwtException | IllegalArgumentException exception) {
+            return false;
+        }
+    }
+
     public Boolean validateToken(String token) {
         try {
             // Parse once; this validates signature and expiration in one step.

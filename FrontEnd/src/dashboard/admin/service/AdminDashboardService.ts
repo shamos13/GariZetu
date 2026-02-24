@@ -1,6 +1,10 @@
-import { api } from "../../../lib/api.ts";
 import { adminCarService } from "./AdminCarService.ts";
-import type { Booking as BackendBooking, BookingStats, BookingStatus } from "../../../services/BookingService.ts";
+import {
+    bookingService,
+    type Booking as BackendBooking,
+    type BookingStats,
+    type BookingStatus
+} from "../../../services/BookingService.ts";
 import { getHttpStatus } from "../../../lib/errorUtils.ts";
 
 /**
@@ -136,9 +140,8 @@ const getLastSixMonthBuckets = (): Array<{ key: string; label: string; revenue: 
 
 const fetchAllBookings = async (): Promise<BackendBooking[]> => {
     if (!pendingBookingsRequest) {
-        pendingBookingsRequest = api
-            .get<BackendBooking[]>("/bookings/admin/all")
-            .then((response) => response.data)
+        pendingBookingsRequest = bookingService
+            .getAllAdmin()
             .finally(() => {
                 pendingBookingsRequest = null;
             });
@@ -148,8 +151,7 @@ const fetchAllBookings = async (): Promise<BackendBooking[]> => {
 };
 
 const fetchBookingStats = async (): Promise<BookingStats> => {
-    const response = await api.get<BookingStats>("/bookings/admin/stats");
-    return response.data;
+    return bookingService.getAdminStats();
 };
 
 const isAuthorizationFailure = (error: unknown): boolean => {

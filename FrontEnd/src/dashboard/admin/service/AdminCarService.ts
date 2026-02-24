@@ -1,6 +1,7 @@
 // File: services/adminCarService.ts
 import { api } from "../../../lib/api";
 import { carService } from "../../../services/carService.ts";
+import type { SpringPage } from "../../../lib/pagination.ts";
 import type {
     BodyType,
     Car as BackendCar,
@@ -20,8 +21,21 @@ export const adminCarService = {
      */
     getAll: async (): Promise<BackendCar[]> => {
         try {
-            const res = await api.get<BackendCar[]>("/cars/getcars");
-            return res.data;
+            const pageSize = 50;
+            let page = 0;
+            let totalPages = 1;
+            const cars: BackendCar[] = [];
+
+            while (page < totalPages) {
+                const res = await api.get<SpringPage<BackendCar>>("/cars/getcars/paged", {
+                    params: { page, size: pageSize },
+                });
+                cars.push(...res.data.content);
+                totalPages = Math.max(1, res.data.totalPages);
+                page += 1;
+            }
+
+            return cars;
         } catch (error) {
             console.error("Failed to fetch admin cars:", error);
             throw error;

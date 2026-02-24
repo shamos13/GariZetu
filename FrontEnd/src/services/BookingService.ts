@@ -1,4 +1,5 @@
 import { api } from "../lib/api.ts";
+import type { SpringPage } from "../lib/pagination.ts";
 
 export type BookingStatus =
     | "PENDING_PAYMENT"
@@ -113,8 +114,31 @@ export const bookingService = {
     },
 
     getAllAdmin: async (status?: BookingStatus): Promise<Booking[]> => {
-        const params = status ? { status } : undefined;
-        const response = await api.get<Booking[]>("/bookings/admin/all", { params });
+        const pageSize = 100;
+        let page = 0;
+        let totalPages = 1;
+        const allBookings: Booking[] = [];
+
+        while (page < totalPages) {
+            const paged = await bookingService.getAllAdminPaged(page, pageSize, status);
+            allBookings.push(...paged.content);
+            totalPages = Math.max(1, paged.totalPages);
+            page += 1;
+        }
+
+        return allBookings;
+    },
+
+    getAllAdminPaged: async (
+        page: number = 0,
+        size: number = 20,
+        status?: BookingStatus
+    ): Promise<SpringPage<Booking>> => {
+        const params: Record<string, string | number> = { page, size };
+        if (status) {
+            params.status = status;
+        }
+        const response = await api.get<SpringPage<Booking>>("/bookings/admin/all/paged", { params });
         return response.data;
     },
 
@@ -129,10 +153,21 @@ export const bookingService = {
     },
 
     getAdminNotifications: async (includeRead = false): Promise<Booking[]> => {
-        const response = await api.get<Booking[]>("/bookings/admin/notifications", {
-            params: { includeRead },
-        });
-        return response.data;
+        const pageSize = 100;
+        let page = 0;
+        let totalPages = 1;
+        const notifications: Booking[] = [];
+
+        while (page < totalPages) {
+            const response = await api.get<SpringPage<Booking>>("/bookings/admin/notifications/paged", {
+                params: { includeRead, page, size: pageSize },
+            });
+            notifications.push(...response.data.content);
+            totalPages = Math.max(1, response.data.totalPages);
+            page += 1;
+        }
+
+        return notifications;
     },
 
     markAdminNotificationRead: async (bookingId: number): Promise<Booking> => {

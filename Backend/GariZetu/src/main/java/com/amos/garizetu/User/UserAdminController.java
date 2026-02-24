@@ -7,6 +7,10 @@ import com.amos.garizetu.User.DTO.Response.UserStatsDTO;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -47,6 +51,16 @@ public class UserAdminController {
         }
     }
 
+    @GetMapping("/paged")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Page<UserResponseDTO>> getUsersPage(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        Pageable pageable = buildPageable(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return ResponseEntity.ok(userService.getUsersPage(pageable));
+    }
+
     //Get by ID
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
@@ -63,6 +77,17 @@ public class UserAdminController {
         log.info("Admin searching for users with query: {}", query);
         List<UserResponseDTO> users = userService.searchUsers(query);
         return ResponseEntity.ok(users);
+    }
+
+    @GetMapping("/search/paged")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Page<UserResponseDTO>> searchUsersPaged(
+            @RequestParam(required = false) String query,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        Pageable pageable = buildPageable(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return ResponseEntity.ok(userService.searchUsers(query, pageable));
     }
 
     // Get user stats
@@ -162,6 +187,12 @@ public class UserAdminController {
 
         log.warn("User {} permanently deleted",id);
         return ResponseEntity.noContent().build();
+    }
+
+    private Pageable buildPageable(int page, int size, Sort sort) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.min(100, Math.max(1, size));
+        return PageRequest.of(safePage, safeSize, sort);
     }
 
 

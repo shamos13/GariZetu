@@ -16,6 +16,8 @@ import com.amos.garizetu.Repository.CarRepository;
 import com.amos.garizetu.Car.mapper.CarMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -133,6 +135,7 @@ public class CarService {
     // Reading the Response
 
     //Reading a single response
+    @Transactional(readOnly = true)
     public CarResponseDTO getCarById(Long id) {
         log.debug("Fetching car with ID: {}", id);
         Car car = carRepository.findByIdWithFeatures(id)
@@ -142,6 +145,7 @@ public class CarService {
     }
 
     //Fetch all Cars
+    @Transactional(readOnly = true)
     public List<CarResponseDTO> getAllCars(){
         log.debug("Fetching all cars");
         List<Car> cars = carRepository.findAllWithFeatures();
@@ -157,9 +161,24 @@ public class CarService {
                 .collect(Collectors.toList());
 
     }
+
+    @Transactional(readOnly = true)
+    public Page<CarResponseDTO> getAllCarsPage(Pageable pageable) {
+        Page<Car> carsPage = carRepository.findAllWithFeatures(pageable);
+        LocalDateTime now = LocalDateTime.now();
+        List<Car> cars = carsPage.getContent();
+        Map<Long, List<Booking>> bookingsByCarId = loadBlockingBookingsByCar(cars, now);
+
+        return carsPage.map(car -> toResponseWithAvailability(
+                car,
+                now,
+                bookingsByCarId.getOrDefault(car.getCarId(), List.of())
+        ));
+    }
     // Business Logic Methods
 
     // Fetching Cars by make
+    @Transactional(readOnly = true)
     public List<CarResponseDTO> getCarsByMake(String make) {
         log.debug("Fetching cars by make {}", make);
         List<Car> cars = carRepository.findCarByMakeIgnoreCaseWithFeatures(make);
@@ -172,6 +191,20 @@ public class CarService {
                         bookingsByCarId.getOrDefault(car.getCarId(), List.of())
                 ))
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public Page<CarResponseDTO> getCarsByMakePage(String make, Pageable pageable) {
+        Page<Car> carsPage = carRepository.findCarByMakeIgnoreCaseWithFeatures(make, pageable);
+        LocalDateTime now = LocalDateTime.now();
+        List<Car> cars = carsPage.getContent();
+        Map<Long, List<Booking>> bookingsByCarId = loadBlockingBookingsByCar(cars, now);
+
+        return carsPage.map(car -> toResponseWithAvailability(
+                car,
+                now,
+                bookingsByCarId.getOrDefault(car.getCarId(), List.of())
+        ));
     }
 
     // Updating the car (partial update)
@@ -500,7 +533,7 @@ public class CarService {
             return Collections.emptyMap();
         }
 
-        return bookingRepository.findBlockingBookingsForCars(carIds, asOf).stream()
+        return bookingRepository.findBlockingBookingsForCars(carIds, asOf.toLocalDate(), asOf).stream()
                 .filter(booking -> booking.getCar() != null && booking.getCar().getCarId() != null)
                 .collect(Collectors.groupingBy(booking -> booking.getCar().getCarId()));
     }

@@ -3,6 +3,8 @@ package com.amos.garizetu.Repository;
 import com.amos.garizetu.User.Entity.User;
 import com.amos.garizetu.User.UserRole;
 import com.amos.garizetu.User.UserStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -73,6 +75,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
             "LOWER(u.email) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
     List<User> searchUsers(@Param("searchTerm") String searchTerm);
 
+    @Query("SELECT u FROM User u WHERE " +
+            "LOWER(u.userName) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
+            "LOWER(u.email) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
+    Page<User> searchUsers(@Param("searchTerm") String searchTerm, Pageable pageable);
 
 
 }

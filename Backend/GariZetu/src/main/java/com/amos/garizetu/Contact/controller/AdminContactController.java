@@ -8,6 +8,10 @@ import com.amos.garizetu.Contact.service.ContactService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -31,6 +35,17 @@ public class AdminContactController {
         return ResponseEntity.ok(contactService.getAdminMessages(status));
     }
 
+    @GetMapping("/messages/paged")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Page<AdminContactMessageResponse>> getMessagesPaged(
+            @RequestParam(required = false) ContactMessageStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        Pageable pageable = buildPageable(page, size);
+        return ResponseEntity.ok(contactService.getAdminMessagesPage(status, pageable));
+    }
+
     @PostMapping("/messages/{messageId}/replies")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<AdminContactMessageResponse> replyToMessage(
@@ -49,5 +64,11 @@ public class AdminContactController {
     ) {
         log.info("Admin updating contact message {} status to {}", messageId, request.getStatus());
         return ResponseEntity.ok(contactService.updateMessageStatus(messageId, request.getStatus()));
+    }
+
+    private Pageable buildPageable(int page, int size) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.min(100, Math.max(1, size));
+        return PageRequest.of(safePage, safeSize, Sort.by(Sort.Direction.DESC, "createdAt"));
     }
 }

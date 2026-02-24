@@ -1,0 +1,10 @@
+[variables]
+NIXPACKS_JDK_VERSION = "21"
+# Constrain JVM memory for Railway's small instances to avoid OOM kill loops.
+JAVA_TOOL_OPTIONS = "-XX:+UseContainerSupport -XX:InitialRAMPercentage=10.0 -XX:MaxRAMPercentage=50.0 -XX:+UseSerialGC -Xss256k -XX:+ExitOnOutOfMemoryError"
+
+[phases.build]
+cmds = ["./mvnw -DskipTests clean package"]
+
+[start]
+cmd = "java -jar target/GariZetu-0.0.1-SNAPSHOT.jar"

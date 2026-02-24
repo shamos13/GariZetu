@@ -102,11 +102,15 @@ function formatDate(value: string): string {
 }
 
 export function BookingManagementPage({ onNotificationCountChange }: BookingManagementPageProps) {
+    const pageSize = 20;
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [selectedFilter, setSelectedFilter] = useState<BookingFilter>("ALL");
+    const [currentPage, setCurrentPage] = useState(0);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalBookings, setTotalBookings] = useState(0);
     const [activeActionBookingId, setActiveActionBookingId] = useState<number | null>(null);
     const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
 
@@ -122,14 +126,18 @@ export function BookingManagementPage({ onNotificationCountChange }: BookingMana
             }
             setError(null);
 
-            const [bookingsData, unreadNotifications] = await Promise.all([
-                selectedFilter === "ALL"
-                    ? bookingService.getAllAdmin()
-                    : bookingService.getAllAdmin(selectedFilter),
+            const [bookingsPage, unreadNotifications] = await Promise.all([
+                bookingService.getAllAdminPaged(
+                    currentPage,
+                    pageSize,
+                    selectedFilter === "ALL" ? undefined : selectedFilter
+                ),
                 bookingService.getAdminNotifications(false),
             ]);
 
-            setBookings(bookingsData);
+            setBookings(bookingsPage.content);
+            setTotalPages(Math.max(1, bookingsPage.totalPages));
+            setTotalBookings(bookingsPage.totalElements);
             onNotificationCountChange?.(unreadNotifications.length);
 
             if (showSuccessToast) {
@@ -149,11 +157,21 @@ export function BookingManagementPage({ onNotificationCountChange }: BookingMana
                 setIsLoading(false);
             }
         }
-    }, [onNotificationCountChange, selectedFilter]);
+    }, [currentPage, onNotificationCountChange, pageSize, selectedFilter]);
 
     useEffect(() => {
         void loadBookings();
     }, [loadBookings]);
+
+    useEffect(() => {
+        setCurrentPage(0);
+    }, [selectedFilter]);
+
+    useEffect(() => {
+        if (currentPage > 0 && currentPage >= totalPages) {
+            setCurrentPage(totalPages - 1);
+        }
+    }, [currentPage, totalPages]);
 
     const sortedBookings = useMemo(
         () =>
@@ -366,7 +384,10 @@ export function BookingManagementPage({ onNotificationCountChange }: BookingMana
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h2 className="text-xl font-semibold text-white">Booking Management</h2>
-                    <p className="text-sm text-gray-400">Approve, reject, and progress customer bookings.</p>
+                    <p className="text-sm text-gray-400">
+                        Approve, reject, and progress customer bookings
+                        {` • ${totalBookings.toLocaleString()} total`}
+                    </p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -449,6 +470,30 @@ export function BookingManagementPage({ onNotificationCountChange }: BookingMana
                         ))}
                     </div>
                 )}
+
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-gray-800 pt-4">
+                    <p className="text-sm text-gray-400">
+                        Page {Math.min(currentPage + 1, totalPages)} of {Math.max(1, totalPages)}
+                    </p>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            disabled={isLoading || isRefreshing || currentPage <= 0}
+                            onClick={() => setCurrentPage((prev) => Math.max(0, prev - 1))}
+                            className="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            Previous
+                        </button>
+                        <button
+                            type="button"
+                            disabled={isLoading || isRefreshing || currentPage + 1 >= totalPages}
+                            onClick={() => setCurrentPage((prev) => prev + 1)}
+                            className="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
             </div>
 
             {confirmDialog && (

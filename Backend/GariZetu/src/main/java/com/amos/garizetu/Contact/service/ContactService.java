@@ -13,6 +13,8 @@ import com.amos.garizetu.Repository.UserRepository;
 import com.amos.garizetu.User.Entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -58,13 +60,25 @@ public class ContactService {
 
     @Transactional(readOnly = true)
     public List<AdminContactMessageResponse> getAdminMessages(ContactMessageStatus status) {
-        List<ContactMessage> messages = status == null
-                ? contactMessageRepository.findAllWithRepliesOrderByCreatedAtDesc()
-                : contactMessageRepository.findAllByStatusWithRepliesOrderByCreatedAtDesc(status);
+        return getAdminMessagesPage(status, Pageable.unpaged()).getContent();
+    }
 
-        return messages.stream()
-                .map(this::toAdminResponse)
-                .toList();
+    @Transactional(readOnly = true)
+    public Page<AdminContactMessageResponse> getAdminMessagesPage(ContactMessageStatus status, Pageable pageable) {
+        if (pageable.isUnpaged()) {
+            List<ContactMessage> messages = status == null
+                    ? contactMessageRepository.findAllWithRepliesOrderByCreatedAtDesc()
+                    : contactMessageRepository.findAllByStatusWithRepliesOrderByCreatedAtDesc(status);
+            return new org.springframework.data.domain.PageImpl<>(
+                    messages.stream().map(this::toAdminResponse).toList()
+            );
+        }
+
+        Page<ContactMessage> messagesPage = status == null
+                ? contactMessageRepository.findAllByOrderByCreatedAtDesc(pageable)
+                : contactMessageRepository.findByMessageStatusOrderByCreatedAtDesc(status, pageable);
+
+        return messagesPage.map(this::toAdminResponse);
     }
 
     public AdminContactMessageResponse replyToMessage(Long messageId, ContactMessageReplyRequest request) {

@@ -4,6 +4,7 @@ import com.cloudinary.Cloudinary;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.Map;
 
 public class CloudinaryImageStorageService implements ImageStorageService {
@@ -15,9 +16,9 @@ public class CloudinaryImageStorageService implements ImageStorageService {
 
     @Override
     public String uploadImage(MultipartFile file) {
-        try{
+        try (InputStream inputStream = file.getInputStream()) {
             Map<?, ?> result = cloudinary.uploader().upload(
-                    file.getBytes(),
+                    inputStream,
                     Map.of(
                             "folder", "garizetu/cars",
                             "resource_type", "image"
