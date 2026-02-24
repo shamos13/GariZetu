@@ -39,11 +39,11 @@ export function HeroSection() {
                     isLoaded ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"
                 }`}
             >
-                <h1 className="text-[1.75rem] sm:text-3xl md:text-4xl lg:text-[2.9rem] font-bold text-white leading-[1.1] tracking-tight text-balance">
+                <h1 className="font-playfair-display text-[1.75rem] sm:text-3xl md:text-4xl lg:text-[2.9rem] font-bold text-white leading-[1.1] tracking-tight text-balance">
                     You don't need to own a car to own the road
                 </h1>
                 <p
-                    className={`text-base sm:text-xl md:text-2xl lg:text-[1.75rem] font-medium text-white italic opacity-90 transition-all duration-1000 delay-200 ${
+                    className={`font-playball text-base sm:text-xl md:text-2xl lg:text-[1.75rem] font-normal text-white opacity-90 transition-all duration-1000 delay-200 ${
                         isLoaded ? "opacity-90 translate-y-0" : "opacity-0 translate-y-4"
                     }`}
                 >

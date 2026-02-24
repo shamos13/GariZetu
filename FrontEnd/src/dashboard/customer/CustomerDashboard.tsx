@@ -4,12 +4,32 @@ import { carService } from "../../services/carService.ts";
 import type { Car } from "../../data/cars.ts";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../../services/AuthService.ts";
-import { ArrowRight, Calendar, Car as CarIcon, CheckCircle2, Clock3, CreditCard, Edit, FileText, Mail, MapPin, Phone, Star, User } from "lucide-react";
+import {
+    ArrowRight,
+    Calendar,
+    Car as CarIcon,
+    CheckCircle2,
+    Clock3,
+    CreditCard,
+    Download,
+    Edit,
+    FileText,
+    Gift,
+    Lock,
+    Mail,
+    MapPin,
+    Phone,
+    Plus,
+    SlidersHorizontal,
+    Star,
+    User,
+} from "lucide-react";
 import { Button } from "../../components/ui/button.tsx";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card.tsx";
 import { bookingService, type Booking, type BookingStatus } from "../../services/BookingService.ts";
 import { getImageUrl } from "../../lib/ImageUtils.ts";
 import { getErrorMessage, getHttpStatus, isUnauthorizedError } from "../../lib/errorUtils.ts";
+import { emitAuthChanged } from "../../lib/authEvents.ts";
 import { toast } from "sonner";
 import { pushUserNotification } from "../../lib/userNotifications.ts";
 import {
@@ -24,6 +44,14 @@ interface CustomerDashboardProps {
     initialPage?: string;
 }
 
+interface CustomerProfileDetails {
+    userName: string;
+    email: string;
+    phoneNumber: string;
+    location: string;
+    bio: string;
+}
+
 const ACTIVE_BOOKING_STATUSES: BookingStatus[] = [
     "PENDING_PAYMENT",
     "PENDING",
@@ -33,6 +61,7 @@ const ACTIVE_BOOKING_STATUSES: BookingStatus[] = [
 ];
 const PAYMENT_ALLOWED_STATUSES: BookingStatus[] = ["PENDING_PAYMENT", "PENDING"];
 const CANCELLABLE_STATUSES: BookingStatus[] = ["PENDING_PAYMENT", "PENDING", "ADMIN_NOTIFIED", "CONFIRMED"];
+const PROFILE_STORAGE_KEY_PREFIX = "garizetu_customer_profile_v1";
 
 export default function CustomerDashboard({ onBack, initialPage = "dashboard" }: CustomerDashboardProps) {
     const [currentPage, setCurrentPage] = useState(initialPage);
@@ -43,9 +72,65 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
     const [bookingsError, setBookingsError] = useState<string | null>(null);
     const [bookingActionMessage, setBookingActionMessage] = useState<string | null>(null);
     const [processingBookingId, setProcessingBookingId] = useState<number | null>(null);
+    const [profileDetails, setProfileDetails] = useState<CustomerProfileDetails>({
+        userName: "",
+        email: "",
+        phoneNumber: "",
+        location: "Kenya",
+        bio: "",
+    });
+    const [isEditingProfile, setIsEditingProfile] = useState(false);
+    const [isSavingProfile, setIsSavingProfile] = useState(false);
+    const [profileFormError, setProfileFormError] = useState<string | null>(null);
+    const [passwordForm, setPasswordForm] = useState({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+    });
+    const [passwordFormError, setPasswordFormError] = useState<string | null>(null);
+    const [passwordFormSuccess, setPasswordFormSuccess] = useState<string | null>(null);
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
     const navigate = useNavigate();
     const user = authService.getUser();
     const isAuthenticated = authService.isAuthenticated();
+
+    const getProfileStorageKey = useCallback((): string => {
+        if (!user?.userId) {
+            return `${PROFILE_STORAGE_KEY_PREFIX}:guest`;
+        }
+        return `${PROFILE_STORAGE_KEY_PREFIX}:${user.userId}`;
+    }, [user?.userId]);
+
+    const loadProfileDetails = useCallback(() => {
+        const baseDetails: CustomerProfileDetails = {
+            userName: user?.userName || "",
+            email: user?.email || "",
+            phoneNumber: "",
+            location: "Kenya",
+            bio: "",
+        };
+
+        const storageKey = getProfileStorageKey();
+        const rawStoredProfile = localStorage.getItem(storageKey);
+
+        if (!rawStoredProfile) {
+            setProfileDetails(baseDetails);
+            return;
+        }
+
+        try {
+            const stored = JSON.parse(rawStoredProfile) as Partial<CustomerProfileDetails>;
+            setProfileDetails({
+                userName: typeof stored.userName === "string" && stored.userName.trim() ? stored.userName : baseDetails.userName,
+                email: typeof stored.email === "string" && stored.email.trim() ? stored.email : baseDetails.email,
+                phoneNumber: typeof stored.phoneNumber === "string" ? stored.phoneNumber : baseDetails.phoneNumber,
+                location: typeof stored.location === "string" && stored.location.trim() ? stored.location : baseDetails.location,
+                bio: typeof stored.bio === "string" ? stored.bio : baseDetails.bio,
+            });
+        } catch {
+            setProfileDetails(baseDetails);
+        }
+    }, [getProfileStorageKey, user?.email, user?.userName]);
 
     const fetchCars = useCallback(async () => {
         try {
@@ -99,6 +184,10 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
     }, [initialPage]);
 
     useEffect(() => {
+        loadProfileDetails();
+    }, [loadProfileDetails]);
+
+    useEffect(() => {
         const bookingNotice = sessionStorage.getItem("garizetu_booking_notice");
         if (!bookingNotice) {
             return;
@@ -115,6 +204,8 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                 return "My Profile";
             case "bookings":
                 return "My Bookings";
+            case "payments":
+                return "Payments";
             default:
                 return "Dashboard";
         }
@@ -152,6 +243,59 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
     const rewardPoints = useMemo(() => {
         return completedTripsCount * 150 + activeBookingsCount * 75 + totalRentalsCount * 20;
     }, [completedTripsCount, activeBookingsCount, totalRentalsCount]);
+
+    const rewardsTarget = 10000;
+
+    const paidBookings = useMemo(() => {
+        return sortedBookings.filter((booking) => {
+            return (
+                booking.paymentStatus === "PAID" ||
+                booking.paymentStatus === "SIMULATED_PAID" ||
+                booking.bookingStatus === "COMPLETED"
+            );
+        });
+    }, [sortedBookings]);
+
+    const annualExpenditureTotal = useMemo(() => {
+        const currentYear = new Date().getFullYear();
+        const currentYearPaid = paidBookings
+            .filter((booking) => new Date(booking.createdAt).getFullYear() === currentYear)
+            .reduce((total, booking) => total + booking.totalPrice, 0);
+
+        if (currentYearPaid > 0) {
+            return currentYearPaid;
+        }
+
+        return paidBookings.reduce((total, booking) => total + booking.totalPrice, 0);
+    }, [paidBookings]);
+
+    const pendingPaymentBookings = useMemo(() => {
+        return sortedBookings.filter((booking) => PAYMENT_ALLOWED_STATUSES.includes(booking.bookingStatus));
+    }, [sortedBookings]);
+
+    const pendingDuesTotal = useMemo(() => {
+        return pendingPaymentBookings.reduce((total, booking) => total + booking.totalPrice, 0);
+    }, [pendingPaymentBookings]);
+
+    const paymentMethods = useMemo(() => {
+        const cardHolder = (user?.userName || "GariZetu Customer").toUpperCase();
+        return [
+            {
+                id: "visa",
+                provider: "Visa",
+                last4: "8842",
+                expires: "12/27",
+                holder: cardHolder,
+            },
+            {
+                id: "mastercard",
+                provider: "Mastercard",
+                last4: "1095",
+                expires: "08/25",
+                holder: cardHolder,
+            },
+        ];
+    }, [user?.userName]);
 
     const formatBookingDate = (value: string): string => {
         let date: Date;
@@ -201,6 +345,52 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
             return "Pending Payment";
         }
         return status.replaceAll("_", " ");
+    };
+
+    const formatCurrency = (amount: number): string => {
+        return `Ksh ${amount.toLocaleString()}`;
+    };
+
+    const getTransactionStatusMeta = (booking: Booking): { label: string; className: string } => {
+        if (booking.paymentStatus === "FAILED") {
+            return {
+                label: "Failed",
+                className: "border border-red-500/30 bg-red-500/15 text-red-400",
+            };
+        }
+
+        if (booking.paymentStatus === "REFUNDED") {
+            return {
+                label: "Refunded",
+                className: "border border-gray-500/30 bg-gray-500/15 text-gray-300",
+            };
+        }
+
+        if (booking.paymentStatus === "PAID" || booking.paymentStatus === "SIMULATED_PAID" || booking.bookingStatus === "COMPLETED") {
+            return {
+                label: "Completed",
+                className: "border border-emerald-500/30 bg-emerald-500/15 text-emerald-400",
+            };
+        }
+
+        if (booking.bookingStatus === "CANCELLED" || booking.bookingStatus === "REJECTED" || booking.bookingStatus === "EXPIRED") {
+            return {
+                label: "Closed",
+                className: "border border-gray-500/30 bg-gray-500/15 text-gray-300",
+            };
+        }
+
+        return {
+            label: "Pending",
+            className: "border border-amber-500/30 bg-amber-500/15 text-amber-300",
+        };
+    };
+
+    const getTransactionId = (booking: Booking): string => {
+        if (booking.paymentReference) {
+            return booking.paymentReference;
+        }
+        return `GZ-${booking.bookingId.toString().padStart(6, "0")}`;
     };
 
     const canSimulatePayment = (status: BookingStatus): boolean => PAYMENT_ALLOWED_STATUSES.includes(status);
@@ -281,6 +471,143 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
             setBookingActionMessage(getErrorMessage(error, "Could not cancel booking. Please try again."));
         } finally {
             setProcessingBookingId(null);
+        }
+    };
+
+    const handleProfileFieldChange = (field: keyof CustomerProfileDetails, value: string) => {
+        setProfileFormError(null);
+        setProfileDetails((previous) => ({
+            ...previous,
+            [field]: value,
+        }));
+    };
+
+    const validateProfileDetails = (details: CustomerProfileDetails): string | null => {
+        if (details.userName.trim().length < 2) {
+            return "Full name must be at least 2 characters.";
+        }
+
+        const emailValue = details.email.trim();
+        if (!emailValue) {
+            return "Email is required.";
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)) {
+            return "Please enter a valid email address.";
+        }
+
+        const phoneValue = details.phoneNumber.trim();
+        if (phoneValue && !/^\+?[0-9]{7,15}$/.test(phoneValue)) {
+            return "Phone number should contain 7 to 15 digits and may start with +.";
+        }
+
+        return null;
+    };
+
+    const handleSaveProfile = () => {
+        const sanitizedDetails: CustomerProfileDetails = {
+            userName: profileDetails.userName.trim(),
+            email: profileDetails.email.trim(),
+            phoneNumber: profileDetails.phoneNumber.trim(),
+            location: profileDetails.location.trim() || "Kenya",
+            bio: profileDetails.bio.trim(),
+        };
+
+        const validationError = validateProfileDetails(sanitizedDetails);
+        if (validationError) {
+            setProfileFormError(validationError);
+            return;
+        }
+
+        try {
+            setIsSavingProfile(true);
+            setProfileFormError(null);
+            localStorage.setItem(getProfileStorageKey(), JSON.stringify(sanitizedDetails));
+
+            const storedUser = authService.getUser();
+            if (storedUser) {
+                const updatedUser = {
+                    ...storedUser,
+                    userName: sanitizedDetails.userName,
+                    email: sanitizedDetails.email,
+                };
+                localStorage.setItem("garizetu_user", JSON.stringify(updatedUser));
+                emitAuthChanged();
+            }
+
+            setProfileDetails(sanitizedDetails);
+            setIsEditingProfile(false);
+            toast.success("Profile updated successfully.");
+        } catch {
+            setProfileFormError("Could not save profile right now. Please try again.");
+        } finally {
+            setIsSavingProfile(false);
+        }
+    };
+
+    const handleCancelProfileEdit = () => {
+        loadProfileDetails();
+        setProfileFormError(null);
+        setIsEditingProfile(false);
+    };
+
+    const handlePasswordFieldChange = (field: "currentPassword" | "newPassword" | "confirmPassword", value: string) => {
+        setPasswordFormError(null);
+        setPasswordFormSuccess(null);
+        setPasswordForm((previous) => ({
+            ...previous,
+            [field]: value,
+        }));
+    };
+
+    const handleChangePassword = async () => {
+        const currentPassword = passwordForm.currentPassword;
+        const newPassword = passwordForm.newPassword;
+        const confirmPassword = passwordForm.confirmPassword;
+
+        if (!currentPassword) {
+            setPasswordFormError("Current password is required.");
+            return;
+        }
+
+        if (newPassword.length < 8) {
+            setPasswordFormError("New password must be at least 8 characters.");
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            setPasswordFormError("New password and confirm password do not match.");
+            return;
+        }
+
+        if (currentPassword === newPassword) {
+            setPasswordFormError("New password must be different from your current password.");
+            return;
+        }
+
+        try {
+            setIsChangingPassword(true);
+            setPasswordFormError(null);
+            setPasswordFormSuccess(null);
+
+            const response = await authService.changeMyPassword({
+                currentPassword,
+                newPassword,
+            });
+
+            setPasswordForm({
+                currentPassword: "",
+                newPassword: "",
+                confirmPassword: "",
+            });
+            const successMessage = response?.message || "Password updated successfully.";
+            setPasswordFormSuccess(successMessage);
+            toast.success(successMessage);
+        } catch (error) {
+            const resolvedError = getErrorMessage(error, "Could not update password. Please try again.");
+            setPasswordFormError(resolvedError);
+            toast.error(resolvedError);
+        } finally {
+            setIsChangingPassword(false);
         }
     };
 
@@ -496,7 +823,6 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
     const renderProfile = () => {
         if (!user) return null;
 
-        // Get initials from user name (first and second name)
         const getInitials = (name: string): string => {
             const parts = name.trim().split(/\s+/);
             if (parts.length >= 2) {
@@ -505,53 +831,78 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
             return name.charAt(0).toUpperCase();
         };
 
-        // Get member since date
         const getMemberSince = () => {
             const now = new Date();
-            const month = now.toLocaleString('default', { month: 'long' });
+            const month = now.toLocaleString("default", { month: "long" });
             return `Member since ${month} ${now.getFullYear()}`;
         };
 
         return (
             <div className="space-y-6">
-                {/* Header Card with Avatar and Edit Button */}
                 <Card className="bg-[#1a1a1a] border-gray-800">
                     <CardContent className="p-6">
                         <div className="flex items-center justify-between flex-wrap gap-4">
                             <div className="flex items-center gap-4">
                                 <div className="w-20 h-20 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full flex items-center justify-center shadow-lg">
                                     <span className="text-3xl font-semibold text-white">
-                                        {getInitials(user.userName || "User")}
+                                        {getInitials(profileDetails.userName || "User")}
                                     </span>
                                 </div>
                                 <div>
-                                    <h2 className="text-2xl font-bold text-white mb-1">{user.userName}</h2>
+                                    <h2 className="text-2xl font-bold text-white mb-1">{profileDetails.userName || "Customer"}</h2>
                                     <p className="text-gray-400 text-sm">{getMemberSince()}</p>
                                 </div>
                             </div>
-                            <Button
-                                onClick={() => {
-                                    // TODO: Implement edit profile functionality
-                                    console.log("Edit profile clicked");
-                                }}
-                                className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-6 py-2 rounded-lg flex items-center gap-2"
-                            >
-                                <Edit className="w-4 h-4" />
-                                Edit Profile
-                            </Button>
+
+                            {!isEditingProfile ? (
+                                <Button
+                                    onClick={() => {
+                                        setProfileFormError(null);
+                                        setIsEditingProfile(true);
+                                    }}
+                                    className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white px-6 py-2 rounded-lg flex items-center gap-2"
+                                >
+                                    <Edit className="w-4 h-4" />
+                                    Edit Profile
+                                </Button>
+                            ) : (
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Button
+                                        onClick={handleSaveProfile}
+                                        disabled={isSavingProfile}
+                                        className="bg-emerald-500 hover:bg-emerald-600 text-white px-6 py-2 rounded-lg"
+                                    >
+                                        {isSavingProfile ? "Saving..." : "Save Changes"}
+                                    </Button>
+                                    <Button
+                                        onClick={handleCancelProfileEdit}
+                                        disabled={isSavingProfile}
+                                        variant="outline"
+                                        className="border-gray-700 bg-transparent text-gray-200 hover:bg-gray-800 hover:text-white"
+                                    >
+                                        Cancel
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     </CardContent>
                 </Card>
 
-                {/* Profile Information Card */}
                 <Card className="bg-[#1a1a1a] border-gray-800">
                     <CardHeader>
                         <CardTitle className="text-white text-xl">Profile Information</CardTitle>
-                        <CardDescription className="text-gray-400">Your account details</CardDescription>
+                        <CardDescription className="text-gray-400">
+                            {isEditingProfile ? "Update your editable account details." : "Your account details"}
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
+                        {profileFormError && (
+                            <div className="mb-5 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                                {profileFormError}
+                            </div>
+                        )}
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* Left Column */}
                             <div className="space-y-6">
                                 <div className="flex items-start gap-4">
                                     <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -559,7 +910,16 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                                     </div>
                                     <div className="flex-1">
                                         <p className="text-sm text-gray-400 mb-1">Full Name</p>
-                                        <p className="text-white font-medium">{user.userName || "Not specified"}</p>
+                                        {isEditingProfile ? (
+                                            <input
+                                                value={profileDetails.userName}
+                                                onChange={(event) => handleProfileFieldChange("userName", event.target.value)}
+                                                className="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white outline-none focus:border-emerald-500"
+                                                placeholder="Enter full name"
+                                            />
+                                        ) : (
+                                            <p className="text-white font-medium">{profileDetails.userName || "Not specified"}</p>
+                                        )}
                                     </div>
                                 </div>
 
@@ -579,7 +939,16 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                                     </div>
                                     <div className="flex-1">
                                         <p className="text-sm text-gray-400 mb-1">Phone Number</p>
-                                        <p className="text-white font-medium">Not specified</p>
+                                        {isEditingProfile ? (
+                                            <input
+                                                value={profileDetails.phoneNumber}
+                                                onChange={(event) => handleProfileFieldChange("phoneNumber", event.target.value)}
+                                                className="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white outline-none focus:border-emerald-500"
+                                                placeholder="+254700000000"
+                                            />
+                                        ) : (
+                                            <p className="text-white font-medium">{profileDetails.phoneNumber || "Not specified"}</p>
+                                        )}
                                     </div>
                                 </div>
 
@@ -589,12 +958,20 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                                     </div>
                                     <div className="flex-1">
                                         <p className="text-sm text-gray-400 mb-1">Bio</p>
-                                        <p className="text-white font-medium">No bio yet.</p>
+                                        {isEditingProfile ? (
+                                            <textarea
+                                                value={profileDetails.bio}
+                                                onChange={(event) => handleProfileFieldChange("bio", event.target.value)}
+                                                className="min-h-24 w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white outline-none focus:border-emerald-500"
+                                                placeholder="Tell us something about yourself"
+                                            />
+                                        ) : (
+                                            <p className="text-white font-medium">{profileDetails.bio || "No bio yet."}</p>
+                                        )}
                                     </div>
                                 </div>
                             </div>
 
-                            {/* Right Column */}
                             <div className="space-y-6">
                                 <div className="flex items-start gap-4">
                                     <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
@@ -602,17 +979,17 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                                     </div>
                                     <div className="flex-1">
                                         <p className="text-sm text-gray-400 mb-1">Email</p>
-                                        <p className="text-white font-medium">{user.email || "Not specified"}</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-start gap-4">
-                                    <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
-                                        <User className="w-5 h-5 text-emerald-400" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <p className="text-sm text-gray-400 mb-1">Role</p>
-                                        <p className="text-white font-medium capitalize">{user.role?.toLowerCase() || "Not specified"}</p>
+                                        {isEditingProfile ? (
+                                            <input
+                                                type="email"
+                                                value={profileDetails.email}
+                                                onChange={(event) => handleProfileFieldChange("email", event.target.value)}
+                                                className="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white outline-none focus:border-emerald-500"
+                                                placeholder="Enter email"
+                                            />
+                                        ) : (
+                                            <p className="text-white font-medium">{profileDetails.email || "Not specified"}</p>
+                                        )}
                                     </div>
                                 </div>
 
@@ -622,10 +999,108 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                                     </div>
                                     <div className="flex-1">
                                         <p className="text-sm text-gray-400 mb-1">Location</p>
-                                        <p className="text-white font-medium">Kenya</p>
+                                        {isEditingProfile ? (
+                                            <input
+                                                value={profileDetails.location}
+                                                onChange={(event) => handleProfileFieldChange("location", event.target.value)}
+                                                className="w-full rounded-lg border border-gray-700 bg-[#121212] px-3 py-2 text-sm text-white outline-none focus:border-emerald-500"
+                                                placeholder="City, Country"
+                                            />
+                                        ) : (
+                                            <p className="text-white font-medium">{profileDetails.location || "Not specified"}</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="flex items-start gap-4">
+                                    <div className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center flex-shrink-0">
+                                        <CreditCard className="w-5 h-5 text-emerald-400" />
+                                    </div>
+                                    <div className="flex-1">
+                                        <p className="text-sm text-gray-400 mb-1">Account Type</p>
+                                        <p className="text-white font-medium capitalize">{user.role?.toLowerCase() || "Customer"}</p>
+                                        <p className="mt-1 text-xs text-gray-500">Role changes are managed by administrators.</p>
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-[#1a1a1a] border-gray-800">
+                    <CardHeader>
+                        <CardTitle className="text-white text-xl">Security</CardTitle>
+                        <CardDescription className="text-gray-400">
+                            Change your account password.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {passwordFormError && (
+                            <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                                {passwordFormError}
+                            </div>
+                        )}
+                        {passwordFormSuccess && (
+                            <div className="mb-4 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+                                {passwordFormSuccess}
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                            <div>
+                                <p className="mb-2 text-sm text-gray-400">Current Password</p>
+                                <div className="relative">
+                                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                                    <input
+                                        type="password"
+                                        value={passwordForm.currentPassword}
+                                        onChange={(event) => handlePasswordFieldChange("currentPassword", event.target.value)}
+                                        className="w-full rounded-lg border border-gray-700 bg-[#121212] py-2 pl-10 pr-3 text-sm text-white outline-none focus:border-emerald-500"
+                                        placeholder="Current password"
+                                        autoComplete="current-password"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <p className="mb-2 text-sm text-gray-400">New Password</p>
+                                <div className="relative">
+                                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                                    <input
+                                        type="password"
+                                        value={passwordForm.newPassword}
+                                        onChange={(event) => handlePasswordFieldChange("newPassword", event.target.value)}
+                                        className="w-full rounded-lg border border-gray-700 bg-[#121212] py-2 pl-10 pr-3 text-sm text-white outline-none focus:border-emerald-500"
+                                        placeholder="New password"
+                                        autoComplete="new-password"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <p className="mb-2 text-sm text-gray-400">Confirm Password</p>
+                                <div className="relative">
+                                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                                    <input
+                                        type="password"
+                                        value={passwordForm.confirmPassword}
+                                        onChange={(event) => handlePasswordFieldChange("confirmPassword", event.target.value)}
+                                        className="w-full rounded-lg border border-gray-700 bg-[#121212] py-2 pl-10 pr-3 text-sm text-white outline-none focus:border-emerald-500"
+                                        placeholder="Confirm new password"
+                                        autoComplete="new-password"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-5 flex justify-end">
+                            <Button
+                                onClick={() => void handleChangePassword()}
+                                disabled={isChangingPassword}
+                                className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                            >
+                                {isChangingPassword ? "Updating..." : "Update Password"}
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>
@@ -755,12 +1230,239 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
         </div>
     );
 
+    const renderPayments = () => {
+        const rewardProgress = Math.min(rewardPoints, rewardsTarget);
+        const rewardPercentage = Math.round((rewardProgress / rewardsTarget) * 100);
+        const rewardsRemaining = Math.max(rewardsTarget - rewardProgress, 0);
+        const recentTransactions = sortedBookings.slice(0, 6);
+
+        return (
+            <div className="space-y-7">
+                {bookingActionMessage && (
+                    <div className="rounded-xl border border-gray-700 bg-[#1f1f1f] px-4 py-3 text-sm text-gray-200">
+                        {bookingActionMessage}
+                    </div>
+                )}
+
+                <section className="relative overflow-hidden rounded-3xl border border-gray-800 bg-gradient-to-br from-[#101010] via-[#141414] to-[#0f0f0f] p-6 md:p-7">
+                    <div className="pointer-events-none absolute -top-24 right-0 h-56 w-56 rounded-full bg-emerald-500/10 blur-3xl" />
+                    <div className="pointer-events-none absolute -bottom-28 -left-8 h-56 w-56 rounded-full bg-emerald-400/5 blur-3xl" />
+                    <div className="relative">
+                        <h2 className="text-3xl font-bold text-white md:text-4xl">Financial Hub</h2>
+                        <p className="mt-2 max-w-2xl text-sm text-gray-400 md:text-base">
+                            Track your rental spending, manage saved payment methods, and review recent payment activity.
+                        </p>
+                    </div>
+                </section>
+
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+                    <div className="space-y-7 xl:col-span-8">
+                        <section>
+                            <p className="mb-4 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-400">Billing Overview</p>
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div className="rounded-2xl border border-gray-800 bg-[#1a1a1a] p-5">
+                                    <p className="text-sm text-gray-400">Annual Expenditure</p>
+                                    <p className="mt-2 text-3xl font-semibold text-white">{formatCurrency(annualExpenditureTotal)}</p>
+                                    <p className="mt-2 text-xs uppercase tracking-wide text-gray-500">
+                                        Across {paidBookings.length} completed payments
+                                    </p>
+                                </div>
+
+                                <div className="rounded-2xl border border-gray-800 bg-[#1a1a1a] p-5">
+                                    <p className="text-sm text-gray-400">Pending Dues</p>
+                                    <p className="mt-2 text-3xl font-semibold text-white">{formatCurrency(pendingDuesTotal)}</p>
+                                    <p className="mt-2 text-xs uppercase tracking-wide text-amber-300">
+                                        {pendingPaymentBookings.length} booking{pendingPaymentBookings.length === 1 ? "" : "s"} awaiting payment
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section>
+                            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-400">Payment Methods</p>
+                                <button className="inline-flex items-center gap-1 rounded-full border border-gray-700 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-emerald-500/50 hover:text-emerald-300">
+                                    <Plus className="h-3.5 w-3.5" />
+                                    Add New Card
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                {paymentMethods.map((method, index) => (
+                                    <div
+                                        key={method.id}
+                                        className={`relative overflow-hidden rounded-2xl border border-gray-800 p-5 ${index % 2 === 0 ? "bg-[#181818]" : "bg-[#151515]"}`}
+                                    >
+                                        <div className="absolute -right-8 -top-10 h-24 w-24 rounded-full bg-emerald-500/15 blur-2xl" />
+                                        <div className="relative space-y-5">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-emerald-300">
+                                                    <CreditCard className="h-4 w-4" />
+                                                </div>
+                                                <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">{method.provider}</span>
+                                            </div>
+                                            <p className="text-xl tracking-[0.24em] text-white">•••• •••• •••• {method.last4}</p>
+                                            <div className="flex items-end justify-between">
+                                                <div>
+                                                    <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500">Card Holder</p>
+                                                    <p className="mt-1 text-sm font-semibold text-gray-200">{method.holder}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500">Expires</p>
+                                                    <p className="mt-1 text-sm font-semibold text-gray-200">{method.expires}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    </div>
+
+                    <aside className="xl:col-span-4">
+                        <div className="h-full rounded-3xl border border-emerald-400/20 bg-gradient-to-b from-emerald-500 to-emerald-600 p-6 text-white">
+                            <div className="flex items-center gap-2 text-emerald-50/95">
+                                <Gift className="h-5 w-5" />
+                                <p className="text-lg font-semibold">Rewards Program</p>
+                            </div>
+                            <p className="mt-4 text-sm text-emerald-50/90">
+                                You are {rewardsRemaining.toLocaleString()} points away from your next premium tier.
+                            </p>
+                            <p className="mt-3 text-sm text-emerald-50/80">
+                                Unlock priority vehicle access and exclusive member offers.
+                            </p>
+
+                            <div className="mt-10">
+                                <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.16em] text-emerald-50/90">
+                                    <span>Current Progress</span>
+                                    <span>{rewardProgress.toLocaleString()} / {rewardsTarget.toLocaleString()}</span>
+                                </div>
+                                <div className="h-2.5 rounded-full bg-emerald-950/30">
+                                    <div
+                                        className="h-full rounded-full bg-white"
+                                        style={{ width: `${Math.min(rewardPercentage, 100)}%` }}
+                                    />
+                                </div>
+                            </div>
+
+                            <button className="mt-8 w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-50">
+                                View Benefits
+                            </button>
+                        </div>
+                    </aside>
+                </div>
+
+                <section>
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-400">Transaction History</p>
+                        <div className="flex items-center gap-2">
+                            <button className="rounded-lg border border-gray-700 p-2 text-gray-400 transition-colors hover:border-gray-600 hover:text-white" aria-label="Filter transactions">
+                                <SlidersHorizontal className="h-4 w-4" />
+                            </button>
+                            <button className="rounded-lg border border-gray-700 p-2 text-gray-400 transition-colors hover:border-gray-600 hover:text-white" aria-label="Download statement">
+                                <Download className="h-4 w-4" />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="overflow-x-auto rounded-3xl border border-gray-800 bg-[#151515]">
+                        {isLoadingBookings ? (
+                            <div className="space-y-3 p-4 md:p-5">
+                                {[1, 2, 3].map((item) => (
+                                    <div key={item} className="h-14 animate-pulse rounded-xl bg-gray-800/60" />
+                                ))}
+                            </div>
+                        ) : bookingsError ? (
+                            <div className="p-6 text-center">
+                                <p className="text-sm text-red-400">{bookingsError}</p>
+                                <Button
+                                    onClick={() => void fetchBookings()}
+                                    variant="outline"
+                                    className="mt-4 border-gray-700 text-gray-300 hover:bg-gray-800"
+                                >
+                                    Try Again
+                                </Button>
+                            </div>
+                        ) : recentTransactions.length === 0 ? (
+                            <div className="p-8 text-center">
+                                <p className="text-sm text-gray-400">No transaction records available yet.</p>
+                            </div>
+                        ) : (
+                            <table className="min-w-full text-left">
+                                <thead>
+                                    <tr className="border-b border-gray-800 text-xs uppercase tracking-[0.16em] text-gray-500">
+                                        <th className="px-4 py-4 font-semibold md:px-5">Date</th>
+                                        <th className="px-4 py-4 font-semibold md:px-5">Vehicle</th>
+                                        <th className="px-4 py-4 font-semibold md:px-5">Transaction ID</th>
+                                        <th className="px-4 py-4 font-semibold md:px-5">Status</th>
+                                        <th className="px-4 py-4 font-semibold md:px-5 text-right">Amount</th>
+                                        <th className="px-4 py-4 font-semibold md:px-5 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {recentTransactions.map((booking) => {
+                                        const statusMeta = getTransactionStatusMeta(booking);
+                                        const canPay = canSimulatePayment(booking.bookingStatus);
+
+                                        return (
+                                            <tr key={booking.bookingId} className="border-b border-gray-800/60 last:border-b-0">
+                                                <td className="px-4 py-4 text-sm text-gray-300 md:px-5">
+                                                    {formatBookingDate(booking.createdAt)}
+                                                </td>
+                                                <td className="px-4 py-4 md:px-5">
+                                                    <p className="text-sm font-semibold text-gray-100">
+                                                        {booking.carMake} {booking.carModel}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500">{booking.carYear}</p>
+                                                </td>
+                                                <td className="px-4 py-4 text-xs text-gray-400 md:px-5">
+                                                    {getTransactionId(booking)}
+                                                </td>
+                                                <td className="px-4 py-4 md:px-5">
+                                                    <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${statusMeta.className}`}>
+                                                        {statusMeta.label}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-4 text-right text-sm font-semibold text-white md:px-5">
+                                                    {formatCurrency(booking.totalPrice)}
+                                                </td>
+                                                <td className="px-4 py-4 text-right md:px-5">
+                                                    {canPay ? (
+                                                        <button
+                                                            onClick={() => void handleSimulatePayment(booking.bookingId)}
+                                                            disabled={processingBookingId === booking.bookingId}
+                                                            className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
+                                                                processingBookingId === booking.bookingId
+                                                                    ? "cursor-not-allowed bg-emerald-300/40 text-white"
+                                                                    : "bg-emerald-500 text-white hover:bg-emerald-600"
+                                                            }`}
+                                                        >
+                                                            {processingBookingId === booking.bookingId ? "Processing..." : "Pay Now"}
+                                                        </button>
+                                                    ) : (
+                                                        <span className="text-xs text-gray-500">-</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+                </section>
+            </div>
+        );
+    };
+
     const renderPage = () => {
         switch (currentPage) {
             case "profile":
                 return renderProfile();
             case "bookings":
                 return renderBookings();
+            case "payments":
+                return renderPayments();
             default:
                 return renderDashboard();
         }

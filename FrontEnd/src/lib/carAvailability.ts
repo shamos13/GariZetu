@@ -28,6 +28,27 @@ export const isCarBookable = (car: Pick<Car, "availabilityStatus" | "status">): 
 
 export const getAvailabilityLabel = (status: CarAvailabilityStatus): string => STATUS_LABELS[status];
 
+export const getAvailabilityBadgeLabel = (
+    car: Pick<Car, "availabilityStatus" | "status" | "softLockExpiresAt">,
+    softLockCountdown?: string | null
+): string => {
+    const status = getCarAvailabilityStatus(car);
+    if (status !== "soft_locked") {
+        return getAvailabilityLabel(status);
+    }
+
+    const countdownLabel = softLockCountdown ?? formatTimeRemaining(car.softLockExpiresAt);
+    if (!countdownLabel) {
+        return STATUS_LABELS.soft_locked;
+    }
+
+    if (countdownLabel === "Available now") {
+        return countdownLabel;
+    }
+
+    return `Soft Lock ${countdownLabel}`;
+};
+
 export const getAvailabilityClassName = (status: CarAvailabilityStatus): string => {
     switch (status) {
         case "available":

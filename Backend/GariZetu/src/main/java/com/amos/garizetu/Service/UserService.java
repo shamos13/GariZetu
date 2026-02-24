@@ -140,6 +140,33 @@ public class UserService {
         return createAuthResponse(user);
     }
 
+    public void resetPasswordByEmail(String email, String newPassword) {
+        log.info("Processing forgot-password request for email: {}", email);
+
+        if (email == null || email.isBlank()) {
+            throw new RuntimeException("Email is required.");
+        }
+
+        if (newPassword == null || newPassword.length() < 8) {
+            throw new RuntimeException("New password must be at least 8 characters.");
+        }
+
+        User user = userRepository.findByEmailIgnoreCase(email.trim())
+                .orElseThrow(() -> new RuntimeException("No account found for this email."));
+
+        if (user.getUserStatus() != UserStatus.ACTIVE) {
+            throw new RuntimeException("Account is not active. Please contact support.");
+        }
+
+        if (passwordEncoder.matches(newPassword, user.getHashedPassword())) {
+            throw new RuntimeException("New password must be different from your previous password.");
+        }
+
+        user.setHashedPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+        log.info("Forgot-password update completed for user {}", user.getUserId());
+    }
+
     /**
      * Get user by ID.
      *
@@ -283,6 +310,34 @@ public class UserService {
         log.info("Successfully updated user {}", userId);
 
         return userMapper.toUserResponseDTO(savedUser);
+    }
+
+    public void changePassword(Long userId, String currentPassword, String newPassword) {
+        log.info("Changing password for user {}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+
+        if (currentPassword == null || currentPassword.isBlank()) {
+            throw new RuntimeException("Current password is required.");
+        }
+
+        if (newPassword == null || newPassword.length() < 8) {
+            throw new RuntimeException("New password must be at least 8 characters.");
+        }
+
+        if (!passwordEncoder.matches(currentPassword, user.getHashedPassword())) {
+            throw new RuntimeException("Current password is incorrect.");
+        }
+
+        if (passwordEncoder.matches(newPassword, user.getHashedPassword())) {
+            throw new RuntimeException("New password must be different from the current password.");
+        }
+
+        user.setHashedPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        log.info("Password updated successfully for user {}", userId);
     }
 
     // Change User Role

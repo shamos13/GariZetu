@@ -31,8 +31,8 @@ import {
 } from "../data/cars";
 import {
     formatTimeRemaining,
+    getAvailabilityBadgeLabel,
     getAvailabilityClassName,
-    getAvailabilityLabel,
     getCarAvailabilityStatus,
     isCarBookable,
 } from "../lib/carAvailability.ts";
@@ -66,6 +66,17 @@ const FEATURED_CATEGORY_ORDER: FeaturedCategory[] = [
     "Family Car",
     "Off-Road Car",
 ];
+const BOOKING_CONTEXT_QUERY_KEYS = [
+    "pickupDate",
+    "dropoffDate",
+    "pickup",
+    "dropoff",
+    "pickupLocation",
+    "dropoffLocation",
+    "pickupLocationId",
+    "dropoffLocationId",
+    "sameLocation",
+] as const;
 
 function parseSortOption(value: string | null): SortOption {
     if (value === "price-asc" || value === "price-desc" || value === "newest") {
@@ -125,6 +136,19 @@ export default function VehiclesPage() {
         isFeaturedCategory(initialFeaturedCategoryParam) ? initialFeaturedCategoryParam : "all"
     );
     const [currentPage, setCurrentPage] = useState(1);
+    const bookingContextQuery = useMemo(() => {
+        const params = new URLSearchParams();
+
+        BOOKING_CONTEXT_QUERY_KEYS.forEach((key) => {
+            const value = searchParams.get(key);
+            if (!value) {
+                return;
+            }
+            params.set(key, value);
+        });
+
+        return params.toString();
+    }, [searchParams]);
 
     useEffect(() => {
         const q = searchParams.get("q") ?? "";
@@ -758,6 +782,7 @@ export default function VehiclesPage() {
                                         <FleetVehicleCard
                                             key={car.id}
                                             car={car}
+                                            detailsQuery={bookingContextQuery}
                                         />
                                     ))}
                                 </div>
@@ -869,12 +894,14 @@ function FilterChip({ label, onClear }: FilterChipProps) {
 
 interface FleetVehicleCardProps {
     car: Car;
+    detailsQuery?: string;
 }
 
-function FleetVehicleCard({ car }: FleetVehicleCardProps) {
+function FleetVehicleCard({ car, detailsQuery = "" }: FleetVehicleCardProps) {
     const availabilityStatus = getCarAvailabilityStatus(car);
     const canBookNow = isCarBookable(car);
     const [availabilityTick, setAvailabilityTick] = useState(0);
+    const detailsPath = detailsQuery ? `/vehicles/${car.id}?${detailsQuery}` : `/vehicles/${car.id}`;
 
     const softLockCountdown = useMemo(() => {
         void availabilityTick;
@@ -896,14 +923,12 @@ function FleetVehicleCard({ car }: FleetVehicleCardProps) {
         return () => window.clearInterval(timer);
     }, [availabilityStatus, car.softLockExpiresAt]);
 
-    const badgeLabel = availabilityStatus === "soft_locked" && softLockCountdown
-        ? `Soft Lock ${softLockCountdown}`
-        : getAvailabilityLabel(availabilityStatus);
+    const badgeLabel = getAvailabilityBadgeLabel(car, softLockCountdown);
     const primaryActionLabel = canBookNow ? "Rent Now" : "View Details";
 
     return (
         <article className="overflow-hidden rounded-2xl border border-zinc-200 bg-white">
-            <Link to={`/vehicles/${car.id}`} className="block p-2">
+            <Link to={detailsPath} className="block p-2">
                 <div className="relative aspect-[16/9] overflow-hidden rounded-xl bg-zinc-200">
                     <img
                         src={getImageUrl(car.mainImageUrl)}
@@ -939,7 +964,7 @@ function FleetVehicleCard({ car }: FleetVehicleCardProps) {
                 </div>
 
                 <Link
-                    to={`/vehicles/${car.id}`}
+                    to={detailsPath}
                     className={`inline-flex h-9 w-full items-center justify-center rounded-full border text-sm font-medium transition-colors ${
                         canBookNow
                             ? "border-black bg-black text-white hover:bg-zinc-800"

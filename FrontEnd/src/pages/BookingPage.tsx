@@ -29,22 +29,18 @@ import {bookingService, type BookingCreateRequest} from "../services/BookingServ
 import { getErrorMessage, isConflictError, isForbiddenError, isUnauthorizedError } from "../lib/errorUtils.ts";
 import {
     formatTimeRemaining,
+    getAvailabilityBadgeLabel,
     getAvailabilityMessage,
-    getAvailabilityLabel,
     getCarAvailabilityStatus,
     isCarBookable,
 } from "../lib/carAvailability.ts";
 import { pushUserNotification } from "../lib/userNotifications.ts";
 import { toast } from "sonner";
-
-// Pickup locations
-const PICKUP_LOCATIONS = [
-    { id: 1, name: "Nairobi CBD", address: "Kenyatta Avenue, Nairobi" },
-    { id: 2, name: "JKIA Airport", address: "Jomo Kenyatta International Airport" },
-    { id: 3, name: "Westlands", address: "Westlands, Nairobi" },
-    { id: 4, name: "Karen", address: "Karen, Nairobi" },
-    { id: 5, name: "Wilson Airport", address: "Wilson Airport, Langata" },
-];
+import {
+    BOOKING_LOCATIONS,
+    parseBookingLocationIdParam,
+    resolveBookingLocationIdByQuery,
+} from "../constants/bookingLocations.ts";
 
 const formatDateForApi = (date: Date): string => {
     const year = date.getFullYear();
@@ -87,6 +83,17 @@ export default function BookingPage() {
     const urlPickupDate = searchParams.get("pickupDate");
     const urlDropoffDate = searchParams.get("dropoffDate");
     const hasPreselectedDates = Boolean(urlPickupDate && urlDropoffDate);
+    const urlPickupLocationId =
+        parseBookingLocationIdParam(searchParams.get("pickupLocationId"))
+        ?? resolveBookingLocationIdByQuery(searchParams.get("pickup") ?? searchParams.get("pickupLocation"));
+    const urlSameLocationParam = searchParams.get("sameLocation");
+    const initialSameLocation = urlSameLocationParam
+        ? !["false", "0"].includes(urlSameLocationParam.toLowerCase())
+        : true;
+    const urlDropoffLocationId =
+        parseBookingLocationIdParam(searchParams.get("dropoffLocationId"))
+        ?? resolveBookingLocationIdByQuery(searchParams.get("dropoff") ?? searchParams.get("dropoffLocation"));
+    const initialDropoffLocation = initialSameLocation ? urlPickupLocationId : urlDropoffLocationId;
 
     // Booking states - initialize with URL dates if available
     const [step, setStep] = useState(hasPreselectedDates ? 1 : 1);
@@ -96,9 +103,9 @@ export default function BookingPage() {
     const [dropoffDate, setDropoffDate] = useState<Date | null>(
         urlDropoffDate ? new Date(urlDropoffDate) : null
     );
-    const [pickupLocation, setPickupLocation] = useState<number | null>(null);
-    const [dropoffLocation, setDropoffLocation] = useState<number | null>(null);
-    const [sameLocation, setSameLocation] = useState(true);
+    const [pickupLocation, setPickupLocation] = useState<number | null>(urlPickupLocationId);
+    const [dropoffLocation, setDropoffLocation] = useState<number | null>(initialDropoffLocation);
+    const [sameLocation, setSameLocation] = useState(initialSameLocation);
     const [pickupTime, setPickupTime] = useState("10:00");
     const [dropoffTime, setDropoffTime] = useState("10:00");
     const [currentMonth, setCurrentMonth] = useState(
@@ -147,12 +154,18 @@ export default function BookingPage() {
 
     // Extras
     const [extras, setExtras] = useState({
-        insurance: true,
+        insurance: false,
         gps: false,
         childSeat: false,
         additionalDriver: false
     });
     const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<"M_PESA" | "CARD">("M_PESA");
+
+    useEffect(() => {
+        if (sameLocation) {
+            setDropoffLocation(pickupLocation);
+        }
+    }, [sameLocation, pickupLocation]);
 
     // ✅ FETCH CAR DATA ON MOUNT
     useEffect(() => {
@@ -285,9 +298,9 @@ export default function BookingPage() {
         }
 
         const resolvedDropoffLocationId = sameLocation ? pickupLocation : dropoffLocation;
-        const pickupLocationOption = PICKUP_LOCATIONS.find((location) => location.id === pickupLocation);
+        const pickupLocationOption = BOOKING_LOCATIONS.find((location) => location.id === pickupLocation);
         const dropoffLocationOption = resolvedDropoffLocationId
-            ? PICKUP_LOCATIONS.find((location) => location.id === resolvedDropoffLocationId)
+            ? BOOKING_LOCATIONS.find((location) => location.id === resolvedDropoffLocationId)
             : null;
 
         if (!pickupLocationOption) {
@@ -486,7 +499,7 @@ export default function BookingPage() {
                 <div className="bg-amber-50 border-b border-amber-200">
                     <div className="layout-container py-3 flex flex-wrap items-center justify-between gap-2">
                         <p className="text-amber-800 text-sm font-medium">
-                            {getAvailabilityLabel(availabilityStatus)}: {availabilityMessage}
+                            {getAvailabilityBadgeLabel(car, softLockCountdownLabel)}: {availabilityMessage}
                         </p>
                         {availabilityStatus === "soft_locked" && softLockCountdownLabel && (
                             <p className="text-amber-900 text-sm font-semibold">
@@ -665,13 +678,16 @@ export default function BookingPage() {
                                             <select
                                                 value={pickupLocation || ""}
                                                 onChange={(e) => {
-                                                    setPickupLocation(Number(e.target.value));
-                                                    if (sameLocation) setDropoffLocation(Number(e.target.value));
+                                                    const nextLocationId = e.target.value ? Number(e.target.value) : null;
+                                                    setPickupLocation(nextLocationId);
+                                                    if (sameLocation) {
+                                                        setDropoffLocation(nextLocationId);
+                                                    }
                                                 }}
                                                 className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-black"
                                             >
                                                 <option value="">Select pick-up location</option>
-                                                {PICKUP_LOCATIONS.map(loc => (
+                                                {BOOKING_LOCATIONS.map(loc => (
                                                     <option key={loc.id} value={loc.id}>
                                                         {loc.name} - {loc.address}
                                                     </option>
@@ -685,7 +701,9 @@ export default function BookingPage() {
                                                 checked={sameLocation}
                                                 onChange={(e) => {
                                                     setSameLocation(e.target.checked);
-                                                    if (e.target.checked) setDropoffLocation(pickupLocation);
+                                                    if (e.target.checked) {
+                                                        setDropoffLocation(pickupLocation);
+                                                    }
                                                 }}
                                                 className="w-5 h-5 rounded border-gray-300 text-black focus:ring-black"
                                             />
@@ -699,11 +717,11 @@ export default function BookingPage() {
                                                 </label>
                                                 <select
                                                     value={dropoffLocation || ""}
-                                                    onChange={(e) => setDropoffLocation(Number(e.target.value))}
+                                                    onChange={(e) => setDropoffLocation(e.target.value ? Number(e.target.value) : null)}
                                                     className="w-full px-4 py-3 bg-gray-50 border-0 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-black"
                                                 >
                                                     <option value="">Select drop-off location</option>
-                                                    {PICKUP_LOCATIONS.map(loc => (
+                                                    {BOOKING_LOCATIONS.map(loc => (
                                                         <option key={loc.id} value={loc.id}>
                                                             {loc.name} - {loc.address}
                                                         </option>

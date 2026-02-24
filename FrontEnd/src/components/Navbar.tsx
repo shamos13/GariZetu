@@ -1,6 +1,6 @@
 import {useEffect, useRef, useState} from "react";
 import {Link, useLocation, useNavigate} from "react-router-dom";
-import {Bell, ChevronDown, LogOut, Phone, User} from "lucide-react";
+import {Bell, CalendarDays, CarFront, ChevronDown, LogOut, Phone, User} from "lucide-react";
 import {AuthModal} from "./AuthModal";
 import {authService} from "../services/AuthService.ts";
 import { AUTH_CHANGED_EVENT } from "../lib/authEvents.ts";
@@ -24,6 +24,7 @@ export function Navbar() {
     const [user, setUser] = useState(authService.getUser());
     const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
     const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+    const [isNotificationsPinned, setIsNotificationsPinned] = useState(false);
     const [notifications, setNotifications] = useState<UserNotification[]>([]);
     const profileMenuRef = useRef<HTMLDivElement>(null);
     const notificationsRef = useRef<HTMLDivElement>(null);
@@ -81,6 +82,7 @@ export function Navbar() {
         setIsAuthenticated(false);
         setUser(null);
         setIsNotificationsOpen(false);
+        setIsNotificationsPinned(false);
         navigate("/");
         window.location.reload();
     };
@@ -123,6 +125,7 @@ export function Navbar() {
             setIsVehiclesOpen(false);
             setIsProfileMenuOpen(false);
             setIsNotificationsOpen(false);
+            setIsNotificationsPinned(false);
         });
 
         return () => window.cancelAnimationFrame(frame);
@@ -135,6 +138,7 @@ export function Navbar() {
             }
             if (notificationsRef.current && !notificationsRef.current.contains(event.target as Node)) {
                 setIsNotificationsOpen(false);
+                setIsNotificationsPinned(false);
             }
         };
 
@@ -189,7 +193,19 @@ export function Navbar() {
         }
 
         setIsNotificationsOpen(false);
+        setIsNotificationsPinned(false);
         navigate(notification.actionPath);
+    };
+
+    const getNotificationIcon = (notification: UserNotification) => {
+        const content = `${notification.title} ${notification.message}`.toLowerCase();
+        if (content.includes("car") || content.includes("fleet") || content.includes("vehicle")) {
+            return CarFront;
+        }
+        if (content.includes("booking") || content.includes("rental") || content.includes("trip")) {
+            return CalendarDays;
+        }
+        return Bell;
     };
 
     return (
@@ -348,70 +364,92 @@ export function Navbar() {
 
                     {isAuthenticated ? (
                         <div className="ml-1 flex items-center gap-3">
-                            <div className="relative" ref={notificationsRef}>
+                            <div
+                                className="relative"
+                                ref={notificationsRef}
+                                onMouseEnter={() => setIsNotificationsOpen(true)}
+                                onMouseLeave={() => {
+                                    if (!isNotificationsPinned) {
+                                        setIsNotificationsOpen(false);
+                                    }
+                                }}
+                            >
                                 <button
                                     onClick={() => {
-                                        const nextOpen = !isNotificationsOpen;
-                                        setIsNotificationsOpen(nextOpen);
-                                        if (nextOpen && unreadNotificationCount > 0) {
-                                            markAllNotificationsRead();
-                                        }
+                                        const nextPinned = !isNotificationsPinned;
+                                        setIsNotificationsPinned(nextPinned);
+                                        setIsNotificationsOpen(nextPinned);
                                     }}
-                                    className="relative text-white/80 hover:text-white transition-colors"
+                                    className={`relative rounded-xl border p-2.5 transition-colors ${
+                                        isNotificationsOpen
+                                            ? "border-white/20 bg-white/10 text-white"
+                                            : "border-white/10 bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
+                                    }`}
                                     aria-label="Notifications"
                                 >
-                                    <Bell className="w-4 h-4" />
+                                    <Bell className="h-4 w-4" />
                                     {unreadNotificationCount > 0 && (
-                                        <span className="absolute -top-1 -right-1 min-w-[12px] h-3 px-1 rounded-full bg-red-500 border border-black text-[9px] text-white leading-none flex items-center justify-center">
+                                        <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full border border-black bg-red-500 px-1 text-[10px] leading-none text-white">
                                             {unreadNotificationCount > 9 ? "9+" : unreadNotificationCount}
                                         </span>
                                     )}
                                 </button>
 
                                 {isNotificationsOpen && (
-                                    <div className="absolute right-0 mt-3 w-[320px] max-w-[85vw] overflow-hidden rounded-xl border border-white/10 bg-[#121212] shadow-xl">
-                                        <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-                                            <p className="text-sm font-semibold text-white">Notifications</p>
-                                            {notifications.length > 0 && (
-                                                <button
-                                                    onClick={() => clearUserNotifications()}
-                                                    className="text-xs text-gray-300 hover:text-white"
-                                                >
-                                                    Clear all
-                                                </button>
-                                            )}
-                                        </div>
-
+                                    <div className="absolute right-0 mt-3 w-[340px] max-w-[88vw] overflow-hidden rounded-2xl border border-white/10 bg-[#232427]/95 shadow-2xl backdrop-blur-xl">
+                                        <div className="absolute right-7 -top-2 h-4 w-4 rotate-45 border-l border-t border-white/10 bg-[#232427]" />
                                         {notifications.length === 0 ? (
                                             <div className="px-4 py-6 text-sm text-gray-400">
                                                 No notifications yet.
                                             </div>
                                         ) : (
-                                            <div className="max-h-80 overflow-y-auto">
-                                                {notifications.slice(0, 8).map((notification) => (
-                                                    <div
-                                                        key={notification.id}
-                                                        className={`border-b border-white/5 px-4 py-3 last:border-b-0 ${
-                                                            notification.actionPath ? "cursor-pointer hover:bg-white/5" : ""
-                                                        }`}
-                                                        onClick={() => handleNotificationClick(notification)}
-                                                    >
-                                                        <div className="flex items-start justify-between gap-3">
-                                                            <p className="text-sm font-medium text-white">{notification.title}</p>
-                                                            <span className="text-[11px] text-gray-500">
-                                                                {formatNotificationAge(notification.createdAt)}
-                                                            </span>
+                                            <div className="max-h-80 overflow-y-auto px-3 py-3">
+                                                {notifications.slice(0, 8).map((notification) => {
+                                                    const NotificationIcon = getNotificationIcon(notification);
+                                                    return (
+                                                        <div
+                                                            key={notification.id}
+                                                            className={`rounded-xl px-3 py-3 ${
+                                                                notification.actionPath ? "cursor-pointer hover:bg-white/5" : "cursor-default"
+                                                            }`}
+                                                            onClick={() => handleNotificationClick(notification)}
+                                                        >
+                                                            <div className="flex items-start gap-3">
+                                                                <div className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-white/10 text-gray-200">
+                                                                    <NotificationIcon className="h-5 w-5" />
+                                                                </div>
+                                                                <div className="min-w-0 flex-1">
+                                                                    <p className="text-sm font-medium text-white">
+                                                                        {notification.title}
+                                                                        {notification.message ? ` - ${notification.message}` : ""}
+                                                                    </p>
+                                                                    <p className="mt-1 text-xs text-gray-400">
+                                                                        {formatNotificationAge(notification.createdAt)}
+                                                                    </p>
+                                                                </div>
+                                                            </div>
                                                         </div>
-                                                        <p className="mt-1 text-xs text-gray-300">{notification.message}</p>
-                                                        {notification.actionPath && (
-                                                            <p className="mt-2 text-[11px] font-semibold text-emerald-300">
-                                                                {notification.actionLabel || "Open"}
-                                                            </p>
-                                                        )}
-                                                    </div>
-                                                ))}
+                                                    );
+                                                })}
                                             </div>
                                         )}
+
+                                        <div className="border-t border-white/10 px-3 pb-3 pt-2">
+                                            <button
+                                                onClick={() => markAllNotificationsRead()}
+                                                className="w-full rounded-full border border-white/15 bg-black/20 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-black/35"
+                                            >
+                                                Mark all as read
+                                            </button>
+                                            {notifications.length > 0 && (
+                                                <button
+                                                    onClick={() => clearUserNotifications()}
+                                                    className="mt-2 w-full text-center text-xs text-gray-400 transition-colors hover:text-gray-200"
+                                                >
+                                                    Clear all notifications
+                                                </button>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
                             </div>

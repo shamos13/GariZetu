@@ -5,12 +5,33 @@ import {
     type BookingStatus,
 } from "../../../services/BookingService.ts";
 import { getAdminActionErrorMessage } from "../../../lib/adminErrorUtils.ts";
+import { toast } from "sonner";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "../../../components/ui/alert-dialog.tsx";
 
 interface BookingManagementPageProps {
     onNotificationCountChange?: (count: number) => void;
 }
 
 type BookingFilter = "ALL" | BookingStatus;
+type DialogVariant = "default" | "destructive";
+
+interface ConfirmDialogState {
+    open: boolean;
+    title: string;
+    description: string;
+    confirmText: string;
+    variant: DialogVariant;
+    onConfirm: () => Promise<void> | void;
+}
 
 const FILTER_OPTIONS: Array<{ label: string; value: BookingFilter }> = [
     { label: "All", value: "ALL" },
@@ -83,13 +104,22 @@ function formatDate(value: string): string {
 export function BookingManagementPage({ onNotificationCountChange }: BookingManagementPageProps) {
     const [bookings, setBookings] = useState<Booking[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isRefreshing, setIsRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [selectedFilter, setSelectedFilter] = useState<BookingFilter>("ALL");
     const [activeActionBookingId, setActiveActionBookingId] = useState<number | null>(null);
+    const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
 
-    const loadBookings = useCallback(async () => {
+    const actionsLocked = activeActionBookingId !== null || isRefreshing;
+
+    const loadBookings = useCallback(async (options?: { silent?: boolean; showSuccessToast?: boolean }) => {
+        const { silent = false, showSuccessToast = false } = options ?? {};
         try {
-            setIsLoading(true);
+            if (silent) {
+                setIsRefreshing(true);
+            } else {
+                setIsLoading(true);
+            }
             setError(null);
 
             const [bookingsData, unreadNotifications] = await Promise.all([
@@ -101,11 +131,23 @@ export function BookingManagementPage({ onNotificationCountChange }: BookingMana
 
             setBookings(bookingsData);
             onNotificationCountChange?.(unreadNotifications.length);
+
+            if (showSuccessToast) {
+                toast.success("Bookings refreshed.");
+            }
         } catch (fetchError) {
             console.error("Failed to load admin bookings:", fetchError);
-            setError(getAdminActionErrorMessage(fetchError, "Unable to load bookings at the moment."));
+            const resolvedMessage = getAdminActionErrorMessage(fetchError, "Unable to load bookings at the moment.");
+            setError(resolvedMessage);
+            if (showSuccessToast) {
+                toast.error(resolvedMessage);
+            }
         } finally {
-            setIsLoading(false);
+            if (silent) {
+                setIsRefreshing(false);
+            } else {
+                setIsLoading(false);
+            }
         }
     }, [onNotificationCountChange, selectedFilter]);
 
@@ -125,12 +167,16 @@ export function BookingManagementPage({ onNotificationCountChange }: BookingMana
 
     const performStatusUpdate = async (bookingId: number, status: BookingStatus) => {
         try {
+            setError(null);
             setActiveActionBookingId(bookingId);
             await bookingService.update(bookingId, { bookingStatus: status });
-            await loadBookings();
+            toast.success(`Booking #${bookingId} moved to ${STATUS_LABELS[status]}.`);
+            await loadBookings({ silent: true });
         } catch (updateError) {
             console.error("Failed to update booking status:", updateError);
-            setError(getAdminActionErrorMessage(updateError, "Could not update booking status. Please try again."));
+            const resolvedMessage = getAdminActionErrorMessage(updateError, "Could not update booking status. Please try again.");
+            setError(resolvedMessage);
+            toast.error(resolvedMessage);
         } finally {
             setActiveActionBookingId(null);
         }
@@ -138,12 +184,16 @@ export function BookingManagementPage({ onNotificationCountChange }: BookingMana
 
     const performCancel = async (bookingId: number) => {
         try {
+            setError(null);
             setActiveActionBookingId(bookingId);
             await bookingService.cancel(bookingId, "Cancelled by admin");
-            await loadBookings();
+            toast.success(`Booking #${bookingId} cancelled.`);
+            await loadBookings({ silent: true });
         } catch (cancelError) {
             console.error("Failed to cancel booking:", cancelError);
-            setError(getAdminActionErrorMessage(cancelError, "Could not cancel booking. Please try again."));
+            const resolvedMessage = getAdminActionErrorMessage(cancelError, "Could not cancel booking. Please try again.");
+            setError(resolvedMessage);
+            toast.error(resolvedMessage);
         } finally {
             setActiveActionBookingId(null);
         }
@@ -151,15 +201,36 @@ export function BookingManagementPage({ onNotificationCountChange }: BookingMana
 
     const markNotificationRead = async (bookingId: number) => {
         try {
+            setError(null);
             setActiveActionBookingId(bookingId);
             await bookingService.markAdminNotificationRead(bookingId);
-            await loadBookings();
+            toast.success(`Booking #${bookingId} marked as read.`);
+            await loadBookings({ silent: true });
         } catch (readError) {
             console.error("Failed to mark notification as read:", readError);
-            setError(getAdminActionErrorMessage(readError, "Could not mark notification as read."));
+            const resolvedMessage = getAdminActionErrorMessage(readError, "Could not mark notification as read.");
+            setError(resolvedMessage);
+            toast.error(resolvedMessage);
         } finally {
             setActiveActionBookingId(null);
         }
+    };
+
+    const openConfirmationDialog = ({
+        title,
+        description,
+        confirmText,
+        variant,
+        onConfirm,
+    }: Omit<ConfirmDialogState, "open">) => {
+        setConfirmDialog({
+            open: true,
+            title,
+            description,
+            confirmText,
+            variant,
+            onConfirm,
+        });
     };
 
     const renderActions = (booking: Booking) => {
@@ -173,41 +244,81 @@ export function BookingManagementPage({ onNotificationCountChange }: BookingMana
                     || booking.bookingStatus === "ADMIN_NOTIFIED"
                 ) && (
                     <button
-                        onClick={() => void performStatusUpdate(booking.bookingId, "CONFIRMED")}
-                        disabled={isBusy}
+                        onClick={() =>
+                            openConfirmationDialog({
+                                title: "Confirm booking?",
+                                description: `Mark booking #${booking.bookingId} as Confirmed and notify customer workflow.`,
+                                confirmText: "Confirm Booking",
+                                variant: "default",
+                                onConfirm: async () => {
+                                    await performStatusUpdate(booking.bookingId, "CONFIRMED");
+                                },
+                            })
+                        }
+                        disabled={actionsLocked}
                         className="rounded-md bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-400"
                     >
-                        Confirm
+                        {isBusy ? "Processing..." : "Confirm"}
                     </button>
                 )}
 
                 {(booking.bookingStatus === "PENDING_PAYMENT" || booking.bookingStatus === "PENDING") && (
                     <button
-                        onClick={() => void performStatusUpdate(booking.bookingId, "EXPIRED")}
-                        disabled={isBusy}
+                        onClick={() =>
+                            openConfirmationDialog({
+                                title: "Expire booking?",
+                                description: `Mark booking #${booking.bookingId} as Expired. This action can impact customer checkout.`,
+                                confirmText: "Expire Booking",
+                                variant: "destructive",
+                                onConfirm: async () => {
+                                    await performStatusUpdate(booking.bookingId, "EXPIRED");
+                                },
+                            })
+                        }
+                        disabled={actionsLocked}
                         className="rounded-md bg-slate-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:bg-slate-500"
                     >
-                        Expire
+                        {isBusy ? "Processing..." : "Expire"}
                     </button>
                 )}
 
                 {booking.bookingStatus === "CONFIRMED" && (
                     <button
-                        onClick={() => void performStatusUpdate(booking.bookingId, "ACTIVE")}
-                        disabled={isBusy}
+                        onClick={() =>
+                            openConfirmationDialog({
+                                title: "Start trip?",
+                                description: `Set booking #${booking.bookingId} to Active.`,
+                                confirmText: "Start Trip",
+                                variant: "default",
+                                onConfirm: async () => {
+                                    await performStatusUpdate(booking.bookingId, "ACTIVE");
+                                },
+                            })
+                        }
+                        disabled={actionsLocked}
                         className="rounded-md bg-violet-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-violet-700 disabled:cursor-not-allowed disabled:bg-violet-400"
                     >
-                        Start Trip
+                        {isBusy ? "Processing..." : "Start Trip"}
                     </button>
                 )}
 
                 {booking.bookingStatus === "ACTIVE" && (
                     <button
-                        onClick={() => void performStatusUpdate(booking.bookingId, "COMPLETED")}
-                        disabled={isBusy}
+                        onClick={() =>
+                            openConfirmationDialog({
+                                title: "Complete trip?",
+                                description: `Set booking #${booking.bookingId} to Completed.`,
+                                confirmText: "Complete Trip",
+                                variant: "default",
+                                onConfirm: async () => {
+                                    await performStatusUpdate(booking.bookingId, "COMPLETED");
+                                },
+                            })
+                        }
+                        disabled={actionsLocked}
                         className="rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-emerald-400"
                     >
-                        Complete
+                        {isBusy ? "Processing..." : "Complete"}
                     </button>
                 )}
 
@@ -219,21 +330,31 @@ export function BookingManagementPage({ onNotificationCountChange }: BookingMana
                     "ACTIVE",
                 ].includes(booking.bookingStatus) && (
                     <button
-                        onClick={() => void performCancel(booking.bookingId)}
-                        disabled={isBusy}
+                        onClick={() =>
+                            openConfirmationDialog({
+                                title: "Cancel booking?",
+                                description: `Cancel booking #${booking.bookingId}. This action is visible to the customer.`,
+                                confirmText: "Cancel Booking",
+                                variant: "destructive",
+                                onConfirm: async () => {
+                                    await performCancel(booking.bookingId);
+                                },
+                            })
+                        }
+                        disabled={actionsLocked}
                         className="rounded-md bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-400"
                     >
-                        Cancel
+                        {isBusy ? "Processing..." : "Cancel"}
                     </button>
                 )}
 
                 {Boolean(booking.adminNotifiedAt) && !booking.adminNotificationRead && (
                     <button
                         onClick={() => void markNotificationRead(booking.bookingId)}
-                        disabled={isBusy}
+                        disabled={actionsLocked}
                         className="rounded-md border border-gray-600 px-3 py-1.5 text-xs font-semibold text-gray-200 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                        Mark Read
+                        {isBusy ? "Processing..." : "Mark Read"}
                     </button>
                 )}
             </div>
@@ -262,10 +383,11 @@ export function BookingManagementPage({ onNotificationCountChange }: BookingMana
                     </select>
 
                     <button
-                        onClick={() => void loadBookings()}
-                        className="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800"
+                        onClick={() => void loadBookings({ silent: true, showSuccessToast: true })}
+                        disabled={isLoading || isRefreshing || activeActionBookingId !== null}
+                        className="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                        Refresh
+                        {isRefreshing ? "Refreshing..." : "Refresh"}
                     </button>
                 </div>
             </div>
@@ -275,6 +397,9 @@ export function BookingManagementPage({ onNotificationCountChange }: BookingMana
             )}
 
             <div className="rounded-xl border border-gray-800 bg-[#151515] p-4">
+                {isRefreshing && !isLoading && (
+                    <div className="mb-3 text-xs text-gray-400">Refreshing bookings...</div>
+                )}
                 {isLoading ? (
                     <div className="space-y-3">
                         {[1, 2, 3, 4].map((item) => (
@@ -325,6 +450,48 @@ export function BookingManagementPage({ onNotificationCountChange }: BookingMana
                     </div>
                 )}
             </div>
+
+            {confirmDialog && (
+                <AlertDialog
+                    open={confirmDialog.open}
+                    onOpenChange={(open) => {
+                        if (!open) {
+                            setConfirmDialog(null);
+                        }
+                    }}
+                >
+                    <AlertDialogContent className="bg-[#1a1a1a] border-gray-800 text-white">
+                        <AlertDialogHeader>
+                            <AlertDialogTitle className="text-white">{confirmDialog.title}</AlertDialogTitle>
+                            <AlertDialogDescription className="text-gray-400">
+                                {confirmDialog.description}
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel
+                                onClick={() => setConfirmDialog(null)}
+                                className="border-gray-700 bg-gray-800 text-white hover:bg-gray-700"
+                            >
+                                Back
+                            </AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={() => {
+                                    const run = confirmDialog.onConfirm;
+                                    setConfirmDialog(null);
+                                    void run();
+                                }}
+                                className={
+                                    confirmDialog.variant === "destructive"
+                                        ? "bg-red-600 text-white hover:bg-red-700"
+                                        : "bg-white text-black hover:bg-gray-200"
+                                }
+                            >
+                                {confirmDialog.confirmText}
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            )}
         </div>
     );
 }
