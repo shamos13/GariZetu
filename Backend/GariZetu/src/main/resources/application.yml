@@ -47,7 +47,7 @@ spring:
 
 file:
   upload:
-    directory: ${FILE_UPLOAD_DIR:${user.home}/garizetu/uploads}
+    directory: ${FILE_UPLOAD_DIR:/tmp/uploads}
 
 cloudinary:
   cloud-name: ${CLOUDINARY_CLOUD_NAME:}

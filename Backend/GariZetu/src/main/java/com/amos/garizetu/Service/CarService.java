@@ -73,12 +73,15 @@ public class CarService {
             throw new RuntimeException("Main image is required");
         }
 
-        //Store the image first and get the file name
-        String storedFileName = fileStorageService.storeFile(carCreateRequest.getImage());
-        log.info("Storing image for file {}", storedFileName);
+        //Store the image first and get the file name or URL
+        String storedFileNameOrUrl = fileStorageService.storeFile(carCreateRequest.getImage());
+        log.info("Storing image: {}", storedFileNameOrUrl);
 
         //Build image Url that will be stored in the db
-        String imageUrl = "/api/v1/cars/images/" + storedFileName;
+        // If it's already a full URL (Cloudinary), use it as-is, otherwise build local path
+        String imageUrl = storedFileNameOrUrl.startsWith("http")
+                ? storedFileNameOrUrl
+                : "/api/v1/cars/images/" + storedFileNameOrUrl;
 
         Car car = carMapper.toEntity(carCreateRequest);
         car.setMainImageUrl(imageUrl);
@@ -88,7 +91,9 @@ public class CarService {
             List<String> galleryUrls = carCreateRequest.getGalleryImages().stream()
                     .filter(file -> file != null && !file.isEmpty())
                     .map(fileStorageService::storeFile)
-                    .map(fileName -> "/api/v1/cars/images/" + fileName)
+                    .map(fileNameOrUrl -> fileNameOrUrl.startsWith("http")
+                            ? fileNameOrUrl
+                            : "/api/v1/cars/images/" + fileNameOrUrl)
                     .collect(Collectors.toList());
             car.setGalleryImageUrls(galleryUrls);
         }
@@ -306,10 +311,12 @@ public class CarService {
         String previousImageUrl = car.getMainImageUrl();
 
         // Store the new image and update the URL
-        String storedFileName = fileStorageService.storeFile(image);
-        log.info("Updating image for car {} with file {}", id, storedFileName);
+        String storedFileNameOrUrl = fileStorageService.storeFile(image);
+        log.info("Updating image for car {} with: {}", id, storedFileNameOrUrl);
 
-        String imageUrl = "/api/v1/cars/images/" + storedFileName;
+        String imageUrl = storedFileNameOrUrl.startsWith("http")
+                ? storedFileNameOrUrl
+                : "/api/v1/cars/images/" + storedFileNameOrUrl;
         car.setMainImageUrl(imageUrl);
 
         Car savedCar = carRepository.save(car);
@@ -343,7 +350,9 @@ public class CarService {
         List<String> uploadedUrls = (images == null ? List.<MultipartFile>of() : images).stream()
                 .filter(file -> file != null && !file.isEmpty())
                 .map(fileStorageService::storeFile)
-                .map(fileName -> "/api/v1/cars/images/" + fileName)
+                .map(fileNameOrUrl -> fileNameOrUrl.startsWith("http")
+                        ? fileNameOrUrl
+                        : "/api/v1/cars/images/" + fileNameOrUrl)
                 .collect(Collectors.toList());
 
         LinkedHashSet<String> finalGallerySet = new LinkedHashSet<>();
@@ -539,14 +548,23 @@ public class CarService {
     }
 
     private void deleteImageByUrl(String imageUrl) {
-        String fileName = extractLocalFileName(imageUrl);
-        if (fileName == null) {
-            // Non-local URLs (e.g. cloud storage URLs) are intentionally not deleted here.
-            log.debug("Skipping storage delete for non-local image URL: {}", imageUrl);
-            return;
-        }
+        try {
+            String fileName = extractLocalFileName(imageUrl);
+            if (fileName == null) {
+                // Non-local URLs (e.g. cloud storage URLs) - try Cloudinary delete
+                if (imageUrl != null && imageUrl.contains("cloudinary.com")) {
+                    fileStorageService.deleteFile(imageUrl);
+                } else {
+                    log.debug("Skipping storage delete for non-local image URL: {}", imageUrl);
+                }
+                return;
+            }
 
-        fileStorageService.deleteFile(fileName);
+            fileStorageService.deleteFile(fileName);
+        } catch (Exception e) {
+            // Log but don't fail the operation if image cleanup fails
+            log.warn("Failed to delete image file (this is non-critical): {}", imageUrl, e);
+        }
     }
 
     private String extractLocalFileName(String imageUrl) {
