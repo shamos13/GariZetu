@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 
 @Repository
@@ -44,6 +45,21 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
      *      WHERE car_id = :carId AND booking_status = :status
      */
     List<Booking> findByCarCarIdAndBookingStatus(Long carId, BookingStatus status);
+
+    @Query("SELECT b FROM Booking b WHERE b.car.carId IN :carIds " +
+            "AND (" +
+            "b.bookingStatus IN ('CONFIRMED', 'ACTIVE', 'ADMIN_NOTIFIED') " +
+            "OR (" +
+            "b.bookingStatus IN ('PENDING_PAYMENT', 'PENDING') " +
+            "AND b.paymentStatus IN ('UNPAID', 'FAILED') " +
+            "AND b.paymentExpiresAt IS NOT NULL " +
+            "AND b.paymentExpiresAt > :asOf" +
+            ")" +
+            ")")
+    List<Booking> findBlockingBookingsForCars(
+            @Param("carIds") Collection<Long> carIds,
+            @Param("asOf") LocalDateTime asOf
+    );
 
     // ========== COMPLEX QUERY: AVAILABILITY CHECK ==========
 
@@ -117,6 +133,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     @Query("SELECT b FROM Booking b WHERE b.bookingStatus = 'ACTIVE' " +
             "AND b.returnDate < :today")
     List<Booking> findOverdueBookings(@Param("today") LocalDate today);
+
+    @Query("SELECT COUNT(b) FROM Booking b WHERE b.bookingStatus = 'ACTIVE' " +
+            "AND b.returnDate < :today")
+    long countOverdueBookings(@Param("today") LocalDate today);
 
     // ========== STATISTICS QUERIES ==========
 
