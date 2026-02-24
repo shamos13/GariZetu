@@ -4,12 +4,31 @@ import { carService } from "../../services/carService.ts";
 import type { Car } from "../../data/cars.ts";
 import { useNavigate } from "react-router-dom";
 import { authService } from "../../services/AuthService.ts";
-import { ArrowRight, Calendar, Car as CarIcon, CheckCircle2, Clock3, CreditCard, Edit, FileText, Mail, MapPin, Phone, Star, User } from "lucide-react";
+import {
+    ArrowRight,
+    Calendar,
+    Car as CarIcon,
+    CheckCircle2,
+    Clock3,
+    CreditCard,
+    Download,
+    Edit,
+    FileText,
+    Gift,
+    Mail,
+    MapPin,
+    Phone,
+    Plus,
+    SlidersHorizontal,
+    Star,
+    User,
+} from "lucide-react";
 import { Button } from "../../components/ui/button.tsx";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../../components/ui/card.tsx";
 import { bookingService, type Booking, type BookingStatus } from "../../services/BookingService.ts";
 import { getImageUrl } from "../../lib/ImageUtils.ts";
 import { getErrorMessage, getHttpStatus, isUnauthorizedError } from "../../lib/errorUtils.ts";
+import { emitAuthChanged } from "../../lib/authEvents.ts";
 import { toast } from "sonner";
 import { pushUserNotification } from "../../lib/userNotifications.ts";
 import {
@@ -24,6 +43,14 @@ interface CustomerDashboardProps {
     initialPage?: string;
 }
 
+interface CustomerProfileDetails {
+    userName: string;
+    email: string;
+    phoneNumber: string;
+    location: string;
+    bio: string;
+}
+
 const ACTIVE_BOOKING_STATUSES: BookingStatus[] = [
     "PENDING_PAYMENT",
     "PENDING",
@@ -33,6 +60,7 @@ const ACTIVE_BOOKING_STATUSES: BookingStatus[] = [
 ];
 const PAYMENT_ALLOWED_STATUSES: BookingStatus[] = ["PENDING_PAYMENT", "PENDING"];
 const CANCELLABLE_STATUSES: BookingStatus[] = ["PENDING_PAYMENT", "PENDING", "ADMIN_NOTIFIED", "CONFIRMED"];
+const PROFILE_STORAGE_KEY_PREFIX = "garizetu_customer_profile_v1";
 
 export default function CustomerDashboard({ onBack, initialPage = "dashboard" }: CustomerDashboardProps) {
     const [currentPage, setCurrentPage] = useState(initialPage);
@@ -115,6 +143,8 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                 return "My Profile";
             case "bookings":
                 return "My Bookings";
+            case "payments":
+                return "Payments";
             default:
                 return "Dashboard";
         }
@@ -152,6 +182,59 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
     const rewardPoints = useMemo(() => {
         return completedTripsCount * 150 + activeBookingsCount * 75 + totalRentalsCount * 20;
     }, [completedTripsCount, activeBookingsCount, totalRentalsCount]);
+
+    const rewardsTarget = 10000;
+
+    const paidBookings = useMemo(() => {
+        return sortedBookings.filter((booking) => {
+            return (
+                booking.paymentStatus === "PAID" ||
+                booking.paymentStatus === "SIMULATED_PAID" ||
+                booking.bookingStatus === "COMPLETED"
+            );
+        });
+    }, [sortedBookings]);
+
+    const annualExpenditureTotal = useMemo(() => {
+        const currentYear = new Date().getFullYear();
+        const currentYearPaid = paidBookings
+            .filter((booking) => new Date(booking.createdAt).getFullYear() === currentYear)
+            .reduce((total, booking) => total + booking.totalPrice, 0);
+
+        if (currentYearPaid > 0) {
+            return currentYearPaid;
+        }
+
+        return paidBookings.reduce((total, booking) => total + booking.totalPrice, 0);
+    }, [paidBookings]);
+
+    const pendingPaymentBookings = useMemo(() => {
+        return sortedBookings.filter((booking) => PAYMENT_ALLOWED_STATUSES.includes(booking.bookingStatus));
+    }, [sortedBookings]);
+
+    const pendingDuesTotal = useMemo(() => {
+        return pendingPaymentBookings.reduce((total, booking) => total + booking.totalPrice, 0);
+    }, [pendingPaymentBookings]);
+
+    const paymentMethods = useMemo(() => {
+        const cardHolder = (user?.userName || "GariZetu Customer").toUpperCase();
+        return [
+            {
+                id: "visa",
+                provider: "Visa",
+                last4: "8842",
+                expires: "12/27",
+                holder: cardHolder,
+            },
+            {
+                id: "mastercard",
+                provider: "Mastercard",
+                last4: "1095",
+                expires: "08/25",
+                holder: cardHolder,
+            },
+        ];
+    }, [user?.userName]);
 
     const formatBookingDate = (value: string): string => {
         let date: Date;
@@ -201,6 +284,52 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
             return "Pending Payment";
         }
         return status.replaceAll("_", " ");
+    };
+
+    const formatCurrency = (amount: number): string => {
+        return `Ksh ${amount.toLocaleString()}`;
+    };
+
+    const getTransactionStatusMeta = (booking: Booking): { label: string; className: string } => {
+        if (booking.paymentStatus === "FAILED") {
+            return {
+                label: "Failed",
+                className: "border border-red-500/30 bg-red-500/15 text-red-400",
+            };
+        }
+
+        if (booking.paymentStatus === "REFUNDED") {
+            return {
+                label: "Refunded",
+                className: "border border-gray-500/30 bg-gray-500/15 text-gray-300",
+            };
+        }
+
+        if (booking.paymentStatus === "PAID" || booking.paymentStatus === "SIMULATED_PAID" || booking.bookingStatus === "COMPLETED") {
+            return {
+                label: "Completed",
+                className: "border border-emerald-500/30 bg-emerald-500/15 text-emerald-400",
+            };
+        }
+
+        if (booking.bookingStatus === "CANCELLED" || booking.bookingStatus === "REJECTED" || booking.bookingStatus === "EXPIRED") {
+            return {
+                label: "Closed",
+                className: "border border-gray-500/30 bg-gray-500/15 text-gray-300",
+            };
+        }
+
+        return {
+            label: "Pending",
+            className: "border border-amber-500/30 bg-amber-500/15 text-amber-300",
+        };
+    };
+
+    const getTransactionId = (booking: Booking): string => {
+        if (booking.paymentReference) {
+            return booking.paymentReference;
+        }
+        return `GZ-${booking.bookingId.toString().padStart(6, "0")}`;
     };
 
     const canSimulatePayment = (status: BookingStatus): boolean => PAYMENT_ALLOWED_STATUSES.includes(status);
@@ -755,12 +884,239 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
         </div>
     );
 
+    const renderPayments = () => {
+        const rewardProgress = Math.min(rewardPoints, rewardsTarget);
+        const rewardPercentage = Math.round((rewardProgress / rewardsTarget) * 100);
+        const rewardsRemaining = Math.max(rewardsTarget - rewardProgress, 0);
+        const recentTransactions = sortedBookings.slice(0, 6);
+
+        return (
+            <div className="space-y-7">
+                {bookingActionMessage && (
+                    <div className="rounded-xl border border-gray-700 bg-[#1f1f1f] px-4 py-3 text-sm text-gray-200">
+                        {bookingActionMessage}
+                    </div>
+                )}
+
+                <section className="relative overflow-hidden rounded-3xl border border-gray-800 bg-gradient-to-br from-[#101010] via-[#141414] to-[#0f0f0f] p-6 md:p-7">
+                    <div className="pointer-events-none absolute -top-24 right-0 h-56 w-56 rounded-full bg-emerald-500/10 blur-3xl" />
+                    <div className="pointer-events-none absolute -bottom-28 -left-8 h-56 w-56 rounded-full bg-emerald-400/5 blur-3xl" />
+                    <div className="relative">
+                        <h2 className="text-3xl font-bold text-white md:text-4xl">Financial Hub</h2>
+                        <p className="mt-2 max-w-2xl text-sm text-gray-400 md:text-base">
+                            Track your rental spending, manage saved payment methods, and review recent payment activity.
+                        </p>
+                    </div>
+                </section>
+
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
+                    <div className="space-y-7 xl:col-span-8">
+                        <section>
+                            <p className="mb-4 text-xs font-semibold uppercase tracking-[0.22em] text-emerald-400">Billing Overview</p>
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                <div className="rounded-2xl border border-gray-800 bg-[#1a1a1a] p-5">
+                                    <p className="text-sm text-gray-400">Annual Expenditure</p>
+                                    <p className="mt-2 text-3xl font-semibold text-white">{formatCurrency(annualExpenditureTotal)}</p>
+                                    <p className="mt-2 text-xs uppercase tracking-wide text-gray-500">
+                                        Across {paidBookings.length} completed payments
+                                    </p>
+                                </div>
+
+                                <div className="rounded-2xl border border-gray-800 bg-[#1a1a1a] p-5">
+                                    <p className="text-sm text-gray-400">Pending Dues</p>
+                                    <p className="mt-2 text-3xl font-semibold text-white">{formatCurrency(pendingDuesTotal)}</p>
+                                    <p className="mt-2 text-xs uppercase tracking-wide text-amber-300">
+                                        {pendingPaymentBookings.length} booking{pendingPaymentBookings.length === 1 ? "" : "s"} awaiting payment
+                                    </p>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section>
+                            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                                <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-400">Payment Methods</p>
+                                <button className="inline-flex items-center gap-1 rounded-full border border-gray-700 px-3 py-1.5 text-xs font-semibold text-gray-200 transition-colors hover:border-emerald-500/50 hover:text-emerald-300">
+                                    <Plus className="h-3.5 w-3.5" />
+                                    Add New Card
+                                </button>
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                {paymentMethods.map((method, index) => (
+                                    <div
+                                        key={method.id}
+                                        className={`relative overflow-hidden rounded-2xl border border-gray-800 p-5 ${index % 2 === 0 ? "bg-[#181818]" : "bg-[#151515]"}`}
+                                    >
+                                        <div className="absolute -right-8 -top-10 h-24 w-24 rounded-full bg-emerald-500/15 blur-2xl" />
+                                        <div className="relative space-y-5">
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/5 text-emerald-300">
+                                                    <CreditCard className="h-4 w-4" />
+                                                </div>
+                                                <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">{method.provider}</span>
+                                            </div>
+                                            <p className="text-xl tracking-[0.24em] text-white">•••• •••• •••• {method.last4}</p>
+                                            <div className="flex items-end justify-between">
+                                                <div>
+                                                    <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500">Card Holder</p>
+                                                    <p className="mt-1 text-sm font-semibold text-gray-200">{method.holder}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                    <p className="text-[10px] uppercase tracking-[0.2em] text-gray-500">Expires</p>
+                                                    <p className="mt-1 text-sm font-semibold text-gray-200">{method.expires}</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    </div>
+
+                    <aside className="xl:col-span-4">
+                        <div className="h-full rounded-3xl border border-emerald-400/20 bg-gradient-to-b from-emerald-500 to-emerald-600 p-6 text-white">
+                            <div className="flex items-center gap-2 text-emerald-50/95">
+                                <Gift className="h-5 w-5" />
+                                <p className="text-lg font-semibold">Rewards Program</p>
+                            </div>
+                            <p className="mt-4 text-sm text-emerald-50/90">
+                                You are {rewardsRemaining.toLocaleString()} points away from your next premium tier.
+                            </p>
+                            <p className="mt-3 text-sm text-emerald-50/80">
+                                Unlock priority vehicle access and exclusive member offers.
+                            </p>
+
+                            <div className="mt-10">
+                                <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-[0.16em] text-emerald-50/90">
+                                    <span>Current Progress</span>
+                                    <span>{rewardProgress.toLocaleString()} / {rewardsTarget.toLocaleString()}</span>
+                                </div>
+                                <div className="h-2.5 rounded-full bg-emerald-950/30">
+                                    <div
+                                        className="h-full rounded-full bg-white"
+                                        style={{ width: `${Math.min(rewardPercentage, 100)}%` }}
+                                    />
+                                </div>
+                            </div>
+
+                            <button className="mt-8 w-full rounded-xl bg-white px-4 py-3 text-sm font-semibold text-emerald-700 transition-colors hover:bg-emerald-50">
+                                View Benefits
+                            </button>
+                        </div>
+                    </aside>
+                </div>
+
+                <section>
+                    <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-400">Transaction History</p>
+                        <div className="flex items-center gap-2">
+                            <button className="rounded-lg border border-gray-700 p-2 text-gray-400 transition-colors hover:border-gray-600 hover:text-white" aria-label="Filter transactions">
+                                <SlidersHorizontal className="h-4 w-4" />
+                            </button>
+                            <button className="rounded-lg border border-gray-700 p-2 text-gray-400 transition-colors hover:border-gray-600 hover:text-white" aria-label="Download statement">
+                                <Download className="h-4 w-4" />
+                            </button>
+                        </div>
+                    </div>
+
+                    <div className="overflow-x-auto rounded-3xl border border-gray-800 bg-[#151515]">
+                        {isLoadingBookings ? (
+                            <div className="space-y-3 p-4 md:p-5">
+                                {[1, 2, 3].map((item) => (
+                                    <div key={item} className="h-14 animate-pulse rounded-xl bg-gray-800/60" />
+                                ))}
+                            </div>
+                        ) : bookingsError ? (
+                            <div className="p-6 text-center">
+                                <p className="text-sm text-red-400">{bookingsError}</p>
+                                <Button
+                                    onClick={() => void fetchBookings()}
+                                    variant="outline"
+                                    className="mt-4 border-gray-700 text-gray-300 hover:bg-gray-800"
+                                >
+                                    Try Again
+                                </Button>
+                            </div>
+                        ) : recentTransactions.length === 0 ? (
+                            <div className="p-8 text-center">
+                                <p className="text-sm text-gray-400">No transaction records available yet.</p>
+                            </div>
+                        ) : (
+                            <table className="min-w-full text-left">
+                                <thead>
+                                    <tr className="border-b border-gray-800 text-xs uppercase tracking-[0.16em] text-gray-500">
+                                        <th className="px-4 py-4 font-semibold md:px-5">Date</th>
+                                        <th className="px-4 py-4 font-semibold md:px-5">Vehicle</th>
+                                        <th className="px-4 py-4 font-semibold md:px-5">Transaction ID</th>
+                                        <th className="px-4 py-4 font-semibold md:px-5">Status</th>
+                                        <th className="px-4 py-4 font-semibold md:px-5 text-right">Amount</th>
+                                        <th className="px-4 py-4 font-semibold md:px-5 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {recentTransactions.map((booking) => {
+                                        const statusMeta = getTransactionStatusMeta(booking);
+                                        const canPay = canSimulatePayment(booking.bookingStatus);
+
+                                        return (
+                                            <tr key={booking.bookingId} className="border-b border-gray-800/60 last:border-b-0">
+                                                <td className="px-4 py-4 text-sm text-gray-300 md:px-5">
+                                                    {formatBookingDate(booking.createdAt)}
+                                                </td>
+                                                <td className="px-4 py-4 md:px-5">
+                                                    <p className="text-sm font-semibold text-gray-100">
+                                                        {booking.carMake} {booking.carModel}
+                                                    </p>
+                                                    <p className="text-xs text-gray-500">{booking.carYear}</p>
+                                                </td>
+                                                <td className="px-4 py-4 text-xs text-gray-400 md:px-5">
+                                                    {getTransactionId(booking)}
+                                                </td>
+                                                <td className="px-4 py-4 md:px-5">
+                                                    <span className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${statusMeta.className}`}>
+                                                        {statusMeta.label}
+                                                    </span>
+                                                </td>
+                                                <td className="px-4 py-4 text-right text-sm font-semibold text-white md:px-5">
+                                                    {formatCurrency(booking.totalPrice)}
+                                                </td>
+                                                <td className="px-4 py-4 text-right md:px-5">
+                                                    {canPay ? (
+                                                        <button
+                                                            onClick={() => void handleSimulatePayment(booking.bookingId)}
+                                                            disabled={processingBookingId === booking.bookingId}
+                                                            className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
+                                                                processingBookingId === booking.bookingId
+                                                                    ? "cursor-not-allowed bg-emerald-300/40 text-white"
+                                                                    : "bg-emerald-500 text-white hover:bg-emerald-600"
+                                                            }`}
+                                                        >
+                                                            {processingBookingId === booking.bookingId ? "Processing..." : "Pay Now"}
+                                                        </button>
+                                                    ) : (
+                                                        <span className="text-xs text-gray-500">-</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+                </section>
+            </div>
+        );
+    };
+
     const renderPage = () => {
         switch (currentPage) {
             case "profile":
                 return renderProfile();
             case "bookings":
                 return renderBookings();
+            case "payments":
+                return renderPayments();
             default:
                 return renderDashboard();
         }

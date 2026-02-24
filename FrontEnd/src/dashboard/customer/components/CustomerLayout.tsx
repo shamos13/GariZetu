@@ -17,7 +17,7 @@ type SidebarMenuItem = {
     id: string;
     label: string;
     icon: LucideIcon;
-    targetPage?: "dashboard" | "bookings" | "profile";
+    targetPage?: "dashboard" | "bookings" | "profile" | "payments";
     badge?: string;
     action?: "navigate" | "logout";
 };
@@ -31,7 +31,7 @@ const mainMenuItems: SidebarMenuItem[] = [
 
 const settingsMenuItems: SidebarMenuItem[] = [
     { id: "profile", label: "Profile", icon: User, targetPage: "profile", action: "navigate" },
-    { id: "payments", label: "Payments", icon: CreditCard, targetPage: "profile", action: "navigate" },
+    { id: "payments", label: "Payments", icon: CreditCard, targetPage: "payments", action: "navigate" },
     { id: "logout", label: "Log Out", icon: LogOut, action: "logout" },
 ];
 
@@ -39,6 +39,7 @@ const ACTIVE_SIDEBAR_ITEM_BY_PAGE: Record<string, string> = {
     dashboard: "dashboard",
     bookings: "bookings",
     profile: "profile",
+    payments: "payments",
 };
 
 const getSidebarButtonClasses = (isActive: boolean): string =>
@@ -275,6 +276,16 @@ export function CustomerLayout({ children, title, currentPage, onNavigate, onBac
                                         >
                                             <Calendar className="w-4 h-4" />
                                             My Bookings
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                onNavigate("payments");
+                                                setIsProfileOpen(false);
+                                            }}
+                                            className="w-full px-4 py-2.5 text-left text-sm text-gray-300 hover:bg-gray-800 flex items-center gap-2"
+                                        >
+                                            <CreditCard className="w-4 h-4" />
+                                            Payments
                                         </button>
                                         <hr className="my-2 border-gray-800" />
                                         <button

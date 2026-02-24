@@ -7,7 +7,7 @@ export default function CustomerDashboardRoute() {
     const navigate = useNavigate();
     const { section } = useParams();
 
-    const validSections = new Set(["dashboard", "profile", "bookings"]);
+    const validSections = new Set(["dashboard", "profile", "bookings", "payments"]);
     const initialPage = section && validSections.has(section) ? section : "dashboard";
 
     useEffect(() => {
