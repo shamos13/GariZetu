@@ -2,9 +2,11 @@ package com.amos.garizetu.Service;
 
 
 import com.amos.garizetu.config.FileStorageProperties;
+import com.amos.garizetu.images.cars.CloudinaryImageStorageService;
 import jakarta.annotation.PostConstruct;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
@@ -25,11 +27,22 @@ import java.util.UUID;
 //Responsible for handling file storage operations
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class FileStorageService {
     private final FileStorageProperties properties;
+    private final CloudinaryImageStorageService cloudinaryService;
+
+    @Value("${cloudinary.cloud-name:}")
+    private String cloudinaryCloudName;
+
     private Path fileStorageLocation;
     private List<Path> fallbackStorageLocations = List.of();
+    private boolean useCloudinary = false;
+
+    @Autowired
+    public FileStorageService(FileStorageProperties properties, CloudinaryImageStorageService cloudinaryService) {
+        this.properties = properties;
+        this.cloudinaryService = cloudinaryService;
+    }
 
 
     /**
@@ -42,6 +55,15 @@ public class FileStorageService {
 
     @PostConstruct
     public void init() {
+        // Check if Cloudinary is configured
+        if (cloudinaryCloudName != null && !cloudinaryCloudName.trim().isEmpty()) {
+            this.useCloudinary = true;
+            log.info("Cloudinary is configured - using cloud storage for images");
+            return;
+        }
+
+        log.info("Cloudinary not configured - using local file storage");
+
         try{
             String configuredDir = properties.getDirectory();
 
@@ -95,6 +117,13 @@ public class FileStorageService {
             throw new RuntimeException("Invalid file type. Only JPEG, PNG, WEBP, and SVG images are allowed");
         }
 
+        // Use Cloudinary if configured
+        if (useCloudinary) {
+            log.info("Uploading file to Cloudinary");
+            return cloudinaryService.uploadImage(file);
+        }
+
+        // Otherwise use local storage
         // Generate UUID based filename with proper Extension
         String fileExtension = getExtensionFromMimeType(contentType);
         String fileName = UUID.randomUUID().toString()  + fileExtension;
@@ -142,25 +171,40 @@ public class FileStorageService {
     // Deletes a file from the configured storage locations.
     // Returns true when at least one file was deleted.
     public boolean deleteFile(String fileName) {
-        String normalizedFileName = StringUtils.cleanPath(fileName);
-        if (normalizedFileName.contains("..")) {
-            log.warn("Refusing to delete file with invalid path: {}", fileName);
+        try {
+            // If it's a Cloudinary URL, use Cloudinary service
+            if (fileName != null && fileName.contains("cloudinary.com")) {
+                log.info("Deleting file from Cloudinary: {}", fileName);
+                cloudinaryService.deleteImage(fileName);
+                return true;
+            }
+
+            // Otherwise use local file deletion
+            String normalizedFileName = StringUtils.cleanPath(fileName);
+            if (normalizedFileName.contains("..")) {
+                log.warn("Refusing to delete file with invalid path: {}", fileName);
+                return false;
+            }
+
+            boolean deleted = false;
+
+            if (this.fileStorageLocation != null) {
+                deleted |= deleteFromLocation(this.fileStorageLocation, normalizedFileName);
+            }
+
+            for (Path fallbackLocation : this.fallbackStorageLocations) {
+                deleted |= deleteFromLocation(fallbackLocation, normalizedFileName);
+            }
+
+            if (!deleted) {
+                log.warn("File not found for deletion: {}", normalizedFileName);
+            }
+
+            return deleted;
+        } catch (Exception e) {
+            log.warn("Error during file deletion (non-critical): {}", fileName, e);
             return false;
         }
-
-        boolean deleted = false;
-
-        deleted |= deleteFromLocation(this.fileStorageLocation, normalizedFileName);
-
-        for (Path fallbackLocation : this.fallbackStorageLocations) {
-            deleted |= deleteFromLocation(fallbackLocation, normalizedFileName);
-        }
-
-        if (!deleted) {
-            log.warn("File not found for deletion: {}", normalizedFileName);
-        }
-
-        return deleted;
     }
     // Validates if the allowed MIME type is an allowed image type
     private boolean isValidImageType(String contentType) {
