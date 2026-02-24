@@ -1,23 +1,39 @@
+import { useMemo } from "react";
 import { ArrowRight } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { Car } from "../data/cars.ts";
+import { DEFAULT_BRAND_LOGOS, toBrandKey } from "../constants/brandLogos.ts";
 
 interface CategorySectionsProps {
     cars: Car[];
     isLoading?: boolean;
+    brandLogoOverrides?: Record<string, string>;
 }
 
-const brandLogos: Record<string, string> = {
-    toyota: "/logos/toyota-7.svg",
-    "mercedes-benz": "/logos/mercedes-benz-8.svg",
-    bmw: "/logos/bmw-7.svg",
-    volkswagen: "/logos/volkswagen-10.svg",
-    audi: "/logos/audi.svg",
-    nissan: "/logos/nissan.svg",
-};
-
-export function CategorySections({ cars, isLoading = false }: CategorySectionsProps) {
+export function CategorySections({
+    cars,
+    isLoading = false,
+    brandLogoOverrides = {},
+}: CategorySectionsProps) {
     const navigate = useNavigate();
+    const mergedBrandLogos = useMemo(() => {
+        const normalizedOverrides = Object.entries(brandLogoOverrides).reduce<Record<string, string>>(
+            (accumulator, [brand, logoUrl]) => {
+                const key = toBrandKey(brand);
+                if (!key) {
+                    return accumulator;
+                }
+                accumulator[key] = logoUrl;
+                return accumulator;
+            },
+            {}
+        );
+
+        return {
+            ...DEFAULT_BRAND_LOGOS,
+            ...normalizedOverrides,
+        };
+    }, [brandLogoOverrides]);
 
     const brandEntries = Array.from(
         cars.reduce((accumulator, car) => {
@@ -60,7 +76,7 @@ export function CategorySections({ cars, isLoading = false }: CategorySectionsPr
                 ) : topBrands.length > 0 ? (
                     <div className="-mx-3 flex snap-x snap-mandatory gap-3 overflow-x-auto px-3 pb-1 sm:mx-0 sm:grid sm:grid-cols-3 sm:overflow-visible sm:px-0 lg:grid-cols-6">
                         {topBrands.map((brand) => {
-                            const logo = brandLogos[brand.name.toLowerCase()];
+                            const logo = mergedBrandLogos[toBrandKey(brand.name)];
                             return (
                                 <button
                                     type="button"

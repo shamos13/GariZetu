@@ -135,6 +135,8 @@ public class CarController {
     private String determineContentType(String fileName) {
         if (fileName.endsWith(".png")) {
             return "image/png";
+        } else if (fileName.endsWith(".svg")) {
+            return "image/svg+xml";
         } else if (fileName.endsWith(".webp")) {
             return "image/webp";
         } else {

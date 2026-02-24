@@ -9,6 +9,7 @@ export interface ContactMessageRequest {
 }
 
 export interface ContactMessageResponse {
+    messageId?: number;
     message: string;
 }
 

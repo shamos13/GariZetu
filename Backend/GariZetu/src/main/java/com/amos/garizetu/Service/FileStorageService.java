@@ -78,7 +78,7 @@ public class FileStorageService {
         // Validation 3: Check MIME type
         String contentType = file.getContentType();
         if (contentType == null || !isValidImageType(contentType)) {
-            throw new RuntimeException("Invalid file type. Only JPEG, PNG, and WEBP images are allowed");
+            throw new RuntimeException("Invalid file type. Only JPEG, PNG, WEBP, and SVG images are allowed");
         }
 
         // Generate UUID based filename with proper Extension
@@ -152,7 +152,8 @@ public class FileStorageService {
     private boolean isValidImageType(String contentType) {
         return "image/jpeg".equals(contentType) ||
                 "image/png".equals(contentType) ||
-                "image/webp".equals(contentType);
+                "image/webp".equals(contentType) ||
+                "image/svg+xml".equals(contentType);
     }
 
     // Maps MIME type to file extension. this ensures we save files with the correct extension based on their actual type
@@ -160,6 +161,7 @@ public class FileStorageService {
         return switch (mimeType) {
             case "image/png" -> ".png";
             case "image/webp" -> ".webp";
+            case "image/svg+xml" -> ".svg";
             default -> ".jpg";
         };
     }
