@@ -247,7 +247,7 @@ export default function VehicleDetailsPage() {
     const rentalDays = useMemo(() => {
         if (selectedDates.start && selectedDates.end) {
             const diff = selectedDates.end.getTime() - selectedDates.start.getTime();
-            return Math.ceil(diff / (1000 * 60 * 60 * 24)) + 1;
+            return Math.max(1, Math.ceil(diff / (1000 * 60 * 60 * 24)));
         }
         return 0;
     }, [selectedDates]);
