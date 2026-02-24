@@ -23,25 +23,25 @@ public interface CarRepository extends JpaRepository<Car, Long> {
     List<Car> findCarByMakeIgnoreCase(String make);
 
     // Fetch car with features eagerly loaded
-    @EntityGraph(attributePaths = {"features"})
+    @EntityGraph(attributePaths = {"features", "galleryImageUrls"})
     @Query("SELECT c FROM Car c WHERE c.carId = :id")
     Optional<Car> findByIdWithFeatures(@Param("id") Long id);
 
     // Fetch all cars with features eagerly loaded
-    @EntityGraph(attributePaths = {"features"})
+    @EntityGraph(attributePaths = {"features", "galleryImageUrls"})
     @Query("SELECT c FROM Car c")
     List<Car> findAllWithFeatures();
 
-    @EntityGraph(attributePaths = {"features"})
+    @EntityGraph(attributePaths = {"features", "galleryImageUrls"})
     @Query("SELECT c FROM Car c")
     Page<Car> findAllWithFeatures(Pageable pageable);
 
     // Fetch cars by make with features eagerly loaded
-    @EntityGraph(attributePaths = {"features"})
+    @EntityGraph(attributePaths = {"features", "galleryImageUrls"})
     @Query("SELECT c FROM Car c WHERE LOWER(c.make) = LOWER(:make)")
     List<Car> findCarByMakeIgnoreCaseWithFeatures(@Param("make") String make);
 
-    @EntityGraph(attributePaths = {"features"})
+    @EntityGraph(attributePaths = {"features", "galleryImageUrls"})
     @Query("SELECT c FROM Car c WHERE LOWER(c.make) = LOWER(:make)")
     Page<Car> findCarByMakeIgnoreCaseWithFeatures(@Param("make") String make, Pageable pageable);
 

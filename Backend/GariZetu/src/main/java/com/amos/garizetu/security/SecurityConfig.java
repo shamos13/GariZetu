@@ -1,6 +1,7 @@
 package com.amos.garizetu.security;
 
 import lombok.RequiredArgsConstructor;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -54,14 +55,27 @@ public class SecurityConfig {
                 // STEP 3: Configure which endpoints require authentication
                 .authorizeHttpRequests(auth -> auth
 
+                        // Allow error dispatches so server-side exceptions surface as real 4xx/5xx responses.
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
+                        .requestMatchers("/error").permitAll()
+
                         // CORS preflight - must be public or browser blocks all API calls
                         .requestMatchers(HttpMethod.OPTIONS, "/api/**").permitAll()
 
-                        // PUBLIC endpoints - anyone can access without token
+                        // PUBLIC auth endpoints
                         .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers("/api/v1/cars/**").permitAll()
-                        .requestMatchers("/api/v1/contact/**").permitAll()
-                        .requestMatchers("/api/v1/content/**").permitAll()
+
+                        // PUBLIC read endpoints
+                        .requestMatchers(HttpMethod.GET, "/api/v1/cars/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/content/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/contact/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/contact/messages").permitAll()
+
+                        // Car write endpoints require authentication (role checks are enforced via @PreAuthorize)
+                        .requestMatchers(HttpMethod.POST, "/api/v1/cars/**").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/cars/**").authenticated()
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/cars/**").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/cars/**").authenticated()
 
                         // ADMIN-ONLY endpoints (@PreAuthorize does role checking)
                         .requestMatchers("/api/v1/admin/users/**").authenticated()

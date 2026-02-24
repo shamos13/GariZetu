@@ -22,20 +22,43 @@ export const adminCarService = {
     getAll: async (): Promise<BackendCar[]> => {
         try {
             const pageSize = 50;
-            let page = 0;
-            let totalPages = 1;
-            const cars: BackendCar[] = [];
+            const fetchFromPagedEndpoint = async (endpoint: string): Promise<BackendCar[]> => {
+                let page = 0;
+                let totalPages = 1;
+                const cars: BackendCar[] = [];
 
-            while (page < totalPages) {
-                const res = await api.get<SpringPage<BackendCar>>("/cars/getcars/paged", {
-                    params: { page, size: pageSize },
-                });
-                cars.push(...res.data.content);
-                totalPages = Math.max(1, res.data.totalPages);
-                page += 1;
+                while (page < totalPages) {
+                    const res = await api.get<SpringPage<BackendCar>>(endpoint, {
+                        params: { page, size: pageSize },
+                    });
+                    cars.push(...res.data.content);
+                    totalPages = Math.max(1, res.data.totalPages);
+                    page += 1;
+                }
+
+                return cars;
+            };
+
+            const pagedEndpoints = ["/cars/getcars/paged", "/cars/paged"];
+            for (const endpoint of pagedEndpoints) {
+                try {
+                    return await fetchFromPagedEndpoint(endpoint);
+                } catch (error) {
+                    console.warn(`Paged cars endpoint failed (${endpoint})`, error);
+                }
             }
 
-            return cars;
+            const listEndpoints = ["/cars/getcars", "/cars"];
+            for (const endpoint of listEndpoints) {
+                try {
+                    const res = await api.get<BackendCar[]>(endpoint);
+                    return res.data;
+                } catch (error) {
+                    console.warn(`Cars list endpoint failed (${endpoint})`, error);
+                }
+            }
+
+            throw new Error("All car listing endpoints failed.");
         } catch (error) {
             console.error("Failed to fetch admin cars:", error);
             throw error;

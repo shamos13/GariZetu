@@ -79,6 +79,17 @@ const withPreferredFleetOrder = (brands: string[]): string[] => {
     return unique.sort((a, b) => a.localeCompare(b));
 };
 
+const toBrandDisplayName = (brandKey: string): string =>
+    brandKey
+        .split("-")
+        .map((segment) => segment.trim())
+        .filter(Boolean)
+        .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
+        .join(" ");
+
+const getDefaultFleetBrands = (): string[] =>
+    withPreferredFleetOrder(Object.keys(DEFAULT_BRAND_LOGOS).map(toBrandDisplayName));
+
 const parseStoredTab = (value: string | null): ContentTab =>
     value === "contact-content" ? "contact-content" : "brand-logos";
 
@@ -90,6 +101,7 @@ export function ContentManagementPage() {
     const [isSavingLogo, setIsSavingLogo] = useState(false);
     const [isSavingContact, setIsSavingContact] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
+    const [fleetLoadWarning, setFleetLoadWarning] = useState<string | null>(null);
 
     const [brandLogos, setBrandLogos] = useState<BrandLogoOverride[]>([]);
     const [fleetBrands, setFleetBrands] = useState<string[]>([]);
@@ -108,16 +120,32 @@ export function ContentManagementPage() {
         try {
             setIsLoading(true);
             setLoadError(null);
+            setFleetLoadWarning(null);
 
-            const [brandLogoData, contactSettingsData, fleetCars] = await Promise.all([
+            const [brandLogoData, contactSettingsData] = await Promise.all([
                 adminContentService.getBrandLogos(),
                 adminContentService.getContactSettings(),
-                adminCarService.getAll(),
             ]);
 
             setBrandLogos(brandLogoData);
             setContactForm(toContactFormState(contactSettingsData));
-            setFleetBrands(withPreferredFleetOrder(fleetCars.map((car) => car.make)));
+
+            const fallbackFleetBrands = withPreferredFleetOrder([
+                ...brandLogoData.map((entry) => entry.brandName),
+                ...getDefaultFleetBrands(),
+            ]);
+
+            try {
+                const fleetCars = await adminCarService.getAll();
+                const loadedFleetBrands = withPreferredFleetOrder(fleetCars.map((car) => car.make));
+                setFleetBrands(loadedFleetBrands.length > 0 ? loadedFleetBrands : fallbackFleetBrands);
+            } catch (fleetError) {
+                console.error("Failed to load fleet brands for content management:", fleetError);
+                setFleetBrands(fallbackFleetBrands);
+                setFleetLoadWarning(
+                    "Fleet cars could not be loaded right now. Logo and contact content management is still available."
+                );
+            }
         } catch (error) {
             console.error("Failed to load content management data:", error);
             setLoadError(getAdminActionErrorMessage(error, "Unable to load content management data."));
@@ -260,6 +288,11 @@ export function ContentManagementPage() {
             {loadError && (
                 <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
                     {loadError}
+                </div>
+            )}
+            {fleetLoadWarning && (
+                <div className="rounded-lg border border-blue-500/40 bg-blue-500/10 px-4 py-3 text-sm text-blue-200">
+                    {fleetLoadWarning}
                 </div>
             )}
 
@@ -589,4 +622,3 @@ function TextAreaInput({ label, value, onChange, required = false }: InputProps)
         </label>
     );
 }
-

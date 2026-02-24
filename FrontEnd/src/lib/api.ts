@@ -45,16 +45,7 @@ export const api = axios.create({
     withCredentials: true,
 });
 
-const AUTH_MESSAGE_MARKERS = [
-    "jwt",
-    "token",
-    "expired",
-    "invalid",
-    "unauthorized",
-    "authentication",
-    "not authenticated",
-    "full authentication is required",
-];
+const AUTH_TOKEN_APPLIED_FLAG = "__authTokenApplied";
 
 const getPathFromUrl = (url?: string): string => {
     if (!url) {
@@ -71,63 +62,63 @@ const getPathFromUrl = (url?: string): string => {
     }
 };
 
-const isAuthEndpoint = (url?: string): boolean => getPathFromUrl(url).startsWith("/auth/");
-
-const getServerMessage = (payload: unknown): string => {
-    if (!payload) {
-        return "";
-    }
-
-    if (typeof payload === "string") {
-        return payload.trim();
-    }
-
-    if (typeof payload === "object") {
-        const data = payload as Record<string, unknown>;
-        const candidates = [data.message, data.error, data.details, data.title];
-        for (const candidate of candidates) {
-            if (typeof candidate === "string" && candidate.trim().length > 0) {
-                return candidate.trim();
-            }
-        }
-    }
-
-    return "";
+const isPublicAuthEndpoint = (url?: string): boolean => {
+    const path = getPathFromUrl(url);
+    return path === "/auth/login"
+        || path === "/auth/register"
+        || path === "/auth/forgot-password"
+        || path === "/auth/refresh";
 };
 
-const looksLikeAuthenticationFailure = (
-    responseData: unknown,
-    responseHeaders: unknown
-): boolean => {
-    const message = getServerMessage(responseData).toLowerCase();
-    if (message) {
-        return AUTH_MESSAGE_MARKERS.some((marker) => message.includes(marker));
+const isPublicReadEndpoint = (url?: string, method?: string): boolean => {
+    const normalizedMethod = (method ?? "GET").toUpperCase();
+    if (!["GET", "HEAD", "OPTIONS"].includes(normalizedMethod)) {
+        return false;
     }
 
-    if (responseHeaders && typeof responseHeaders === "object") {
-        const headerValue = (responseHeaders as Record<string, unknown>)["www-authenticate"];
-        if (typeof headerValue === "string" && headerValue.toLowerCase().includes("bearer")) {
-            return true;
-        }
-    }
-
-    return false;
+    const path = getPathFromUrl(url);
+    return path.startsWith("/cars")
+        || path.startsWith("/content")
+        || path.startsWith("/contact");
 };
 
-const getUsableToken = (): string | null => {
-    const rawToken = localStorage.getItem("garizetu_token");
-
+const normalizeTokenValue = (rawToken: string | null | undefined): string | null => {
     if (!rawToken) {
         return null;
     }
 
-    const trimmedToken = rawToken.trim();
-    if (!trimmedToken || trimmedToken === "undefined" || trimmedToken === "null") {
+    let normalized = rawToken.trim();
+    if (
+        (normalized.startsWith("\"") && normalized.endsWith("\""))
+        || (normalized.startsWith("'") && normalized.endsWith("'"))
+    ) {
+        normalized = normalized.slice(1, -1).trim();
+    }
+
+    if (/^bearer\s+/i.test(normalized)) {
+        normalized = normalized.replace(/^bearer\s+/i, "").trim();
+    }
+
+    if (!normalized || normalized === "undefined" || normalized === "null") {
+        return null;
+    }
+
+    return normalized;
+};
+
+const getUsableToken = (): string | null => {
+    const rawToken = localStorage.getItem("garizetu_token");
+    if (rawToken === null) {
+        return null;
+    }
+
+    const normalizedToken = normalizeTokenValue(rawToken);
+    if (!normalizedToken) {
         clearAuthStorage();
         return null;
     }
 
-    return trimmedToken;
+    return normalizedToken;
 };
 
 const TOKEN_KEY = "garizetu_token";
@@ -172,7 +163,7 @@ const saveAuthDataFromLoginResponse = (payload: unknown): string | null => {
     }
 
     const data = payload as Record<string, unknown>;
-    const tokenValue = typeof data.token === "string" ? data.token.trim() : "";
+    const tokenValue = normalizeTokenValue(typeof data.token === "string" ? data.token : null);
     if (!tokenValue) {
         return null;
     }
@@ -258,7 +249,8 @@ const ensureFreshToken = async (token: string, force: boolean = false): Promise<
  */
 api.interceptors.request.use(
     async (config) => {
-        if (isAuthEndpoint(config.url)) {
+        if (isPublicAuthEndpoint(config.url)) {
+            (config as any)[AUTH_TOKEN_APPLIED_FLAG] = false;
             return config;
         }
 
@@ -280,6 +272,8 @@ api.interceptors.request.use(
             // Axios v1 uses AxiosHeaders with a .set() API
             applyAuthorizationHeader(config.headers as any, token);
         }
+
+        (config as any)[AUTH_TOKEN_APPLIED_FLAG] = Boolean(token);
 
         // Return the modified config so the request can proceed
         return config;
@@ -310,10 +304,12 @@ api.interceptors.response.use(
         // Check if the error is due to authentication failure
         if (error.response?.status === 401) {
             const requestUrl = error.config?.url;
-            const isNonAuthRequest = !isAuthEndpoint(requestUrl);
             const requestConfig = error.config as any;
+            const isPublicReadRequest = isPublicReadEndpoint(requestUrl, requestConfig?.method);
+            const shouldHandleAuthFailure = !isPublicAuthEndpoint(requestUrl) && !isPublicReadRequest;
+            const requestHadAuthToken = Boolean(requestConfig?.[AUTH_TOKEN_APPLIED_FLAG]);
 
-            if (isNonAuthRequest && requestConfig && !requestConfig._retry) {
+            if (shouldHandleAuthFailure && requestHadAuthToken && requestConfig && !requestConfig._retry) {
                 requestConfig._retry = true;
                 const token = getUsableToken();
                 if (token) {
@@ -323,17 +319,13 @@ api.interceptors.response.use(
                             requestConfig.headers = {};
                         }
                         applyAuthorizationHeader(requestConfig.headers, refreshedToken);
+                        requestConfig[AUTH_TOKEN_APPLIED_FLAG] = true;
                         return api.request(requestConfig);
                     }
                 }
             }
 
-            const shouldClearAuth =
-                isNonAuthRequest
-                && looksLikeAuthenticationFailure(error.response?.data, error.response?.headers);
-
-            // Only clear auth when the server response clearly indicates token/auth failure.
-            // This avoids logging users out for business-rule failures that are incorrectly sent as 401.
+            const shouldClearAuth = shouldHandleAuthFailure && requestHadAuthToken;
             if (shouldClearAuth) {
                 clearAuthStorage();
             }
