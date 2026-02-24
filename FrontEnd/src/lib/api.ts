@@ -123,13 +123,115 @@ const getUsableToken = (): string | null => {
 
     const trimmedToken = rawToken.trim();
     if (!trimmedToken || trimmedToken === "undefined" || trimmedToken === "null") {
-        localStorage.removeItem("garizetu_token");
-        localStorage.removeItem("garizetu_user");
-        emitAuthChanged();
+        clearAuthStorage();
         return null;
     }
 
     return trimmedToken;
+};
+
+const TOKEN_KEY = "garizetu_token";
+const USER_KEY = "garizetu_user";
+const TOKEN_REFRESH_THRESHOLD_MS = 120_000;
+let tokenRefreshPromise: Promise<string | null> | null = null;
+
+const clearAuthStorage = (): void => {
+    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(USER_KEY);
+    emitAuthChanged();
+};
+
+const decodeJwtExpiryMs = (token: string): number | null => {
+    try {
+        const payloadPart = token.split(".")[1];
+        if (!payloadPart) {
+            return null;
+        }
+        const normalized = payloadPart
+            .replace(/-/g, "+")
+            .replace(/_/g, "/");
+        const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "=");
+        const payload = JSON.parse(atob(padded)) as { exp?: unknown };
+        return typeof payload.exp === "number" ? payload.exp * 1000 : null;
+    } catch {
+        return null;
+    }
+};
+
+const isTokenExpiringSoon = (token: string): boolean => {
+    const expiryMs = decodeJwtExpiryMs(token);
+    if (!expiryMs) {
+        return false;
+    }
+    return expiryMs - Date.now() <= TOKEN_REFRESH_THRESHOLD_MS;
+};
+
+const saveAuthDataFromLoginResponse = (payload: unknown): string | null => {
+    if (!payload || typeof payload !== "object") {
+        return null;
+    }
+
+    const data = payload as Record<string, unknown>;
+    const tokenValue = typeof data.token === "string" ? data.token.trim() : "";
+    if (!tokenValue) {
+        return null;
+    }
+
+    localStorage.setItem(TOKEN_KEY, tokenValue);
+
+    const userInfo = {
+        userId: data.userId,
+        userName: data.userName,
+        email: data.email,
+        role: data.role,
+    };
+    localStorage.setItem(USER_KEY, JSON.stringify(userInfo));
+    emitAuthChanged();
+    return tokenValue;
+};
+
+const applyAuthorizationHeader = (headers: any, token: string): void => {
+    if (typeof headers?.set === "function") {
+        headers.set("Authorization", `Bearer ${token}`);
+        return;
+    }
+    headers.Authorization = `Bearer ${token}`;
+};
+
+const refreshAccessToken = async (token: string): Promise<string | null> => {
+    try {
+        const response = await axios.post(
+            `${BASE_URL}/api/v1/auth/refresh`,
+            null,
+            {
+                withCredentials: true,
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                },
+            }
+        );
+
+        return saveAuthDataFromLoginResponse(response.data);
+    } catch {
+        return null;
+    }
+};
+
+const ensureFreshToken = async (token: string, force: boolean = false): Promise<string | null> => {
+    if (!force && !isTokenExpiringSoon(token)) {
+        return token;
+    }
+
+    if (tokenRefreshPromise) {
+        return tokenRefreshPromise;
+    }
+
+    tokenRefreshPromise = refreshAccessToken(token)
+        .finally(() => {
+            tokenRefreshPromise = null;
+        });
+
+    return tokenRefreshPromise;
 };
 
 /**
@@ -155,14 +257,18 @@ const getUsableToken = (): string | null => {
  * - Keeps your code DRY (Don't Repeat Yourself)
  */
 api.interceptors.request.use(
-    (config) => {
+    async (config) => {
         if (isAuthEndpoint(config.url)) {
             return config;
         }
 
         // Get the token from localStorage
         // We use the same key that authService uses
-        const token = getUsableToken();
+        let token = getUsableToken();
+        if (token) {
+            const refreshedToken = await ensureFreshToken(token);
+            token = refreshedToken || getUsableToken();
+        }
 
         if (token) {
             // Add the Authorization header
@@ -172,11 +278,7 @@ api.interceptors.request.use(
             }
 
             // Axios v1 uses AxiosHeaders with a .set() API
-            if (typeof (config.headers as any).set === "function") {
-                (config.headers as any).set("Authorization", `Bearer ${token}`);
-            } else {
-                (config.headers as any).Authorization = `Bearer ${token}`;
-            }
+            applyAuthorizationHeader(config.headers as any, token);
         }
 
         // Return the modified config so the request can proceed
@@ -204,20 +306,36 @@ api.interceptors.response.use(
         // If response is successful (status 200-299), just return it
         return response;
     },
-    (error) => {
+    async (error) => {
         // Check if the error is due to authentication failure
         if (error.response?.status === 401) {
             const requestUrl = error.config?.url;
+            const isNonAuthRequest = !isAuthEndpoint(requestUrl);
+            const requestConfig = error.config as any;
+
+            if (isNonAuthRequest && requestConfig && !requestConfig._retry) {
+                requestConfig._retry = true;
+                const token = getUsableToken();
+                if (token) {
+                    const refreshedToken = await ensureFreshToken(token, true);
+                    if (refreshedToken) {
+                        if (!requestConfig.headers) {
+                            requestConfig.headers = {};
+                        }
+                        applyAuthorizationHeader(requestConfig.headers, refreshedToken);
+                        return api.request(requestConfig);
+                    }
+                }
+            }
+
             const shouldClearAuth =
-                !isAuthEndpoint(requestUrl)
+                isNonAuthRequest
                 && looksLikeAuthenticationFailure(error.response?.data, error.response?.headers);
 
             // Only clear auth when the server response clearly indicates token/auth failure.
             // This avoids logging users out for business-rule failures that are incorrectly sent as 401.
             if (shouldClearAuth) {
-                localStorage.removeItem("garizetu_token");
-                localStorage.removeItem("garizetu_user");
-                emitAuthChanged();
+                clearAuthStorage();
             }
         }
 

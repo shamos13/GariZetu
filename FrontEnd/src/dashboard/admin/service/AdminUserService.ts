@@ -1,4 +1,5 @@
 import { api } from "../../../lib/api.ts";
+import type { SpringPage } from "../../../lib/pagination.ts";
 
 export interface User {
     userId: number;
@@ -37,9 +38,11 @@ export const adminUserService = {
     /**
      * Get all users from the backend
      */
-    getAll: async (): Promise<User[]> => {
+    getAll: async (page: number = 0, size: number = 20): Promise<SpringPage<User>> => {
         try {
-            const response = await api.get<User[]>("/admin/users/allusers");
+            const response = await api.get<SpringPage<User>>("/admin/users/paged", {
+                params: { page, size },
+            });
             return response.data;
         } catch (error) {
             console.error("Failed to fetch users:", error);
@@ -63,9 +66,11 @@ export const adminUserService = {
     /**
      * Search users by name or email
      */
-    search: async (query: string): Promise<User[]> => {
+    search: async (query: string, page: number = 0, size: number = 20): Promise<SpringPage<User>> => {
         try {
-            const response = await api.get<User[]>(`/admin/users/search?query=${encodeURIComponent(query)}`);
+            const response = await api.get<SpringPage<User>>("/admin/users/search/paged", {
+                params: { query, page, size },
+            });
             return response.data;
         } catch (error) {
             console.error("Failed to search users:", error);

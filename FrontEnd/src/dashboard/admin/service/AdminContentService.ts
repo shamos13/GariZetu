@@ -1,5 +1,6 @@
 import { api } from "../../../lib/api.ts";
 import type { BrandLogoOverride, ContactSectionSettings } from "../../../services/SiteContentService.ts";
+import type { SpringPage } from "../../../lib/pagination.ts";
 
 export type ContactMessageStatus = "NEW" | "REPLIED" | "CLOSED";
 
@@ -91,9 +92,17 @@ export const adminContentService = {
         return response.data;
     },
 
-    getMessages: async (status?: ContactMessageStatus): Promise<AdminContactMessage[]> => {
-        const response = await api.get<AdminContactMessage[]>("/admin/contact/messages", {
-            params: status ? { status } : undefined,
+    getMessages: async (
+        status?: ContactMessageStatus,
+        page: number = 0,
+        size: number = 20
+    ): Promise<SpringPage<AdminContactMessage>> => {
+        const response = await api.get<SpringPage<AdminContactMessage>>("/admin/contact/messages/paged", {
+            params: {
+                ...(status ? { status } : {}),
+                page,
+                size,
+            },
         });
         return response.data;
     },
