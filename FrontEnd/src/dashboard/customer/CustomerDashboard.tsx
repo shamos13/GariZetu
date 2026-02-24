@@ -15,6 +15,7 @@ import {
     Edit,
     FileText,
     Gift,
+    Lock,
     Mail,
     MapPin,
     Phone,
@@ -81,6 +82,14 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
     const [isEditingProfile, setIsEditingProfile] = useState(false);
     const [isSavingProfile, setIsSavingProfile] = useState(false);
     const [profileFormError, setProfileFormError] = useState<string | null>(null);
+    const [passwordForm, setPasswordForm] = useState({
+        currentPassword: "",
+        newPassword: "",
+        confirmPassword: "",
+    });
+    const [passwordFormError, setPasswordFormError] = useState<string | null>(null);
+    const [passwordFormSuccess, setPasswordFormSuccess] = useState<string | null>(null);
+    const [isChangingPassword, setIsChangingPassword] = useState(false);
     const navigate = useNavigate();
     const user = authService.getUser();
     const isAuthenticated = authService.isAuthenticated();
@@ -541,6 +550,67 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
         setIsEditingProfile(false);
     };
 
+    const handlePasswordFieldChange = (field: "currentPassword" | "newPassword" | "confirmPassword", value: string) => {
+        setPasswordFormError(null);
+        setPasswordFormSuccess(null);
+        setPasswordForm((previous) => ({
+            ...previous,
+            [field]: value,
+        }));
+    };
+
+    const handleChangePassword = async () => {
+        const currentPassword = passwordForm.currentPassword;
+        const newPassword = passwordForm.newPassword;
+        const confirmPassword = passwordForm.confirmPassword;
+
+        if (!currentPassword) {
+            setPasswordFormError("Current password is required.");
+            return;
+        }
+
+        if (newPassword.length < 8) {
+            setPasswordFormError("New password must be at least 8 characters.");
+            return;
+        }
+
+        if (newPassword !== confirmPassword) {
+            setPasswordFormError("New password and confirm password do not match.");
+            return;
+        }
+
+        if (currentPassword === newPassword) {
+            setPasswordFormError("New password must be different from your current password.");
+            return;
+        }
+
+        try {
+            setIsChangingPassword(true);
+            setPasswordFormError(null);
+            setPasswordFormSuccess(null);
+
+            const response = await authService.changeMyPassword({
+                currentPassword,
+                newPassword,
+            });
+
+            setPasswordForm({
+                currentPassword: "",
+                newPassword: "",
+                confirmPassword: "",
+            });
+            const successMessage = response?.message || "Password updated successfully.";
+            setPasswordFormSuccess(successMessage);
+            toast.success(successMessage);
+        } catch (error) {
+            const resolvedError = getErrorMessage(error, "Could not update password. Please try again.");
+            setPasswordFormError(resolvedError);
+            toast.error(resolvedError);
+        } finally {
+            setIsChangingPassword(false);
+        }
+    };
+
     const renderDashboard = () => (
         <div className="space-y-6">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -953,6 +1023,84 @@ export default function CustomerDashboard({ onBack, initialPage = "dashboard" }:
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-[#1a1a1a] border-gray-800">
+                    <CardHeader>
+                        <CardTitle className="text-white text-xl">Security</CardTitle>
+                        <CardDescription className="text-gray-400">
+                            Change your account password.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        {passwordFormError && (
+                            <div className="mb-4 rounded-lg border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                                {passwordFormError}
+                            </div>
+                        )}
+                        {passwordFormSuccess && (
+                            <div className="mb-4 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-300">
+                                {passwordFormSuccess}
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                            <div>
+                                <p className="mb-2 text-sm text-gray-400">Current Password</p>
+                                <div className="relative">
+                                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                                    <input
+                                        type="password"
+                                        value={passwordForm.currentPassword}
+                                        onChange={(event) => handlePasswordFieldChange("currentPassword", event.target.value)}
+                                        className="w-full rounded-lg border border-gray-700 bg-[#121212] py-2 pl-10 pr-3 text-sm text-white outline-none focus:border-emerald-500"
+                                        placeholder="Current password"
+                                        autoComplete="current-password"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <p className="mb-2 text-sm text-gray-400">New Password</p>
+                                <div className="relative">
+                                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                                    <input
+                                        type="password"
+                                        value={passwordForm.newPassword}
+                                        onChange={(event) => handlePasswordFieldChange("newPassword", event.target.value)}
+                                        className="w-full rounded-lg border border-gray-700 bg-[#121212] py-2 pl-10 pr-3 text-sm text-white outline-none focus:border-emerald-500"
+                                        placeholder="New password"
+                                        autoComplete="new-password"
+                                    />
+                                </div>
+                            </div>
+
+                            <div>
+                                <p className="mb-2 text-sm text-gray-400">Confirm Password</p>
+                                <div className="relative">
+                                    <Lock className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                                    <input
+                                        type="password"
+                                        value={passwordForm.confirmPassword}
+                                        onChange={(event) => handlePasswordFieldChange("confirmPassword", event.target.value)}
+                                        className="w-full rounded-lg border border-gray-700 bg-[#121212] py-2 pl-10 pr-3 text-sm text-white outline-none focus:border-emerald-500"
+                                        placeholder="Confirm new password"
+                                        autoComplete="new-password"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="mt-5 flex justify-end">
+                            <Button
+                                onClick={() => void handleChangePassword()}
+                                disabled={isChangingPassword}
+                                className="bg-emerald-500 hover:bg-emerald-600 text-white"
+                            >
+                                {isChangingPassword ? "Updating..." : "Update Password"}
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>

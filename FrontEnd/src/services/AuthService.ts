@@ -40,6 +40,11 @@ export interface LoginResponse {
     role: string;       // "ADMIN" or "CUSTOMER"
 }
 
+export interface ChangePasswordRequest {
+    currentPassword: string;
+    newPassword: string;
+}
+
 // ========================
 // TOKEN MANAGEMENT
 // ========================
@@ -229,6 +234,22 @@ const login = async (data: LoginRequest): Promise<LoginResponse> => {
     }
 };
 
+const changeMyPassword = async (data: ChangePasswordRequest): Promise<{ message?: string }> => {
+    try {
+        const response = await api.patch<{ message?: string }>("/users/me/password", data);
+        return response.data;
+    } catch (error: any) {
+        const payload = error.response?.data;
+        if (typeof payload === "string" && payload.trim()) {
+            throw new Error(payload.trim());
+        }
+        if (payload?.message && typeof payload.message === "string") {
+            throw new Error(payload.message);
+        }
+        throw new Error("Password reset failed. Please try again.");
+    }
+};
+
 /**
  * Log out the current user
  *
@@ -255,6 +276,7 @@ export const authService = {
     // API calls
     register,
     login,
+    changeMyPassword,
     logout,
 
     // Token management

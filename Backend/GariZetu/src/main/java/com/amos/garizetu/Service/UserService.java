@@ -285,6 +285,34 @@ public class UserService {
         return userMapper.toUserResponseDTO(savedUser);
     }
 
+    public void changePassword(Long userId, String currentPassword, String newPassword) {
+        log.info("Changing password for user {}", userId);
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+
+        if (currentPassword == null || currentPassword.isBlank()) {
+            throw new RuntimeException("Current password is required.");
+        }
+
+        if (newPassword == null || newPassword.length() < 8) {
+            throw new RuntimeException("New password must be at least 8 characters.");
+        }
+
+        if (!passwordEncoder.matches(currentPassword, user.getHashedPassword())) {
+            throw new RuntimeException("Current password is incorrect.");
+        }
+
+        if (passwordEncoder.matches(newPassword, user.getHashedPassword())) {
+            throw new RuntimeException("New password must be different from the current password.");
+        }
+
+        user.setHashedPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
+
+        log.info("Password updated successfully for user {}", userId);
+    }
+
     // Change User Role
     // Promote customer to admin or demote admin to customer
     public UserResponseDTO changeUserRole(Long userId, UserRole newRole){
