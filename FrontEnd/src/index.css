@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Playball&family=Playfair+Display:wght@600;700;800&display=swap");
 @import "tailwindcss";
 
 /* Custom CSS Variables */
@@ -200,6 +201,14 @@ html {
 }
 
 @layer components {
+  .font-playfair-display {
+    font-family: "Playfair Display", "Times New Roman", serif;
+  }
+
+  .font-playball {
+    font-family: "Playball", cursive;
+  }
+
   .layout-container {
     @apply mx-auto w-full max-w-[1200px] px-3 sm:px-4 md:px-6;
   }

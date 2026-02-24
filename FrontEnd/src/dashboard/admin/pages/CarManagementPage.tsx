@@ -27,6 +27,7 @@ import {
 } from "../../../components/ui/dropdown-menu.tsx";
 import { getImageUrl } from "../../../lib/ImageUtils.ts";
 import { AdminCarDetailsModal } from "../components/AdminCarDetailsModal.tsx";
+import { toast } from "sonner";
 
 interface CarManagementPageProps {
     cars: Car[];
@@ -49,10 +50,20 @@ export function CarManagementPage({ cars, onAdd, onEdit, onDelete, onStatusChang
     };
 
     const clearFilters = () => {
+        const hadFilters =
+            searchQuery.trim().length > 0 ||
+            statusFilter !== "all" ||
+            bodyTypeFilter !== "all" ||
+            transmissionFilter !== "all";
+
         setSearchQuery("");
         setStatusFilter("all");
         setBodyTypeFilter("all");
         setTransmissionFilter("all");
+
+        if (hadFilters) {
+            toast.success("Fleet filters cleared.");
+        }
     };
 
     const bodyTypeOptions = useMemo(
@@ -106,7 +117,10 @@ export function CarManagementPage({ cars, onAdd, onEdit, onDelete, onStatusChang
     };
 
     const handleExport = () => {
-        if (filteredCars.length === 0) return;
+        if (filteredCars.length === 0) {
+            toast.info("No vehicles match your current filters.");
+            return;
+        }
 
         const headers = [
             "ID",
@@ -149,6 +163,7 @@ export function CarManagementPage({ cars, onAdd, onEdit, onDelete, onStatusChang
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
+        toast.success(`Exported ${filteredCars.length} vehicle${filteredCars.length === 1 ? "" : "s"} to CSV.`);
     };
 
     const getStatusConfig = (status: CarStatus) => {

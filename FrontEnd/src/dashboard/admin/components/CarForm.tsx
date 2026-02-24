@@ -7,6 +7,7 @@ import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "../
 import {Plus, Upload, X, Search, Check} from "lucide-react";
 import { getImageUrl } from "../../../lib/ImageUtils.ts";
 import { api } from "../../../lib/api.ts";
+import { toast } from "sonner";
 
 export type CarFormData = {
     make: string;
@@ -158,6 +159,7 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
     const [featureSearch, setFeatureSearch] = useState("");
     const [isLoadingFeatures, setIsLoadingFeatures] = useState(false);
     const [isCreatingFeature, setIsCreatingFeature] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [showFeatureDropdown, setShowFeatureDropdown] = useState(false);
     const selectedFeatureNameSet = useMemo(
         () => new Set(selectedFeatures.map((feature) => normalizeFeatureName(feature))),
@@ -311,7 +313,7 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
             setShowFeatureDropdown(false);
         } catch (error) {
             console.error("Failed to create feature:", error);
-            alert("Failed to create feature. It will be added when you save the car.");
+            toast.error("Failed to create feature. It will be added when you save the car.");
             // Still add it locally
             addFeature(featureName.trim());
             setFeatureSearch("");
@@ -320,42 +322,45 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
         }
     };
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (isSubmitting) {
+            return;
+        }
 
         const isEdit = !!car;
 
         // For create, require an image; for edit, image is optional
         if (!isEdit && !selectedImage) {
-            alert("Please select a car image");
+            toast.error("Please select a car image.");
             return;
         }
 
         // Optional: Only validate max length if description is provided
         if (formData.description && formData.description.length > 1000) {
-            alert("Description must not exceed 1000 characters");
+            toast.error("Description must not exceed 1000 characters.");
             return;
         }
 
         // Ensure number fields are valid (not 0 or empty)
         if (!formData.year || formData.year === 0) {
-            alert("Please enter a valid year");
+            toast.error("Please enter a valid year.");
             return;
         }
         if (!formData.engineCapacity || formData.engineCapacity === 0) {
-            alert("Please enter a valid engine capacity");
+            toast.error("Please enter a valid engine capacity.");
             return;
         }
         if (formData.mileage === undefined || formData.mileage === null) {
-            alert("Please enter mileage");
+            toast.error("Please enter mileage.");
             return;
         }
         if (!formData.dailyPrice || formData.dailyPrice === 0) {
-            alert("Please enter a valid daily price");
+            toast.error("Please enter a valid daily price.");
             return;
         }
         if (!formData.seatingCapacity || formData.seatingCapacity === 0) {
-            alert("Please enter a valid seating capacity");
+            toast.error("Please enter a valid seating capacity.");
             return;
         }
 
@@ -366,11 +371,16 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
             galleryImageUrls: existingGalleryUrls
         };
 
-        onSubmit(dataToSubmit, selectedImage, {
-            newImages: pendingGalleryImages.map((item) => item.file),
-            existingUrls: existingGalleryUrls,
-            hasChanges: hasGalleryChanges
-        });
+        try {
+            setIsSubmitting(true);
+            await onSubmit(dataToSubmit, selectedImage, {
+                newImages: pendingGalleryImages.map((item) => item.file),
+                existingUrls: existingGalleryUrls,
+                hasChanges: hasGalleryChanges
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handleChange = (field: keyof CarFormData, value: string | number | string[]) => {
@@ -389,13 +399,13 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
 
         if (file) {
             if (!file.type.startsWith('image')) {
-                alert("Please select an image file");
+                toast.error("Please select an image file.");
                 return;
             }
 
             const maxSize = 10 * 1024 * 1024;
             if (file.size > maxSize) {
-                alert("Image size must be less than 10mb");
+                toast.error("Image size must be less than 10MB.");
                 return;
             }
 
@@ -414,14 +424,14 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
 
         const invalidFile = files.find((file) => !file.type.startsWith("image"));
         if (invalidFile) {
-            alert("Please select only image files");
+            toast.error("Please select only image files.");
             return;
         }
 
         const maxSize = 10 * 1024 * 1024;
         const oversized = files.find((file) => file.size > maxSize);
         if (oversized) {
-            alert("Each image must be less than 10mb");
+            toast.error("Each image must be less than 10MB.");
             return;
         }
 
@@ -535,7 +545,7 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
             return;
         }
         if (selectedFeatureNameSet.has(normalizeFeatureName(trimmed))) {
-            alert("This feature is already selected");
+            toast.info("This feature is already selected.");
             return;
         }
         if (exactMatch) {
@@ -1313,12 +1323,20 @@ export function CarForm({ car, onSubmit, onCancel }: CarFormProps) {
                     type="button"
                     variant="outline"
                     onClick={onCancel}
+                    disabled={isSubmitting}
                     className="bg-transparent border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
                 >
                     Cancel
                 </Button>
-                <Button type="submit" className="bg-white text-black hover:bg-gray-200">
-                    {car ? "Update Car" : "Add Car"}
+                <Button type="submit" disabled={isSubmitting} className="bg-white text-black hover:bg-gray-200">
+                    {isSubmitting ? (
+                        <>
+                            <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-black border-t-transparent" />
+                            {car ? "Updating..." : "Adding..."}
+                        </>
+                    ) : (
+                        car ? "Update Car" : "Add Car"
+                    )}
                 </Button>
             </div>
         </form>
