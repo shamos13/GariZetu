@@ -1,0 +1,21 @@
+Index: Backend/GariZetu/src/main/resources/application.yml
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>server:\n  port: ${PORT:8080}\n\nspring:\n  config:\n    import:\n      # Support running from project root, backend module root, or IDE custom cwd.\n      - optional:file:.env[.properties]\n      - optional:file:./Backend/GariZetu/.env[.properties]\n      - optional:file:../.env[.properties]\n\n  application:\n    name: GariZetu\n\n  datasource:\n    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/garizetu}\n    username: ${DATABASE_USERNAME:postgres}\n    password: ${DATABASE_PASSWORD:postgres}\n    driver-class-name: org.postgresql.Driver\n\n  jpa:\n    hibernate:\n      ddl-auto: ${JPA_DDL_AUTO:update}\n    show-sql: ${JPA_SHOW_SQL:false}\n    properties:\n      hibernate:\n        format_sql: true\n    database: postgresql\n\n  servlet:\n    multipart:\n      enabled: true\n      max-file-size: 10MB\n      max-request-size: 25MB\n\nfile:\n  upload:\n    directory: ${FILE_UPLOAD_DIR:${user.home}/garizetu/uploads}\n\ncloudinary:\n  cloud-name: ${CLOUDINARY_CLOUD_NAME:}\n  api-key: ${CLOUDINARY_API_KEY:}\n  api-secret: ${CLOUDINARY_API_SECRET:}\n\njwt:\n  secret: ${JWT_SECRET:change-this-to-a-strong-32-character-minimum-secret}\n  expiration: ${JWT_EXPIRATION_MS:86400000}\n\napp:\n  cors:\n    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}\n\nbooking:\n  payment-window-minutes: 15\n  expiry-scan-ms: 60000\n
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/Backend/GariZetu/src/main/resources/application.yml b/Backend/GariZetu/src/main/resources/application.yml
+--- a/Backend/GariZetu/src/main/resources/application.yml	(revision 6501c8fa97bf7dc76c9dc3fe75cd5398fac26863)
++++ b/Backend/GariZetu/src/main/resources/application.yml	(date 1771930628684)
+@@ -14,8 +14,8 @@
+ 
+   datasource:
+     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/garizetu}
+-    username: ${DATABASE_USERNAME:postgres}
+-    password: ${DATABASE_PASSWORD:postgres}
++    username: ${DATABASE_USERNAME:cfreak97}
++    password: ${DATABASE_PASSWORD:tarak#23h!}
+     driver-class-name: org.postgresql.Driver
+ 
+   jpa:

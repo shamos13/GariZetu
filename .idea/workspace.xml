@@ -1,0 +1,508 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="243c555a-7e38-4577-83d7-ef12ef4af558" name="Changes" comment="Deployment optimizations" />
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="EmbeddingIndexingInfo">
+    <option name="cachedIndexableFilesCount" value="100" />
+    <option name="fileBasedEmbeddingIndicesEnabled" value="true" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="main" />
+      </map>
+    </option>
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory">{
+  &quot;lastFilter&quot;: {
+    &quot;state&quot;: &quot;OPEN&quot;,
+    &quot;assignee&quot;: &quot;shamos13&quot;
+  }
+}</component>
+  <component name="GithubPullRequestsUISettings">{
+  &quot;selectedUrlAndAccountId&quot;: {
+    &quot;url&quot;: &quot;https://github.com/shamos13/GariZetu.git&quot;,
+    &quot;accountId&quot;: &quot;aaf572fb-c6b4-4281-8961-49d22162f459&quot;
+  },
+  &quot;recentNewPullRequestHead&quot;: {
+    &quot;server&quot;: {
+      &quot;useHttp&quot;: false,
+      &quot;host&quot;: &quot;github.com&quot;,
+      &quot;port&quot;: null,
+      &quot;suffix&quot;: null
+    },
+    &quot;owner&quot;: &quot;shamos13&quot;,
+    &quot;repository&quot;: &quot;GariZetu&quot;
+  }
+}</component>
+  <component name="MavenImportPreferences">
+    <option name="generalSettings">
+      <MavenGeneralSettings>
+        <option name="mavenHomeTypeForPersistence" value="WRAPPER" />
+      </MavenGeneralSettings>
+    </option>
+  </component>
+  <component name="McpProjectServerCommands">
+    <commands />
+    <urls />
+  </component>
+  <component name="ProjectColorInfo">{
+  &quot;associatedIndex&quot;: 7
+}</component>
+  <component name="ProjectId" id="39x4gGumlC6P7d8yiRJrrTVPK68" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ASKED_SHARE_PROJECT_CONFIGURATION_FILES&quot;: &quot;true&quot;,
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Notification.DisplayName-DoNotAsk-DatabaseConfigFileWatcher.found&quot;: &quot;New/updated database configurations found&quot;,
+    &quot;Notification.DoNotAsk-DatabaseConfigFileWatcher.found&quot;: &quot;true&quot;,
+    &quot;RequestMappingsPanelOrder0&quot;: &quot;0&quot;,
+    &quot;RequestMappingsPanelOrder1&quot;: &quot;1&quot;,
+    &quot;RequestMappingsPanelWidth0&quot;: &quot;75&quot;,
+    &quot;RequestMappingsPanelWidth1&quot;: &quot;75&quot;,
+    &quot;RunOnceActivity.MCP Project settings loaded&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;Spring Boot.GariZetuApplication.executor&quot;: &quot;Run&quot;,
+    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
+    &quot;last_opened_file_path&quot;: &quot;/home/cfreak97/Desktop/GariZetu_Project&quot;,
+    &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
+    &quot;node.js.detected.package.tslint&quot;: &quot;true&quot;,
+    &quot;node.js.selected.package.eslint&quot;: &quot;(autodetect)&quot;,
+    &quot;node.js.selected.package.tslint&quot;: &quot;(autodetect)&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;ml.llm.LLMConfigurable&quot;,
+    &quot;ts.external.directory.path&quot;: &quot;/home/cfreak97/Desktop/GariZetu_Project/FrontEnd/node_modules/typescript/lib&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
+  }
+}</component>
+  <component name="RunManager">
+    <configuration name="GariZetuApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot" nameIsGenerated="true">
+      <option name="ALTERNATIVE_JRE_PATH" value="21" />
+      <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
+      <option name="SPRING_BOOT_MAIN_CLASS" value="com.amos.garizetu.GariZetuApplication" />
+      <extension name="net.ashald.envfile">
+        <option name="IS_ENABLED" value="false" />
+        <option name="IS_SUBST" value="false" />
+        <option name="IS_PATH_MACRO_SUPPORTED" value="false" />
+        <option name="IS_IGNORE_MISSING_FILES" value="false" />
+        <option name="IS_ENABLE_EXPERIMENTAL_INTEGRATIONS" value="false" />
+        <ENTRIES>
+          <ENTRY IS_ENABLED="true" PARSER="runconfig" IS_EXECUTABLE="false" />
+        </ENTRIES>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+  </component>
+  <component name="SharedIndexes">
+    <attachedChunks>
+      <set>
+        <option value="bundled-jdk-30f59d01ecdd-2fc7cc6b9a17-intellij.indexing.shared.core-IU-253.30387.90" />
+        <option value="bundled-js-predefined-d6986cc7102b-9b0f141eb926-JavaScript-IU-253.30387.90" />
+      </set>
+    </attachedChunks>
+  </component>
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="243c555a-7e38-4577-83d7-ef12ef4af558" name="Changes" comment="" />
+      <created>1771624497576</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1771624497576</updated>
+      <workItem from="1771624498856" duration="4807000" />
+      <workItem from="1771693394359" duration="1330000" />
+      <workItem from="1771696004024" duration="2000" />
+      <workItem from="1771703465975" duration="9920000" />
+      <workItem from="1771840961083" duration="617000" />
+      <workItem from="1771845182861" duration="4163000" />
+      <workItem from="1771851662106" duration="29838000" />
+      <workItem from="1771886162749" duration="1047000" />
+      <workItem from="1771887247496" duration="1595000" />
+      <workItem from="1771889090603" duration="1982000" />
+      <workItem from="1771927887997" duration="701000" />
+      <workItem from="1771929251219" duration="1446000" />
+      <workItem from="1771930717642" duration="157000" />
+    </task>
+    <task id="LOCAL-00001" summary="IDE settings">
+      <option name="closed" value="true" />
+      <created>1771626481419</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1771626481419</updated>
+    </task>
+    <task id="LOCAL-00002" summary="MAde sure API endpoints are correctly routed and updated forthe backend">
+      <option name="closed" value="true" />
+      <created>1771626521118</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1771626521118</updated>
+    </task>
+    <task id="LOCAL-00003" summary="MAde sure API endpoints are correctly routed and updated forthe backend">
+      <option name="closed" value="true" />
+      <created>1771626538868</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1771626538868</updated>
+    </task>
+    <task id="LOCAL-00004" summary="Added a contact endpoint for sending messages,">
+      <option name="closed" value="true" />
+      <created>1771626569755</created>
+      <option name="number" value="00004" />
+      <option name="presentableId" value="LOCAL-00004" />
+      <option name="project" value="LOCAL" />
+      <updated>1771626569755</updated>
+    </task>
+    <task id="LOCAL-00005" summary="FrontEnd refactoring">
+      <option name="closed" value="true" />
+      <created>1771628699914</created>
+      <option name="number" value="00005" />
+      <option name="presentableId" value="LOCAL-00005" />
+      <option name="project" value="LOCAL" />
+      <updated>1771628699914</updated>
+    </task>
+    <task id="LOCAL-00006" summary="FrontEnd refactoring">
+      <option name="closed" value="true" />
+      <created>1771706260016</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
+      <option name="project" value="LOCAL" />
+      <updated>1771706260016</updated>
+    </task>
+    <task id="LOCAL-00007" summary="FrontEnd refactoring">
+      <option name="closed" value="true" />
+      <created>1771710439304</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
+      <option name="project" value="LOCAL" />
+      <updated>1771710439304</updated>
+    </task>
+    <task id="LOCAL-00008" summary="FrontEnd refactoring">
+      <option name="closed" value="true" />
+      <created>1771710448964</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
+      <option name="project" value="LOCAL" />
+      <updated>1771710448964</updated>
+    </task>
+    <task id="LOCAL-00009" summary="FrontEnd refactoring">
+      <option name="closed" value="true" />
+      <created>1771710457422</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
+      <option name="project" value="LOCAL" />
+      <updated>1771710457422</updated>
+    </task>
+    <task id="LOCAL-00010" summary="FrontEnd refactoring">
+      <option name="closed" value="true" />
+      <created>1771710464697</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1771710464697</updated>
+    </task>
+    <task id="LOCAL-00011" summary="FrontEnd refactoring">
+      <option name="closed" value="true" />
+      <created>1771711303527</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
+      <option name="project" value="LOCAL" />
+      <updated>1771711303527</updated>
+    </task>
+    <task id="LOCAL-00012" summary="Fixed modal">
+      <option name="closed" value="true" />
+      <created>1771714593430</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
+      <option name="project" value="LOCAL" />
+      <updated>1771714593430</updated>
+    </task>
+    <task id="LOCAL-00013" summary="Implemented gallery upload">
+      <option name="closed" value="true" />
+      <created>1771853078919</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
+      <option name="project" value="LOCAL" />
+      <updated>1771853078920</updated>
+    </task>
+    <task id="LOCAL-00014" summary="Fixed nav issues">
+      <option name="closed" value="true" />
+      <created>1771853091469</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
+      <option name="project" value="LOCAL" />
+      <updated>1771853091469</updated>
+    </task>
+    <task id="LOCAL-00015" summary="Fixed Z-index issue">
+      <option name="closed" value="true" />
+      <created>1771853102795</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
+      <option name="project" value="LOCAL" />
+      <updated>1771853102795</updated>
+    </task>
+    <task id="LOCAL-00016" summary="image gallery upload">
+      <option name="closed" value="true" />
+      <created>1771853131341</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
+      <option name="project" value="LOCAL" />
+      <updated>1771853131341</updated>
+    </task>
+    <task id="LOCAL-00017" summary="image gallery upload`">
+      <option name="closed" value="true" />
+      <created>1771853167318</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1771853167318</updated>
+    </task>
+    <task id="LOCAL-00018" summary="Mobile responsiveness">
+      <option name="closed" value="true" />
+      <created>1771853865224</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
+      <option name="project" value="LOCAL" />
+      <updated>1771853865224</updated>
+    </task>
+    <task id="LOCAL-00019" summary="Mobile responsiveness: Fixed layout">
+      <option name="closed" value="true" />
+      <created>1771853883358</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
+      <option name="project" value="LOCAL" />
+      <updated>1771853883358</updated>
+    </task>
+    <task id="LOCAL-00020" summary="Mobile responsiveness: Fixed layout">
+      <option name="closed" value="true" />
+      <created>1771853891278</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1771853891278</updated>
+    </task>
+    <task id="LOCAL-00021" summary="Mobile responsiveness: Fixed layout">
+      <option name="closed" value="true" />
+      <created>1771854250571</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
+      <option name="project" value="LOCAL" />
+      <updated>1771854250571</updated>
+    </task>
+    <task id="LOCAL-00022" summary="Added a featured category">
+      <option name="closed" value="true" />
+      <created>1771855358334</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
+      <option name="project" value="LOCAL" />
+      <updated>1771855358334</updated>
+    </task>
+    <task id="LOCAL-00023" summary="Improved on gallery section">
+      <option name="closed" value="true" />
+      <created>1771856149918</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
+      <option name="project" value="LOCAL" />
+      <updated>1771856149918</updated>
+    </task>
+    <task id="LOCAL-00024" summary="Improved on gallery section">
+      <option name="closed" value="true" />
+      <created>1771856164307</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
+      <option name="project" value="LOCAL" />
+      <updated>1771856164307</updated>
+    </task>
+    <task id="LOCAL-00025" summary="Improved on gallery section">
+      <option name="closed" value="true" />
+      <created>1771858971269</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
+      <option name="project" value="LOCAL" />
+      <updated>1771858971269</updated>
+    </task>
+    <task id="LOCAL-00026" summary="Improved on gallery section">
+      <option name="closed" value="true" />
+      <created>1771858980482</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
+      <option name="project" value="LOCAL" />
+      <updated>1771858980482</updated>
+    </task>
+    <task id="LOCAL-00027" summary="Improved on gallery section">
+      <option name="closed" value="true" />
+      <created>1771858986291</created>
+      <option name="number" value="00027" />
+      <option name="presentableId" value="LOCAL-00027" />
+      <option name="project" value="LOCAL" />
+      <updated>1771858986291</updated>
+    </task>
+    <task id="LOCAL-00028" summary="Improving the booking module">
+      <option name="closed" value="true" />
+      <created>1771866759439</created>
+      <option name="number" value="00028" />
+      <option name="presentableId" value="LOCAL-00028" />
+      <option name="project" value="LOCAL" />
+      <updated>1771866759439</updated>
+    </task>
+    <task id="LOCAL-00029" summary="Improving the booking module">
+      <option name="closed" value="true" />
+      <created>1771866771117</created>
+      <option name="number" value="00029" />
+      <option name="presentableId" value="LOCAL-00029" />
+      <option name="project" value="LOCAL" />
+      <updated>1771866771117</updated>
+    </task>
+    <task id="LOCAL-00030" summary="Improving the booking module">
+      <option name="closed" value="true" />
+      <created>1771866781147</created>
+      <option name="number" value="00030" />
+      <option name="presentableId" value="LOCAL-00030" />
+      <option name="project" value="LOCAL" />
+      <updated>1771866781147</updated>
+    </task>
+    <task id="LOCAL-00031" summary="Improving the booking module">
+      <option name="closed" value="true" />
+      <created>1771866834076</created>
+      <option name="number" value="00031" />
+      <option name="presentableId" value="LOCAL-00031" />
+      <option name="project" value="LOCAL" />
+      <updated>1771866834076</updated>
+    </task>
+    <task id="LOCAL-00032" summary="Improving the booking module">
+      <option name="closed" value="true" />
+      <created>1771866885530</created>
+      <option name="number" value="00032" />
+      <option name="presentableId" value="LOCAL-00032" />
+      <option name="project" value="LOCAL" />
+      <updated>1771866885530</updated>
+    </task>
+    <task id="LOCAL-00033" summary="Improving the booking module">
+      <option name="closed" value="true" />
+      <created>1771880881261</created>
+      <option name="number" value="00033" />
+      <option name="presentableId" value="LOCAL-00033" />
+      <option name="project" value="LOCAL" />
+      <updated>1771880881261</updated>
+    </task>
+    <task id="LOCAL-00034" summary="Improving the booking module">
+      <option name="closed" value="true" />
+      <created>1771880890934</created>
+      <option name="number" value="00034" />
+      <option name="presentableId" value="LOCAL-00034" />
+      <option name="project" value="LOCAL" />
+      <updated>1771880890934</updated>
+    </task>
+    <task id="LOCAL-00035" summary="Improving the booking module">
+      <option name="closed" value="true" />
+      <created>1771880897536</created>
+      <option name="number" value="00035" />
+      <option name="presentableId" value="LOCAL-00035" />
+      <option name="project" value="LOCAL" />
+      <updated>1771880897536</updated>
+    </task>
+    <task id="LOCAL-00036" summary="Improving the booking module">
+      <option name="closed" value="true" />
+      <created>1771880904403</created>
+      <option name="number" value="00036" />
+      <option name="presentableId" value="LOCAL-00036" />
+      <option name="project" value="LOCAL" />
+      <updated>1771880904403</updated>
+    </task>
+    <task id="LOCAL-00037" summary="Improving the booking module">
+      <option name="closed" value="true" />
+      <created>1771880929844</created>
+      <option name="number" value="00037" />
+      <option name="presentableId" value="LOCAL-00037" />
+      <option name="project" value="LOCAL" />
+      <updated>1771880929844</updated>
+    </task>
+    <task id="LOCAL-00038" summary="Improving the booking module">
+      <option name="closed" value="true" />
+      <created>1771882361180</created>
+      <option name="number" value="00038" />
+      <option name="presentableId" value="LOCAL-00038" />
+      <option name="project" value="LOCAL" />
+      <updated>1771882361180</updated>
+    </task>
+    <task id="LOCAL-00039" summary="Deployment optimizations">
+      <option name="closed" value="true" />
+      <created>1771884180497</created>
+      <option name="number" value="00039" />
+      <option name="presentableId" value="LOCAL-00039" />
+      <option name="project" value="LOCAL" />
+      <updated>1771884180497</updated>
+    </task>
+    <task id="LOCAL-00040" summary="Deployment optimizations">
+      <option name="closed" value="true" />
+      <created>1771884192440</created>
+      <option name="number" value="00040" />
+      <option name="presentableId" value="LOCAL-00040" />
+      <option name="project" value="LOCAL" />
+      <updated>1771884192440</updated>
+    </task>
+    <task id="LOCAL-00041" summary="Deployment optimizations">
+      <option name="closed" value="true" />
+      <created>1771890206817</created>
+      <option name="number" value="00041" />
+      <option name="presentableId" value="LOCAL-00041" />
+      <option name="project" value="LOCAL" />
+      <updated>1771890206817</updated>
+    </task>
+    <task id="LOCAL-00042" summary="Deployment optimizations">
+      <option name="closed" value="true" />
+      <created>1771927980578</created>
+      <option name="number" value="00042" />
+      <option name="presentableId" value="LOCAL-00042" />
+      <option name="project" value="LOCAL" />
+      <updated>1771927980579</updated>
+    </task>
+    <option name="localTasksCounter" value="43" />
+    <servers />
+  </component>
+  <component name="TypeScriptGeneratedFilesManager">
+    <option name="version" value="3" />
+  </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="IDE settings" />
+    <MESSAGE value="MAde sure API endpoints are correctly routed and updated forthe backend" />
+    <MESSAGE value="Added a contact endpoint for sending messages," />
+    <MESSAGE value="FrontEnd refactoring" />
+    <MESSAGE value="Fixed modal" />
+    <MESSAGE value="Implemented gallery upload" />
+    <MESSAGE value="Fixed nav issues" />
+    <MESSAGE value="Fixed Z-index issue" />
+    <MESSAGE value="image gallery upload" />
+    <MESSAGE value="image gallery upload`" />
+    <MESSAGE value="Mobile responsiveness" />
+    <MESSAGE value="Mobile responsiveness: Fixed layout" />
+    <MESSAGE value="Added a featured category" />
+    <MESSAGE value="Improved on gallery section" />
+    <MESSAGE value="Improving the booking module" />
+    <MESSAGE value="Deployment optimizations" />
+    <option name="LAST_COMMIT_MESSAGE" value="Deployment optimizations" />
+  </component>
+  <component name="XSLT-Support.FileAssociations.UIState">
+    <expand />
+    <select />
+  </component>
+</project>
