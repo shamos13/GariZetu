@@ -45,6 +45,11 @@ export interface ChangePasswordRequest {
     newPassword: string;
 }
 
+export interface ForgotPasswordRequest {
+    email: string;
+    newPassword: string;
+}
+
 // ========================
 // TOKEN MANAGEMENT
 // ========================
@@ -250,6 +255,22 @@ const changeMyPassword = async (data: ChangePasswordRequest): Promise<{ message?
     }
 };
 
+const forgotPassword = async (data: ForgotPasswordRequest): Promise<{ message?: string }> => {
+    try {
+        const response = await api.post<{ message?: string }>("/auth/forgot-password", data);
+        return response.data;
+    } catch (error: any) {
+        const payload = error.response?.data;
+        if (typeof payload === "string" && payload.trim()) {
+            throw new Error(payload.trim());
+        }
+        if (payload?.message && typeof payload.message === "string") {
+            throw new Error(payload.message);
+        }
+        throw new Error("Forgot password request failed. Please try again.");
+    }
+};
+
 /**
  * Log out the current user
  *
@@ -276,6 +297,7 @@ export const authService = {
     // API calls
     register,
     login,
+    forgotPassword,
     changeMyPassword,
     logout,
 

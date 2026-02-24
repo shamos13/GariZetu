@@ -1,6 +1,7 @@
 package com.amos.garizetu.User;
 
 import com.amos.garizetu.Service.UserService;
+import com.amos.garizetu.User.DTO.Request.ForgotPasswordRequest;
 import com.amos.garizetu.User.DTO.Request.UserLoginRequest;
 import com.amos.garizetu.User.DTO.Request.UserRegistrationRequest;
 import com.amos.garizetu.User.DTO.Response.LoginResponse;
@@ -13,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/v1/auth")
@@ -53,6 +55,19 @@ public class AuthController {
             // if Email not found or password incorrect
             log.error("Error logging in user: {}", e.getMessage());
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(e.getMessage());
+        }
+    }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<?> forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        log.info("Forgot-password request received for email: {}", request.getEmail());
+
+        try {
+            userService.resetPasswordByEmail(request.getEmail(), request.getNewPassword());
+            return ResponseEntity.ok(Map.of("message", "Password reset successful. You can now sign in."));
+        } catch (RuntimeException exception) {
+            log.warn("Forgot-password failed for {}: {}", request.getEmail(), exception.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of("message", exception.getMessage()));
         }
     }
 

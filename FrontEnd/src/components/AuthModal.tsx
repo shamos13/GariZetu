@@ -23,6 +23,8 @@ import { authService } from "../services/AuthService";
 import type { RegisterRequest, LoginRequest } from "../services/AuthService";
 import heroImage from "../assets/hero.png";
 
+type AuthMode = "login" | "signup" | "password";
+
 interface AuthModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -36,7 +38,7 @@ export function AuthModal({
                               initialMode = "login",
                               onLoginSuccess
                           }: AuthModalProps) {
-    const [mode, setMode] = useState<"login" | "signup">(initialMode);
+    const [mode, setMode] = useState<AuthMode>(initialMode);
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
@@ -58,6 +60,12 @@ export function AuthModal({
         agreeToTerms: false
     });
 
+    const [passwordResetForm, setPasswordResetForm] = useState({
+        email: "",
+        newPassword: "",
+        confirmPassword: "",
+    });
+
     // Prevent body scroll when modal is open
     useEffect(() => {
         if (isOpen) {
@@ -76,6 +84,11 @@ export function AuthModal({
             setError(null);
             setSuccessMessage(null);
             setMode(initialMode);
+            setPasswordResetForm({
+                email: "",
+                newPassword: "",
+                confirmPassword: "",
+            });
         }
     }, [isOpen, initialMode]);
 
@@ -152,7 +165,55 @@ export function AuthModal({
         }
     };
 
-    const switchMode = (newMode: "login" | "signup") => {
+    const handlePasswordReset = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setError(null);
+        setSuccessMessage(null);
+
+        if (!passwordResetForm.email.trim()) {
+            setError("Email is required.");
+            return;
+        }
+
+        if (passwordResetForm.newPassword.length < 8) {
+            setError("New password must be at least 8 characters long.");
+            return;
+        }
+
+        if (passwordResetForm.newPassword !== passwordResetForm.confirmPassword) {
+            setError("New password and confirm password do not match.");
+            return;
+        }
+
+        setIsLoading(true);
+
+        try {
+            const normalizedEmail = passwordResetForm.email.trim();
+            const result = await authService.forgotPassword({
+                email: normalizedEmail,
+                newPassword: passwordResetForm.newPassword,
+            });
+
+            setSuccessMessage(result?.message || "Password reset successful.");
+            setPasswordResetForm({
+                email: normalizedEmail,
+                newPassword: "",
+                confirmPassword: "",
+            });
+            setMode("login");
+            setLoginForm((previous) => ({
+                ...previous,
+                email: normalizedEmail,
+                password: "",
+            }));
+        } catch (err: any) {
+            setError(err?.message || "Password reset failed. Please try again.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const switchMode = (newMode: AuthMode) => {
         setMode(newMode);
         setError(null);
         setSuccessMessage(null);
@@ -224,7 +285,7 @@ export function AuthModal({
                                         );
                                     })}
                                 </>
-                            ) : (
+                            ) : mode === "signup" ? (
                                 // Signup Promotional Content
                                 <>
                                     <div>
@@ -254,6 +315,35 @@ export function AuthModal({
                                         </div>
                                     </div>
                                 </>
+                            ) : (
+                                <>
+                                    <div>
+                                        <h3 className="text-3xl font-bold text-white mb-3">Forgot Password</h3>
+                                        <p className="text-white/70 text-base leading-relaxed">
+                                            Reset your account password using your registered email address.
+                                        </p>
+                                    </div>
+                                    <div className="space-y-4 pt-4">
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-6 h-6 rounded-full bg-white/20 border border-white/30 flex items-center justify-center flex-shrink-0">
+                                                <Check className="w-4 h-4 text-white" />
+                                            </div>
+                                            <p className="text-white/90 text-sm font-medium">Minimum 8 characters</p>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-6 h-6 rounded-full bg-white/20 border border-white/30 flex items-center justify-center flex-shrink-0">
+                                                <Check className="w-4 h-4 text-white" />
+                                            </div>
+                                            <p className="text-white/90 text-sm font-medium">Use a unique password</p>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-6 h-6 rounded-full bg-white/20 border border-white/30 flex items-center justify-center flex-shrink-0">
+                                                <Check className="w-4 h-4 text-white" />
+                                            </div>
+                                            <p className="text-white/90 text-sm font-medium">Avoid sharing credentials</p>
+                                        </div>
+                                    </div>
+                                </>
                             )}
                         </div>
                     </div>
@@ -265,15 +355,17 @@ export function AuthModal({
                                 {/* Header */}
                         <div className="text-center mb-8">
                                     <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-white/10 border border-white/20 mb-4">
-                                        <User className="w-8 h-8 text-white" />
+                                        {mode === "password" ? <Lock className="w-8 h-8 text-white" /> : <User className="w-8 h-8 text-white" />}
                             </div>
                                     <h2 className="text-2xl font-bold text-white mb-2">
-                                        {mode === "login" ? "Sign in" : "Create Account"}
+                                        {mode === "login" ? "Sign in" : mode === "signup" ? "Create Account" : "Forgot Password"}
                             </h2>
                                     <p className="text-white/50 text-sm">
                                 {mode === "login"
-                                            ? "Welcome back to GariZetu"
-                                            : "Join GariZetu today"
+                                    ? "Welcome back to GariZetu"
+                                    : mode === "signup"
+                                        ? "Join GariZetu today"
+                                        : "Set a new password for your account"
                                 }
                             </p>
                         </div>
@@ -359,7 +451,11 @@ export function AuthModal({
                                         />
                                                 <span className="text-sm text-white/70">Remember me</span>
                                     </label>
-                                            <button type="button" className="text-sm text-white/70 hover:text-white transition-colors">
+                                            <button
+                                                type="button"
+                                                onClick={() => switchMode("password")}
+                                                className="text-sm text-white/70 hover:text-white transition-colors"
+                                            >
                                                 Forgot your password?
                                     </button>
                                 </div>
@@ -641,6 +737,95 @@ export function AuthModal({
                                         </div>
                                     </form>
                             )}
+
+                                {mode === "password" && (
+                                    <form onSubmit={handlePasswordReset} className="space-y-5">
+                                        <div>
+                                            <label className="block text-sm font-medium text-white mb-2">Account Email</label>
+                                            <div className="relative">
+                                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                                                <input
+                                                    type="email"
+                                                    value={passwordResetForm.email}
+                                                    onChange={(e) => setPasswordResetForm({ ...passwordResetForm, email: e.target.value })}
+                                                    placeholder="you@example.com"
+                                                    autoComplete="username"
+                                                    required
+                                                    className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-white/50 focus:bg-white/10 transition-all"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-white mb-2">New Password</label>
+                                            <div className="relative">
+                                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                                                <input
+                                                    type="password"
+                                                    value={passwordResetForm.newPassword}
+                                                    onChange={(e) => setPasswordResetForm({ ...passwordResetForm, newPassword: e.target.value })}
+                                                    placeholder="Enter new password"
+                                                    autoComplete="new-password"
+                                                    required
+                                                    minLength={8}
+                                                    className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-white/50 focus:bg-white/10 transition-all"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-white mb-2">Confirm New Password</label>
+                                            <div className="relative">
+                                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                                                <input
+                                                    type="password"
+                                                    value={passwordResetForm.confirmPassword}
+                                                    onChange={(e) => setPasswordResetForm({ ...passwordResetForm, confirmPassword: e.target.value })}
+                                                    placeholder="Confirm new password"
+                                                    autoComplete="new-password"
+                                                    required
+                                                    className="w-full pl-12 pr-4 py-3 bg-white/5 border border-white/20 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-white/50 focus:bg-white/10 transition-all"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            type="submit"
+                                            disabled={isLoading}
+                                            className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white rounded-xl font-semibold transition-all flex items-center justify-center gap-2 disabled:opacity-70 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/30"
+                                        >
+                                            {isLoading ? (
+                                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                            ) : (
+                                                <>
+                                                    Update Password
+                                                    <ArrowRight className="w-5 h-5" />
+                                                </>
+                                            )}
+                                        </button>
+
+                                        <div className="text-center pt-3">
+                                            <p className="text-sm text-white/60">
+                                                Back to{" "}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => switchMode("login")}
+                                                    className="text-white hover:text-white/80 font-medium underline"
+                                                >
+                                                    Sign in
+                                                </button>
+                                                {" "}or{" "}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => switchMode("signup")}
+                                                    className="text-white hover:text-white/80 font-medium underline"
+                                                >
+                                                    Sign up
+                                                </button>
+                                            </p>
+                                        </div>
+                                    </form>
+                                )}
                             </div>
                         </div>
                     </div>
