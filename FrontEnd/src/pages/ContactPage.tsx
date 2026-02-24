@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import axios from "axios";
 import { 
     Phone, 
@@ -13,9 +13,9 @@ import {
 import { Navbar } from "../components/Navbar";
 import { Footer } from "../components/Footer";
 import { contactService } from "../services/ContactService.ts";
+import { siteContentService, type ContactSectionSettings } from "../services/SiteContentService.ts";
 
-// Contact info
-const CONTACT_INFO = {
+const DEFAULT_CONTACT_INFO = {
     phone: "+254 712 345 678",
     altPhone: "+254 720 987 654",
     email: "info@garizetu.co.ke",
@@ -24,11 +24,14 @@ const CONTACT_INFO = {
     address: "Westlands Business Park, 3rd Floor",
     city: "Nairobi, Kenya",
     hours: "Mon - Sat: 8:00 AM - 6:00 PM",
-    sundayHours: "Sunday: 9:00 AM - 4:00 PM"
+    sundayHours: "Sunday: 9:00 AM - 4:00 PM",
+    jkiaDeskHours: "6:00 AM - 11:00 PM",
+    heroTitle: "Get in Touch",
+    heroDescription: "Have questions? We're here to help. Reach out to our team through any of the channels below.",
 };
 
 // Office locations
-const LOCATIONS = [
+const DEFAULT_LOCATIONS = [
     {
         name: "Nairobi - Headquarters",
         address: "Westlands Business Park, 3rd Floor, Waiyaki Way",
@@ -80,6 +83,50 @@ export default function ContactPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSubmitted, setIsSubmitted] = useState(false);
     const [submitError, setSubmitError] = useState<string | null>(null);
+    const [contactSettings, setContactSettings] = useState<ContactSectionSettings | null>(null);
+
+    useEffect(() => {
+        const loadContactSettings = async () => {
+            try {
+                const settings = await siteContentService.getContactSettings();
+                setContactSettings(settings);
+            } catch (error) {
+                console.error("Failed to load contact settings:", error);
+                setContactSettings(null);
+            }
+        };
+
+        void loadContactSettings();
+    }, []);
+
+    const contactInfo = useMemo(() => ({
+        phone: contactSettings?.phone || DEFAULT_CONTACT_INFO.phone,
+        altPhone: contactSettings?.altPhone || DEFAULT_CONTACT_INFO.altPhone,
+        email: contactSettings?.email || DEFAULT_CONTACT_INFO.email,
+        supportEmail: contactSettings?.supportEmail || DEFAULT_CONTACT_INFO.supportEmail,
+        whatsapp: contactSettings?.whatsapp || DEFAULT_CONTACT_INFO.whatsapp,
+        address: contactSettings?.address || DEFAULT_CONTACT_INFO.address,
+        city: contactSettings?.city || DEFAULT_CONTACT_INFO.city,
+        hours: contactSettings?.hours || DEFAULT_CONTACT_INFO.hours,
+        sundayHours: contactSettings?.sundayHours || DEFAULT_CONTACT_INFO.sundayHours,
+        jkiaDeskHours: contactSettings?.jkiaDeskHours || DEFAULT_CONTACT_INFO.jkiaDeskHours,
+        heroTitle: contactSettings?.heroTitle || DEFAULT_CONTACT_INFO.heroTitle,
+        heroDescription: contactSettings?.heroDescription || DEFAULT_CONTACT_INFO.heroDescription,
+    }), [contactSettings]);
+
+    const locations = useMemo(() => [
+        {
+            ...DEFAULT_LOCATIONS[0],
+            phone: contactInfo.phone,
+            hours: contactInfo.hours,
+        },
+        {
+            ...DEFAULT_LOCATIONS[1],
+            phone: contactInfo.altPhone || contactInfo.phone,
+            hours: contactInfo.jkiaDeskHours || DEFAULT_LOCATIONS[1].hours,
+        },
+        DEFAULT_LOCATIONS[2],
+    ], [contactInfo]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -122,10 +169,10 @@ export default function ContactPage() {
                 <div className="layout-container">
                     <div className="max-w-2xl">
                         <h1 className="text-3xl md:text-4xl font-bold text-white mb-3">
-                            Get in Touch
+                            {contactInfo.heroTitle}
                         </h1>
                         <p className="text-base text-gray-400">
-                            Have questions? We're here to help. Reach out to our team through any of the channels below.
+                            {contactInfo.heroDescription}
                         </p>
                     </div>
                 </div>
@@ -137,7 +184,7 @@ export default function ContactPage() {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                         {/* Phone */}
                         <a 
-                            href={`tel:${CONTACT_INFO.phone}`}
+                            href={`tel:${contactInfo.phone}`}
                             className="bg-white rounded-xl p-3.5 shadow-lg border border-gray-100 hover:border-black transition-all group"
                         >
                             <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
@@ -145,13 +192,13 @@ export default function ContactPage() {
                             </div>
                             <h3 className="font-bold text-gray-900 mb-1">Call Us</h3>
                             <p className="text-gray-600 text-sm mb-3">Available during business hours</p>
-                            <p className="font-semibold text-black">{CONTACT_INFO.phone}</p>
-                            <p className="text-sm text-gray-500">{CONTACT_INFO.altPhone}</p>
+                            <p className="font-semibold text-black">{contactInfo.phone}</p>
+                            <p className="text-sm text-gray-500">{contactInfo.altPhone}</p>
                         </a>
 
                         {/* WhatsApp */}
                         <a 
-                            href={`https://wa.me/${CONTACT_INFO.whatsapp}?text=Hello GariZetu, I'd like to inquire about car rental.`}
+                            href={`https://wa.me/${contactInfo.whatsapp}?text=Hello GariZetu, I'd like to inquire about car rental.`}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="bg-white rounded-xl p-3.5 shadow-lg border border-gray-100 hover:border-emerald-500 transition-all group"
@@ -168,7 +215,7 @@ export default function ContactPage() {
 
                         {/* Email */}
                         <a 
-                            href={`mailto:${CONTACT_INFO.email}`}
+                            href={`mailto:${contactInfo.email}`}
                             className="bg-white rounded-xl p-3.5 shadow-lg border border-gray-100 hover:border-black transition-all group"
                         >
                             <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
@@ -176,8 +223,8 @@ export default function ContactPage() {
                             </div>
                             <h3 className="font-bold text-gray-900 mb-1">Email Us</h3>
                             <p className="text-gray-600 text-sm mb-3">We'll respond within 24 hours</p>
-                            <p className="font-semibold text-black">{CONTACT_INFO.email}</p>
-                            <p className="text-sm text-gray-500">{CONTACT_INFO.supportEmail}</p>
+                            <p className="font-semibold text-black">{contactInfo.email}</p>
+                            <p className="text-sm text-gray-500">{contactInfo.supportEmail}</p>
                         </a>
                     </div>
                 </div>
@@ -321,16 +368,16 @@ export default function ContactPage() {
                                 </h3>
                                 <div className="space-y-2">
                                     <div className="flex justify-between">
-                                        <span className="text-gray-600">Monday - Saturday</span>
-                                        <span className="font-medium text-gray-900">8:00 AM - 6:00 PM</span>
+                                        <span className="text-gray-600">Main Hours</span>
+                                        <span className="font-medium text-gray-900">{contactInfo.hours}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Sunday</span>
-                                        <span className="font-medium text-gray-900">9:00 AM - 4:00 PM</span>
+                                        <span className="font-medium text-gray-900">{contactInfo.sundayHours}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                        <span className="text-gray-600">JKIA Desk</span>
-                                        <span className="font-medium text-emerald-600">6:00 AM - 11:00 PM</span>
+                                        <span className="text-gray-600">Airport Desk</span>
+                                        <span className="font-medium text-emerald-600">{contactInfo.jkiaDeskHours}</span>
                                     </div>
                                 </div>
                             </div>
@@ -353,9 +400,9 @@ export default function ContactPage() {
                                 <div className="p-4 bg-white">
                                     <p className="font-medium text-gray-900 flex items-center gap-2">
                                         <MapPin className="w-4 h-4 text-black" />
-                                        {CONTACT_INFO.address}
+                                        {contactInfo.address}
                                     </p>
-                                    <p className="text-sm text-gray-500 ml-6">{CONTACT_INFO.city}</p>
+                                    <p className="text-sm text-gray-500 ml-6">{contactInfo.city}</p>
                                 </div>
                             </div>
                         </div>
@@ -369,7 +416,7 @@ export default function ContactPage() {
                     <h2 className="text-2xl md:text-[1.75rem] font-bold text-gray-900 mb-5">Our Locations</h2>
                     
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        {LOCATIONS.map((location) => (
+                        {locations.map((location) => (
                             <div key={location.name} className="bg-white rounded-xl p-3.5 border border-gray-100">
                                 <h3 className="font-bold text-gray-900 mb-2">{location.name}</h3>
                                 <p className="text-sm text-gray-600 mb-4">{location.address}</p>
@@ -411,7 +458,7 @@ export default function ContactPage() {
                         <p className="text-gray-600">
                             Still have questions? {" "}
                             <a 
-                                href={`https://wa.me/${CONTACT_INFO.whatsapp}`}
+                                href={`https://wa.me/${contactInfo.whatsapp}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="text-emerald-600 font-medium hover:underline"

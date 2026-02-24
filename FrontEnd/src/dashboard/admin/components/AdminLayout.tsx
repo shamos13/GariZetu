@@ -8,6 +8,8 @@ import {
     CarFront,
     CalendarDays,
     Users,
+    FileText,
+    MessageSquare,
     BarChart3,
     Settings,
     LogOut,
@@ -40,6 +42,8 @@ const mainMenuItems: SidebarMenuItem[] = [
     { id: "cars", label: "Fleet Management", icon: CarFront },
     { id: "bookings", label: "Bookings", icon: CalendarDays },
     { id: "users", label: "Customers", icon: Users },
+    { id: "content", label: "Content", icon: FileText },
+    { id: "messages", label: "Messages", icon: MessageSquare },
     { id: "reports", label: "Analytics", icon: BarChart3 },
 ];
 
@@ -98,6 +102,12 @@ export function AdminLayout({
         }
 
         onNavigate(item.id);
+        setIsMobileMenuOpen(false);
+        setIsProfileOpen(false);
+    };
+
+    const handleNotificationBellClick = () => {
+        onNavigate("bookings");
         setIsMobileMenuOpen(false);
         setIsProfileOpen(false);
     };
@@ -246,9 +256,18 @@ export function AdminLayout({
                             </div>
 
                             {/* Notifications */}
-                            <button className="relative p-2 hover:bg-gray-800 rounded-lg transition-colors">
+                            <button
+                                onClick={handleNotificationBellClick}
+                                className="relative p-2 hover:bg-gray-800 rounded-lg transition-colors"
+                                title="Open booking notifications"
+                                aria-label="Open booking notifications"
+                            >
                                 <Bell className="w-5 h-5 text-gray-400" />
-                                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                                {bookingNotificationCount > 0 && (
+                                    <span className="absolute -top-1 -right-1 inline-flex min-h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
+                                        {bookingNotificationCount > 99 ? "99+" : bookingNotificationCount}
+                                    </span>
+                                )}
                             </button>
 
                             {/* Profile */}

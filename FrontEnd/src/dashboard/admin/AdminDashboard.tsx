@@ -30,6 +30,12 @@ const DashboardPage = lazy(() =>
 const BookingManagementPage = lazy(() =>
     import("./pages/BookingManagementPage.tsx").then((module) => ({ default: module.BookingManagementPage }))
 );
+const ContentManagementPage = lazy(() =>
+    import("./pages/ContentManagementPage.tsx").then((module) => ({ default: module.ContentManagementPage }))
+);
+const MessagesPage = lazy(() =>
+    import("./pages/MessagesPage.tsx").then((module) => ({ default: module.MessagesPage }))
+);
 
 interface AdminDashboardProps {
     onBack: () => void;
@@ -266,8 +272,10 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                 return "Bookings";
             case "users":
                 return "Customers";
-            case "payments":
-                return "Payments";
+            case "content":
+                return "Content Management";
+            case "messages":
+                return "Messages";
             case "reports":
                 return "Analytics";
             case "settings":
@@ -301,6 +309,10 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                         onNotificationCountChange={setBookingNotificationCount}
                     />
                 );
+            case "content":
+                return <ContentManagementPage key="content" />;
+            case "messages":
+                return <MessagesPage key="messages" />;
             default:
                 return <DashboardPage key="dashboard-default" />;
         }
