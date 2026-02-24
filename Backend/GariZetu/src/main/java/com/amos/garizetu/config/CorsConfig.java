@@ -13,6 +13,7 @@ import org.springframework.web.filter.CorsFilter;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * CORS configuration.
@@ -22,6 +23,7 @@ import java.util.stream.Collectors;
  * including 401/403 error responses from Spring Security.
  */
 @Configuration
+@Slf4j
 public class CorsConfig {
 
     @Value("${app.cors.allowed-origins:http://localhost:5173,https://*.vercel.app}")
@@ -30,21 +32,53 @@ public class CorsConfig {
     private List<String> resolveAllowedOrigins() {
         List<String> resolvedOrigins = Arrays.stream(allowedOriginsRaw.split(","))
                 .map(String::trim)
+                .map(this::stripOptionalQuotes)
+                .map(this::stripTrailingSlash)
                 .filter(value -> !value.isBlank())
+                .filter(value -> value.startsWith("http://") || value.startsWith("https://"))
+                .filter(value -> !value.contains("YOUR_APP"))
+                .filter(value -> !value.contains("YOUR_CUSTOM_DOMAIN"))
                 .distinct()
                 .collect(Collectors.toList());
 
         if (resolvedOrigins.isEmpty()) {
-            return List.of("http://localhost:5173", "https://*.vercel.app");
+            return defaultAllowedOrigins();
+        }
+
+        if (!resolvedOrigins.contains("https://*.vercel.app")) {
+            resolvedOrigins.add("https://*.vercel.app");
         }
 
         return resolvedOrigins;
+    }
+
+    private List<String> defaultAllowedOrigins() {
+        return List.of("http://localhost:5173", "https://*.vercel.app");
+    }
+
+    private String stripOptionalQuotes(String value) {
+        if (value == null || value.length() < 2) {
+            return value;
+        }
+        if ((value.startsWith("\"") && value.endsWith("\""))
+                || (value.startsWith("'") && value.endsWith("'"))) {
+            return value.substring(1, value.length() - 1).trim();
+        }
+        return value;
+    }
+
+    private String stripTrailingSlash(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value.replaceAll("/+$", "");
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         List<String> allowedOrigins = resolveAllowedOrigins();
+        log.info("Configured CORS allowed origin patterns: {}", allowedOrigins);
 
         config.setAllowedOriginPatterns(allowedOrigins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
