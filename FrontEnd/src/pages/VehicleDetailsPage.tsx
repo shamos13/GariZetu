@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
     ChevronLeft,
     ChevronRight,
@@ -21,17 +21,77 @@ import { getImageUrl } from "../lib/ImageUtils";
 import { carService } from "../services/carService";
 import { CarDetailsModal } from "../components/CarDetailsModal";
 import {
+    getAvailabilityBadgeLabel,
     formatTimeRemaining,
     getAvailabilityClassName,
-    getAvailabilityLabel,
     getAvailabilityMessage,
     getCarAvailabilityStatus,
     isCarBookable,
 } from "../lib/carAvailability.ts";
+import {
+    BOOKING_LOCATIONS,
+    parseBookingLocationIdParam,
+    resolveBookingLocationIdByQuery,
+} from "../constants/bookingLocations.ts";
+
+const parseDateFromQuery = (value: string | null): Date | null => {
+    if (!value) {
+        return null;
+    }
+
+    const dateOnlyMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (dateOnlyMatch) {
+        const year = Number(dateOnlyMatch[1]);
+        const month = Number(dateOnlyMatch[2]);
+        const day = Number(dateOnlyMatch[3]);
+        const parsedDate = new Date(year, month - 1, day);
+        parsedDate.setHours(0, 0, 0, 0);
+        return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+    }
+
+    const parsedDate = new Date(value);
+    if (Number.isNaN(parsedDate.getTime())) {
+        return null;
+    }
+
+    parsedDate.setHours(0, 0, 0, 0);
+    return parsedDate;
+};
+
+const BOOKING_CONTEXT_QUERY_KEYS = [
+    "pickupDate",
+    "dropoffDate",
+    "pickup",
+    "dropoff",
+    "pickupLocation",
+    "dropoffLocation",
+    "pickupLocationId",
+    "dropoffLocationId",
+    "sameLocation",
+] as const;
 
 export default function VehicleDetailsPage() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const defaultLocationId = BOOKING_LOCATIONS[0]?.id ?? 1;
+    const queryPickupDate = parseDateFromQuery(searchParams.get("pickupDate"));
+    const queryDropoffDate = parseDateFromQuery(searchParams.get("dropoffDate"));
+    const queryPickupLocationId =
+        parseBookingLocationIdParam(searchParams.get("pickupLocationId"))
+        ?? resolveBookingLocationIdByQuery(searchParams.get("pickup") ?? searchParams.get("pickupLocation"));
+    const querySameLocationParam = searchParams.get("sameLocation");
+    const initialSameLocation = querySameLocationParam
+        ? !["false", "0"].includes(querySameLocationParam.toLowerCase())
+        : true;
+    const queryDropoffLocationId =
+        parseBookingLocationIdParam(searchParams.get("dropoffLocationId"))
+        ?? resolveBookingLocationIdByQuery(searchParams.get("dropoff") ?? searchParams.get("dropoffLocation"));
+    const initialPickupLocationId = queryPickupLocationId ?? defaultLocationId;
+    const initialDropoffLocationId = initialSameLocation
+        ? initialPickupLocationId
+        : (queryDropoffLocationId ?? initialPickupLocationId);
+    const hasQueryLocationContext = queryPickupLocationId !== null || queryDropoffLocationId !== null;
 
     // ✅ ALL STATE DECLARED FIRST - BEFORE ANY CONDITIONAL RETURNS
     const [car, setCar] = useState<Car | null>(null);
@@ -40,13 +100,18 @@ export default function VehicleDetailsPage() {
     const [error, setError] = useState<string | null>(null);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
     const [selectedDates, setSelectedDates] = useState<{ start: Date | null; end: Date | null }>({
-        start: null,
-        end: null
+        start: queryPickupDate,
+        end: queryDropoffDate
     });
-    const [currentMonth, setCurrentMonth] = useState(new Date());
+    const [currentMonth, setCurrentMonth] = useState(queryPickupDate ?? new Date());
     const [quickViewCar, setQuickViewCar] = useState<Car | null>(null);
     const [isQuickViewOpen, setIsQuickViewOpen] = useState(false);
     const [isGalleryModalOpen, setIsGalleryModalOpen] = useState(false);
+    const [pickupLocationId, setPickupLocationId] = useState(initialPickupLocationId);
+    const [dropoffLocationId, setDropoffLocationId] = useState(initialDropoffLocationId);
+    const [sameLocation, setSameLocation] = useState(initialSameLocation);
+    const currentCarId = car?.id ?? null;
+    const currentCarLocation = car?.location ?? "";
 
     // Fetch car data on mount
     useEffect(() => {
@@ -98,6 +163,26 @@ export default function VehicleDetailsPage() {
     useEffect(() => {
         setCurrentImageIndex(0);
     }, [car?.id]);
+
+    useEffect(() => {
+        if (!currentCarId) {
+            return;
+        }
+
+        if (hasQueryLocationContext) {
+            return;
+        }
+
+        const matchedLocationId = resolveBookingLocationIdByQuery(currentCarLocation) ?? defaultLocationId;
+        setPickupLocationId(matchedLocationId);
+        setDropoffLocationId(matchedLocationId);
+    }, [currentCarId, currentCarLocation, defaultLocationId, hasQueryLocationContext]);
+
+    useEffect(() => {
+        if (sameLocation) {
+            setDropoffLocationId(pickupLocationId);
+        }
+    }, [sameLocation, pickupLocationId]);
 
     // Image navigation handlers
     const handlePrevImage = () => {
@@ -252,6 +337,20 @@ export default function VehicleDetailsPage() {
     const maxPreviewThumbs = 7;
     const previewThumbs = images.slice(0, maxPreviewThumbs);
     const overflowThumbCount = Math.max(images.length - maxPreviewThumbs, 0);
+    const buildVehicleDetailsPath = (vehicleId: number): string => {
+        const params = new URLSearchParams();
+
+        BOOKING_CONTEXT_QUERY_KEYS.forEach((key) => {
+            const value = searchParams.get(key);
+            if (!value) {
+                return;
+            }
+            params.set(key, value);
+        });
+
+        const queryString = params.toString();
+        return queryString ? `/vehicles/${vehicleId}?${queryString}` : `/vehicles/${vehicleId}`;
+    };
 
     // ✅ NOW CONDITIONAL RETURNS ARE SAFE - ALL HOOKS CALLED
     // Loading state
@@ -317,7 +416,7 @@ export default function VehicleDetailsPage() {
                 </div>
             </div>
 
-            <header className="group relative h-[42vh] min-h-[280px] overflow-hidden md:h-[48vh] md:min-h-[320px]">
+            <header className="group relative h-[44vh] min-h-[300px] overflow-hidden md:h-[48vh] md:min-h-[320px]">
                 {images.map((img, index) => (
                     <img
                         key={`hero-${img.id}`}
@@ -338,13 +437,13 @@ export default function VehicleDetailsPage() {
                     <>
                         <button
                             onClick={handlePrevImage}
-                            className="absolute left-4 top-1/2 z-10 h-9 w-9 -translate-y-1/2 rounded-full bg-white/25 text-white backdrop-blur-md transition-all hover:bg-white/40 md:opacity-0 md:group-hover:opacity-100"
+                            className="absolute left-3 top-[42%] z-20 h-9 w-9 -translate-y-1/2 rounded-full bg-white/25 text-white backdrop-blur-md transition-all hover:bg-white/40 sm:left-4 sm:top-1/2 md:opacity-0 md:group-hover:opacity-100"
                         >
                             <ChevronLeft className="mx-auto h-4 w-4" />
                         </button>
                         <button
                             onClick={handleNextImage}
-                            className="absolute right-4 top-1/2 z-10 h-9 w-9 -translate-y-1/2 rounded-full bg-white/25 text-white backdrop-blur-md transition-all hover:bg-white/40 md:opacity-0 md:group-hover:opacity-100"
+                            className="absolute right-3 top-[42%] z-20 h-9 w-9 -translate-y-1/2 rounded-full bg-white/25 text-white backdrop-blur-md transition-all hover:bg-white/40 sm:right-4 sm:top-1/2 md:opacity-0 md:group-hover:opacity-100"
                         >
                             <ChevronRight className="mx-auto h-4 w-4" />
                         </button>
@@ -352,7 +451,7 @@ export default function VehicleDetailsPage() {
                 )}
 
                 {images.length > 1 && (
-                    <div className="absolute bottom-16 left-0 right-0 z-10 flex justify-center gap-2 md:bottom-20">
+                    <div className="absolute bottom-24 left-0 right-0 z-10 flex justify-center gap-2 md:bottom-20">
                         {images.map((img, index) => (
                             <button
                                 key={`hero-dot-${img.id}`}
@@ -366,26 +465,26 @@ export default function VehicleDetailsPage() {
                     </div>
                 )}
 
-                <div className="absolute bottom-0 left-0 right-0 z-10 pb-5 pt-10">
-                    <div className="layout-container flex flex-col items-start justify-between gap-4 md:flex-row md:items-end">
+                <div className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 pb-5 pt-12">
+                    <div className="layout-container flex flex-col items-start justify-between gap-3 md:flex-row md:items-end">
                         <div>
-                            <div className="mb-2 flex items-center gap-2 text-sm text-white/90">
+                            <div className="mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-white/90">
                                 <span className="px-3 py-1 rounded-full bg-black/35 border border-white/30 backdrop-blur text-[11px] font-semibold uppercase tracking-wide text-white">
                                     {car.bodyType}
                                 </span>
                                 <span className={`px-3 py-1 rounded-full border border-white/20 text-[11px] font-semibold uppercase tracking-wide ${getAvailabilityClassName(availabilityStatus)}`}>
-                                    {getAvailabilityLabel(availabilityStatus)}
+                                    {getAvailabilityBadgeLabel(car, softLockCountdownLabel)}
                                 </span>
                                 <div className="flex items-center gap-0.5">
                                     {Array.from({ length: 5 }).map((_, idx) => (
                                         <Star key={`hero-star-${idx}`} className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
                                     ))}
                                 </div>
-                                <span className="text-xs text-white/85">({car.reviewCount} Reviews)</span>
+                                <span className="text-xs text-white/85">({car.reviewCount} reviews)</span>
                             </div>
-                            <h1 className="mb-1 text-2xl font-bold text-white md:text-4xl">{car.name}</h1>
+                            <h1 className="mb-1 text-2xl font-bold leading-tight text-white md:text-4xl">{car.name}</h1>
                             <p className="text-sm italic text-white/80 md:text-base">Experience power and elegance redefined.</p>
-                            <div className="mt-3 text-left md:hidden">
+                            <div className="mt-2 text-left md:hidden">
                                 <p className="text-xs text-white/70">Starting from</p>
                                 <p className="text-xl font-bold text-white">
                                     Ksh {car.dailyPrice.toLocaleString()}
@@ -568,7 +667,7 @@ export default function VehicleDetailsPage() {
                                             </p>
                                         </div>
                                         <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${getAvailabilityClassName(availabilityStatus)}`}>
-                                            {getAvailabilityLabel(availabilityStatus)}
+                                            {getAvailabilityBadgeLabel(car, softLockCountdownLabel)}
                                         </span>
                                     </div>
 
@@ -588,21 +687,54 @@ export default function VehicleDetailsPage() {
                                             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                                                 Pick-up Location
                                             </label>
-                                            <select className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900/10">
-                                                <option>{car.location}</option>
-                                                <option>Nairobi, Westlands</option>
-                                                <option>Nairobi, JKIA Airport</option>
+                                            <select
+                                                value={pickupLocationId}
+                                                onChange={(event) => {
+                                                    const nextLocationId = Number(event.target.value);
+                                                    setPickupLocationId(nextLocationId);
+                                                    if (sameLocation) {
+                                                        setDropoffLocationId(nextLocationId);
+                                                    }
+                                                }}
+                                                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900/10"
+                                            >
+                                                {BOOKING_LOCATIONS.map((location) => (
+                                                    <option key={location.id} value={location.id}>
+                                                        {location.name} - {location.address}
+                                                    </option>
+                                                ))}
                                             </select>
                                         </div>
 
                                         <div>
+                                            <label className="mb-2 flex items-center gap-2 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={sameLocation}
+                                                    onChange={(event) => {
+                                                        setSameLocation(event.target.checked);
+                                                        if (event.target.checked) {
+                                                            setDropoffLocationId(pickupLocationId);
+                                                        }
+                                                    }}
+                                                    className="h-4 w-4 rounded border-gray-300 text-black focus:ring-black"
+                                                />
+                                                <span className="text-sm text-gray-700">Return to same location</span>
+                                            </label>
                                             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                                                 Drop-off Location
                                             </label>
-                                            <select className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900/10">
-                                                <option>Return to same location</option>
-                                                <option>Nairobi, Westlands</option>
-                                                <option>Nairobi, JKIA Airport</option>
+                                            <select
+                                                value={dropoffLocationId}
+                                                onChange={(event) => setDropoffLocationId(Number(event.target.value))}
+                                                disabled={sameLocation}
+                                                className="w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-900/10 disabled:cursor-not-allowed disabled:opacity-60"
+                                            >
+                                                {BOOKING_LOCATIONS.map((location) => (
+                                                    <option key={location.id} value={location.id}>
+                                                        {location.name} - {location.address}
+                                                    </option>
+                                                ))}
                                             </select>
                                         </div>
                                     </div>
@@ -711,6 +843,11 @@ export default function VehicleDetailsPage() {
                                             }
                                             if (selectedDates.end) {
                                                 params.set("dropoffDate", selectedDates.end.toISOString());
+                                            }
+                                            params.set("pickupLocationId", pickupLocationId.toString());
+                                            params.set("sameLocation", String(sameLocation));
+                                            if (!sameLocation) {
+                                                params.set("dropoffLocationId", dropoffLocationId.toString());
                                             }
                                             navigate(`/booking?${params.toString()}`);
                                         }}
@@ -914,7 +1051,7 @@ export default function VehicleDetailsPage() {
                                         {relatedCar.bodyType}
                                     </span>
                                     <span className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-white/30 ${getAvailabilityClassName(getCarAvailabilityStatus(relatedCar))}`}>
-                                        {getAvailabilityLabel(getCarAvailabilityStatus(relatedCar))}
+                                        {getAvailabilityBadgeLabel(relatedCar)}
                                     </span>
                                 </div>
 
@@ -942,7 +1079,7 @@ export default function VehicleDetailsPage() {
                                                 Quick View
                                             </button>
                                             <button
-                                                onClick={() => navigate(`/vehicles/${relatedCar.id}`)}
+                                                onClick={() => navigate(buildVehicleDetailsPath(relatedCar.id))}
                                                 className="px-3 py-2 rounded-full bg-black text-white text-xs font-medium hover:bg-zinc-800 transition-colors"
                                             >
                                                 View Details
@@ -965,11 +1102,11 @@ export default function VehicleDetailsPage() {
                     onClose={() => setIsQuickViewOpen(false)}
                     onBookNow={(c) => {
                         setIsQuickViewOpen(false);
-                        navigate(`/vehicles/${c.id}`);
+                        navigate(buildVehicleDetailsPath(c.id));
                     }}
                     onViewDetails={(c) => {
                         setIsQuickViewOpen(false);
-                        navigate(`/vehicles/${c.id}`);
+                        navigate(buildVehicleDetailsPath(c.id));
                     }}
                 />
             )}

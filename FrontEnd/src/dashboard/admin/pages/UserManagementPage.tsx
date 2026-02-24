@@ -98,7 +98,7 @@ export function UserManagementPage() {
         }
     }, []);
 
-    const fetchData = useCallback(async () => {
+    const fetchData = useCallback(async (): Promise<boolean> => {
         // Check authentication before making API calls
         const isAuthenticated = authService.isAuthenticated();
         const isAdmin = authService.isAdmin();
@@ -106,7 +106,7 @@ export function UserManagementPage() {
         if (!isAuthenticated || !isAdmin) {
             console.warn("UserManagementPage - Cannot fetch data: not authenticated as admin");
             setIsLoading(false);
-            return;
+            return false;
         }
 
         try {
@@ -126,6 +126,7 @@ export function UserManagementPage() {
 
             setUsers(fetchedUsers);
             setStats(fetchedStats);
+            return true;
         } catch (err: any) {
             console.error("UserManagementPage - Failed to fetch users or stats:", err);
             console.error("UserManagementPage - Error details:", {
@@ -135,6 +136,7 @@ export function UserManagementPage() {
                 data: err.response?.data
             });
             toast.error(getAdminActionErrorMessage(err, "Failed to load user data."));
+            return false;
         } finally {
             setIsLoading(false);
         }
@@ -473,8 +475,18 @@ export function UserManagementPage() {
                             <CardTitle className="text-white">User List</CardTitle>
                             <CardDescription className="text-gray-400">Manage your system users</CardDescription>
                         </div>
-                        <Button variant="outline" size="sm" onClick={() => fetchData()}>
-                            Refresh
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={isLoading}
+                            onClick={async () => {
+                                const refreshed = await fetchData();
+                                if (refreshed) {
+                                    toast.success("User list refreshed.");
+                                }
+                            }}
+                        >
+                            {isLoading ? "Refreshing..." : "Refresh"}
                         </Button>
                     </div>
                 </CardHeader>
