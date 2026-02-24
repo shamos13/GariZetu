@@ -5,6 +5,7 @@ import {AuthModal} from "./AuthModal";
 import {authService} from "../services/AuthService.ts";
 import { AUTH_CHANGED_EVENT } from "../lib/authEvents.ts";
 import {toast} from "sonner";
+import logoImage from "../assets/logo.png";
 import {
     clearUserNotifications,
     getUserNotifications,
@@ -236,7 +237,7 @@ export function Navbar() {
                     className="relative z-50 flex items-center group"
                 >
                     <img 
-                        src="/src/assets/logo.png" 
+                        src={logoImage}
                         alt="GariZetu" 
                         className={`w-auto object-contain transition-all duration-300 group-hover:scale-105 ${
                             isScrolled ? "h-6 md:h-7" : "h-7 md:h-8"

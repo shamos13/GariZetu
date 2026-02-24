@@ -10,6 +10,7 @@ import {
     ArrowUp,
     MessageCircle
 } from "lucide-react";
+import logoImage from "../assets/logo.png";
 
 const FOOTER_LINKS = {
     company: [
@@ -61,7 +62,7 @@ export function Footer() {
                     <div className="sm:col-span-2">
                         <Link to="/" className="inline-block mb-2.5">
                             <img 
-                                src="/src/assets/logo.png" 
+                                src={logoImage}
                                 alt="GariZetu" 
                                 className="h-8 w-auto"
                             />

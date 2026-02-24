@@ -6,9 +6,29 @@ import { emitAuthChanged } from "./authEvents.ts";
  * In production set VITE_API_BASE_URL, e.g. https://api.example.com
  */
 const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
-export const BASE_URL = (configuredBaseUrl && configuredBaseUrl.length > 0
-    ? configuredBaseUrl
-    : "http://localhost:8080").replace(/\/+$/, "");
+
+const normalizeBaseUrl = (rawUrl?: string): string => {
+    if (!rawUrl) {
+        return "http://localhost:8080";
+    }
+
+    let normalized = rawUrl.trim();
+    if (!normalized) {
+        return "http://localhost:8080";
+    }
+
+    // Accept values like "example.up.railway.app" and turn them into a valid URL.
+    if (!/^https?:\/\//i.test(normalized)) {
+        const localHostLike = /^(localhost|127\.0\.0\.1)(:\d+)?$/i.test(normalized);
+        normalized = `${localHostLike ? "http" : "https"}://${normalized}`;
+    }
+
+    normalized = normalized.replace(/\/+$/, "");
+    normalized = normalized.replace(/\/api\/v1$/i, "");
+    return normalized;
+};
+
+export const BASE_URL = normalizeBaseUrl(configuredBaseUrl);
 
 /**
  * Create an axios instance with custom configuration

@@ -1,4 +1,5 @@
 import { Search, CalendarCheck, Smile } from "lucide-react"
+import carJeepImage from "../assets/car-jeep.png";
 
 const STEPS = [
     {
@@ -52,7 +53,7 @@ export function HowItWorks() {
 
                 <div className="relative flex aspect-[4/3] items-center justify-center rounded-[2rem] bg-gray-50 p-4 sm:aspect-square md:p-6">
                     <div className="relative h-full w-full">
-                        <img src="/src/assets/car-jeep.png" alt="Jeep Wrangler" className="h-full w-full object-contain" />
+                        <img src={carJeepImage} alt="Jeep Wrangler" className="h-full w-full object-contain" />
                     </div>
                 </div>
             </div>

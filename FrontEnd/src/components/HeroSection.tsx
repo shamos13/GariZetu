@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { ArrowDown } from "lucide-react";
+import carTracedImage from "../assets/car_traced.png";
 
 export function HeroSection() {
     const [isLoaded, setIsLoaded] = useState(false);
@@ -75,7 +76,7 @@ export function HeroSection() {
                 }`}
             >
                 <img
-                    src="/src/assets/car_traced.png"
+                    src={carTracedImage}
                     alt="GariZetu Car"
                     className="relative z-0 w-[120%] max-w-none object-contain pointer-events-none select-none drop-shadow-2xl sm:w-[112%] md:w-[118%]"
                 />

@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { authService } from "../services/AuthService";
 import type { RegisterRequest, LoginRequest } from "../services/AuthService";
+import heroImage from "../assets/hero.png";
 
 interface AuthModalProps {
     isOpen: boolean;
@@ -200,7 +201,7 @@ export function AuthModal({
                         <div 
                             className="absolute inset-0 opacity-40 bg-cover bg-center bg-no-repeat"
                             style={{
-                                backgroundImage: "url('/src/assets/hero.png')",
+                                backgroundImage: `url(${heroImage})`,
                                 filter: "grayscale(100%) contrast(1.1) brightness(0.9)"
                             }}
                         />
