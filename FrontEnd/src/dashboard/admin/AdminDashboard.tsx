@@ -7,6 +7,16 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "../../components/ui/dialog.tsx";
 import { bookingService } from "../../services/BookingService.ts";
 import { getAdminActionErrorMessage } from "../../lib/adminErrorUtils.ts";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "../../components/ui/alert-dialog.tsx";
 
 const CarManagementPage = lazy(() =>
     import("./pages/CarManagementPage.tsx").then((module) => ({ default: module.CarManagementPage }))
@@ -38,6 +48,8 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [carsLoaded, setCarsLoaded] = useState(false);
     const [bookingNotificationCount, setBookingNotificationCount] = useState(0);
+    const [carPendingDelete, setCarPendingDelete] = useState<Car | null>(null);
+    const [isDeletingCar, setIsDeletingCar] = useState(false);
     const closeForm = () => setIsFormOpen(false);
 
     const pageLoader = (
@@ -161,18 +173,20 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
         setIsFormOpen(true);
     };
 
-    const handleDeleteCar = async (car: Car) => {
-        const confirmed = window.confirm(`Are you sure you want to delete ${car.make} (${car.registrationNumber})?`);
-        if (!confirmed) return;
-
+    const handleDeleteCar = async () => {
+        if (!carPendingDelete) return;
         try {
-            await adminCarService.deleteCar(car.carId);
-            setCars(prev => prev.filter(c => c.carId !== car.carId));
+            setIsDeletingCar(true);
+            await adminCarService.deleteCar(carPendingDelete.carId);
+            setCars(prev => prev.filter(c => c.carId !== carPendingDelete.carId));
             setCarsLoaded(true);
             toast.success("Car deleted successfully");
+            setCarPendingDelete(null);
         } catch (error) {
             console.error("Failed to delete car:", error);
             toast.error(getAdminActionErrorMessage(error, "Failed to delete car. Please try again."));
+        } finally {
+            setIsDeletingCar(false);
         }
     };
 
@@ -274,7 +288,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                         cars={cars}
                         onAdd={openAddForm}
                         onEdit={handleEditClick}
-                        onDelete={handleDeleteCar}
+                        onDelete={setCarPendingDelete}
                         onStatusChange={handleQuickStatusChange}
                     />
                 );
@@ -324,6 +338,46 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                     />
                 </DialogContent>
             </Dialog>
+
+            <AlertDialog
+                open={Boolean(carPendingDelete)}
+                onOpenChange={(open) => {
+                    if (!open && !isDeletingCar) {
+                        setCarPendingDelete(null);
+                    }
+                }}
+            >
+                <AlertDialogContent className="bg-[#1a1a1a] border-gray-800 text-white">
+                    <AlertDialogHeader>
+                        <AlertDialogTitle className="text-xl font-semibold text-white">
+                            Delete Vehicle
+                        </AlertDialogTitle>
+                        <AlertDialogDescription className="text-gray-400">
+                            {carPendingDelete
+                                ? `Delete ${carPendingDelete.make} (${carPendingDelete.registrationNumber}) from the fleet? This action cannot be undone.`
+                                : "Delete this vehicle? This action cannot be undone."}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel
+                            disabled={isDeletingCar}
+                            onClick={() => setCarPendingDelete(null)}
+                            className="bg-gray-800 text-white border-gray-700 hover:bg-gray-700"
+                        >
+                            Keep Vehicle
+                        </AlertDialogCancel>
+                        <AlertDialogAction
+                            disabled={isDeletingCar}
+                            onClick={() => {
+                                void handleDeleteCar();
+                            }}
+                            className="bg-red-600 text-white hover:bg-red-700 disabled:opacity-60"
+                        >
+                            {isDeletingCar ? "Deleting..." : "Delete Vehicle"}
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </>
     );
 }
