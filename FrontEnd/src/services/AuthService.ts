@@ -68,12 +68,23 @@ const normalizeToken = (token: string | null): string | null => {
         return null;
     }
 
-    const trimmedToken = token.trim();
-    if (!trimmedToken || trimmedToken === "undefined" || trimmedToken === "null") {
+    let normalized = token.trim();
+    if (
+        (normalized.startsWith("\"") && normalized.endsWith("\""))
+        || (normalized.startsWith("'") && normalized.endsWith("'"))
+    ) {
+        normalized = normalized.slice(1, -1).trim();
+    }
+
+    if (/^bearer\s+/i.test(normalized)) {
+        normalized = normalized.replace(/^bearer\s+/i, "").trim();
+    }
+
+    if (!normalized || normalized === "undefined" || normalized === "null") {
         return null;
     }
 
-    return trimmedToken;
+    return normalized;
 };
 
 /**
@@ -114,8 +125,13 @@ const getToken = (): string | null => {
     const storedToken = normalizeToken(localStorage.getItem(TOKEN_KEY));
 
     if (!storedToken) {
-        // Ensure stale/invalid token values do not keep the app in a false-authenticated state.
+        // Ensure stale/invalid auth values do not keep the app in a false-authenticated state.
         localStorage.removeItem(TOKEN_KEY);
+        const hadUser = localStorage.getItem(USER_KEY) !== null;
+        localStorage.removeItem(USER_KEY);
+        if (hadUser) {
+            emitAuthChanged();
+        }
     }
 
     return storedToken;

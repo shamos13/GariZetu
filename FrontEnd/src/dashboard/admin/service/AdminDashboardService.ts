@@ -5,6 +5,7 @@ import {
     type BookingStats,
     type BookingStatus
 } from "../../../services/BookingService.ts";
+import axios from "axios";
 import { getHttpStatus } from "../../../lib/errorUtils.ts";
 
 /**
@@ -154,9 +155,39 @@ const fetchBookingStats = async (): Promise<BookingStats> => {
     return bookingService.getAdminStats();
 };
 
+const isPublicCarsReadRequestError = (error: unknown): boolean => {
+    if (!axios.isAxiosError(error)) {
+        return false;
+    }
+
+    const method = (error.config?.method ?? "GET").toUpperCase();
+    if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
+        return false;
+    }
+
+    const requestUrl = error.config?.url ?? "";
+    try {
+        const path = new URL(requestUrl, "http://localhost").pathname;
+        return path.startsWith("/api/v1/cars/")
+            || path.startsWith("/cars/");
+    } catch {
+        return requestUrl.startsWith("/api/v1/cars/")
+            || requestUrl.startsWith("/cars/");
+    }
+};
+
 const isAuthorizationFailure = (error: unknown): boolean => {
     const status = getHttpStatus(error);
-    return status === 401 || status === 403;
+    if (status !== 401 && status !== 403) {
+        return false;
+    }
+
+    // Car reads are public; treat their auth-like failures as backend/data issues, not session expiry.
+    if (isPublicCarsReadRequestError(error)) {
+        return false;
+    }
+
+    return true;
 };
 
 /**

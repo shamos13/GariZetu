@@ -17,6 +17,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -39,6 +40,7 @@ public class CarController {
 
 
     @PostMapping(value="/admin/create-car", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CarResponseDTO> createCar(
             @Valid @ModelAttribute CarCreateRequest carCreateRequest) {
         log.info("Admin creating a new car with image upload");
@@ -123,6 +125,7 @@ public class CarController {
 
     // Updating car in patches (partial update of selected fields)
     @PatchMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CarResponseDTO> updateCar(@PathVariable Long id, @RequestBody CarUpdateDTO updateDTO) {
         CarResponseDTO updatedCar = carService.updateStatus(id, updateDTO);
         return ResponseEntity.ok(updatedCar);
@@ -130,6 +133,7 @@ public class CarController {
 
     // Update only the car image/photo
     @PatchMapping(value = "/{id}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CarResponseDTO> updateCarImage(
             @PathVariable Long id,
             @RequestParam("image") MultipartFile image
@@ -140,6 +144,7 @@ public class CarController {
 
     // Replace car gallery images
     @PatchMapping(value = "/{id}/gallery", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<CarResponseDTO> updateCarGallery(
             @PathVariable Long id,
             @RequestParam(value = "images", required = false) List<MultipartFile> images,
@@ -149,6 +154,7 @@ public class CarController {
         return ResponseEntity.ok(updatedCar);
     }
     @DeleteMapping({"/{id}"})
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteCarById(@PathVariable("id") Long carId) {
         carService.deleteCar(carId);
         return ResponseEntity.noContent().build();

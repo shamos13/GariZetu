@@ -7,6 +7,7 @@ import com.amos.garizetu.Car.Entity.Car;
 import com.amos.garizetu.Car.Enums.FeaturedCategory;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -57,7 +58,12 @@ public class CarMapper {
         carResponseDTO.setDailyPrice(car.getDailyPrice());
         carResponseDTO.setSeatingCapacity(car.getSeatingCapacity());
         carResponseDTO.setMainImageUrl(car.getMainImageUrl());
-        carResponseDTO.setGalleryImageUrls(car.getGalleryImageUrls());
+        // Detach collection-backed proxies so JSON serialization does not lazy-load outside session.
+        carResponseDTO.setGalleryImageUrls(
+                car.getGalleryImageUrls() == null
+                        ? List.of()
+                        : new ArrayList<>(car.getGalleryImageUrls())
+        );
         carResponseDTO.setDescription(car.getDescription());
         carResponseDTO.setCarStatus(car.getCarStatus());
         carResponseDTO.setTransmissionType(car.getTransmissionType());

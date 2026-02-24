@@ -39,24 +39,57 @@ export const carService = {
         try {
             pendingCarsRequest = (async () => {
                 const pageSize = 50;
-                let page = 0;
-                let totalPages = 1;
-                const allCars: BackendCar[] = [];
+                const fetchFromPagedEndpoint = async (endpoint: string): Promise<BackendCar[]> => {
+                    let page = 0;
+                    let totalPages = 1;
+                    const cars: BackendCar[] = [];
 
-                while (page < totalPages) {
-                    const res = await api.get<SpringPage<BackendCar>>("/cars/getcars/paged", {
-                        params: { page, size: pageSize },
-                    });
-                    allCars.push(...res.data.content);
-                    totalPages = Math.max(1, res.data.totalPages);
-                    page += 1;
+                    while (page < totalPages) {
+                        const res = await api.get<SpringPage<BackendCar>>(endpoint, {
+                            params: { page, size: pageSize },
+                        });
+                        cars.push(...res.data.content);
+                        totalPages = Math.max(1, res.data.totalPages);
+                        page += 1;
+                    }
+
+                    return cars;
+                };
+
+                let allCars: BackendCar[] | null = null;
+
+                const pagedEndpoints = ["/cars/getcars/paged", "/cars/paged"];
+                for (const endpoint of pagedEndpoints) {
+                    try {
+                        allCars = await fetchFromPagedEndpoint(endpoint);
+                        break;
+                    } catch (error) {
+                        console.warn(`Paged cars endpoint failed (${endpoint})`, error);
+                    }
+                }
+
+                if (!allCars) {
+                    const listEndpoints = ["/cars/getcars", "/cars"];
+                    for (const endpoint of listEndpoints) {
+                        try {
+                            const response = await api.get<BackendCar[]>(endpoint);
+                            allCars = response.data;
+                            break;
+                        } catch (error) {
+                            console.warn(`Cars list endpoint failed (${endpoint})`, error);
+                        }
+                    }
+                }
+
+                if (!allCars) {
+                    throw new Error("All car listing endpoints failed.");
                 }
 
                 const transformed = transformBackendCarsToCustomer(allCars);
-                    carsCache = transformed;
-                    carsCacheTimestamp = Date.now();
-                    return transformed;
-                })()
+                carsCache = transformed;
+                carsCacheTimestamp = Date.now();
+                return transformed;
+            })()
                 .finally(() => {
                     pendingCarsRequest = null;
                 });
