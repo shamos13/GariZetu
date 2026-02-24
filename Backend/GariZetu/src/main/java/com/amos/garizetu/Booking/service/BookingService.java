@@ -123,7 +123,6 @@ public class BookingService {
     // ========== RETRIEVE BOOKINGS ==========
 
     public List<BookingResponseDTO> getAllBookings() {
-        expirePendingPaymentBookings();
         log.info("Fetching all bookings");
         return mapToDTOList(bookingRepository.findAllByOrderByCreatedAtDesc());
     }
@@ -133,20 +132,17 @@ public class BookingService {
     }
 
     public List<BookingResponseDTO> getCustomerBookings() {
-        expirePendingPaymentBookings();
         Long userId = securityUtils.getAuthenticatedUserId();
         log.debug("Fetching bookings for user {}", userId);
         return mapToDTOList(bookingRepository.findByUserUserIdOrderByCreatedAtDesc(userId));
     }
 
     public List<BookingResponseDTO> getCarBookings(Long carId) {
-        expirePendingPaymentBookings();
         log.debug("Fetching bookings for car {}", carId);
         return mapToDTOList(bookingRepository.findByCarCarId(carId));
     }
 
     public BookingResponseDTO getBookingById(Long bookingId) {
-        expirePendingPaymentBookings();
         log.debug("Fetching booking {}", bookingId);
         Booking booking = findBookingOrThrow(bookingId);
         validateBookingIntegrity(booking, "view booking");
@@ -155,13 +151,11 @@ public class BookingService {
     }
 
     public List<BookingResponseDTO> getBookingsByStatus(BookingStatus status) {
-        expirePendingPaymentBookings();
         log.debug("Fetching bookings with status: {}", status);
         return mapToDTOList(bookingRepository.findByBookingStatusOrderByCreatedAtDesc(status));
     }
 
     public List<BookingResponseDTO> getAdminNotifications(boolean includeRead) {
-        expirePendingPaymentBookings();
         List<Booking> notifications = includeRead
                 ? bookingRepository.findAllAdminNotifications()
                 : bookingRepository.findUnreadAdminNotifications();
@@ -551,7 +545,6 @@ public class BookingService {
     // ========== STATISTICS ==========
 
     public BookingStatsDTO getBookingStats() {
-        expirePendingPaymentBookings();
         log.info("Calculating booking statistics");
 
         long pendingCount = bookingRepository.countByBookingStatus(BookingStatus.PENDING_PAYMENT)
@@ -565,7 +558,7 @@ public class BookingService {
         long rejectedCount = bookingRepository.countByBookingStatus(BookingStatus.REJECTED); // Legacy
         long totalCount = bookingRepository.count();
 
-        long overdueCount = bookingRepository.findOverdueBookings(LocalDate.now()).size();
+        long overdueCount = bookingRepository.countOverdueBookings(LocalDate.now());
 
         return new BookingStatsDTO(
                 totalCount,

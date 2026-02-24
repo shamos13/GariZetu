@@ -15,6 +15,8 @@ public interface CarRepository extends JpaRepository<Car, Long> {
     //Check if registration number exists
     boolean existsByRegistrationNumber(String registrationNumber);
 
+    boolean existsByMainImageUrlAndCarIdNot(String mainImageUrl, Long carId);
+
     // Get cars by brand(make)
     List<Car> findCarByMakeIgnoreCase(String make);
 
@@ -32,4 +34,13 @@ public interface CarRepository extends JpaRepository<Car, Long> {
     @EntityGraph(attributePaths = {"features"})
     @Query("SELECT c FROM Car c WHERE LOWER(c.make) = LOWER(:make)")
     List<Car> findCarByMakeIgnoreCaseWithFeatures(@Param("make") String make);
+
+    @Query(value = "SELECT EXISTS (" +
+            "SELECT 1 FROM car_gallery_images cgi " +
+            "WHERE cgi.image_url = :imageUrl " +
+            "AND cgi.car_id <> :currentCarId)", nativeQuery = true)
+    boolean existsGalleryImageReference(
+            @Param("imageUrl") String imageUrl,
+            @Param("currentCarId") Long currentCarId
+    );
 }
