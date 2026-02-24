@@ -22,6 +22,8 @@ import com.amos.garizetu.util.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -122,26 +124,31 @@ public class BookingService {
 
     // ========== RETRIEVE BOOKINGS ==========
 
+    @Transactional(readOnly = true)
     public List<BookingResponseDTO> getAllBookings() {
         log.info("Fetching all bookings");
-        return mapToDTOList(bookingRepository.findAllByOrderByCreatedAtDesc());
+        return getAllBookingsPage(null, Pageable.unpaged()).getContent();
     }
 
+    @Transactional(readOnly = true)
     public List<BookingResponseDTO> getAllBookings(BookingStatus status) {
-        return status != null ? getBookingsByStatus(status) : getAllBookings();
+        return getAllBookingsPage(status, Pageable.unpaged()).getContent();
     }
 
+    @Transactional(readOnly = true)
     public List<BookingResponseDTO> getCustomerBookings() {
         Long userId = securityUtils.getAuthenticatedUserId();
         log.debug("Fetching bookings for user {}", userId);
-        return mapToDTOList(bookingRepository.findByUserUserIdOrderByCreatedAtDesc(userId));
+        return getCustomerBookingsPage(userId, Pageable.unpaged()).getContent();
     }
 
+    @Transactional(readOnly = true)
     public List<BookingResponseDTO> getCarBookings(Long carId) {
         log.debug("Fetching bookings for car {}", carId);
-        return mapToDTOList(bookingRepository.findByCarCarId(carId));
+        return getCarBookingsPage(carId, Pageable.unpaged()).getContent();
     }
 
+    @Transactional(readOnly = true)
     public BookingResponseDTO getBookingById(Long bookingId) {
         log.debug("Fetching booking {}", bookingId);
         Booking booking = findBookingOrThrow(bookingId);
@@ -150,16 +157,51 @@ public class BookingService {
         return bookingMapper.toResponseDTO(booking);
     }
 
+    @Transactional(readOnly = true)
     public List<BookingResponseDTO> getBookingsByStatus(BookingStatus status) {
         log.debug("Fetching bookings with status: {}", status);
-        return mapToDTOList(bookingRepository.findByBookingStatusOrderByCreatedAtDesc(status));
+        return getAllBookingsPage(status, Pageable.unpaged()).getContent();
     }
 
+    @Transactional(readOnly = true)
     public List<BookingResponseDTO> getAdminNotifications(boolean includeRead) {
-        List<Booking> notifications = includeRead
-                ? bookingRepository.findAllAdminNotifications()
-                : bookingRepository.findUnreadAdminNotifications();
-        return mapToDTOList(notifications);
+        return getAdminNotificationsPage(includeRead, Pageable.unpaged()).getContent();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<BookingResponseDTO> getAllBookingsPage(BookingStatus status, Pageable pageable) {
+        Page<Booking> bookingsPage = status == null
+                ? bookingRepository.findAllByOrderByCreatedAtDesc(pageable)
+                : bookingRepository.findByBookingStatusOrderByCreatedAtDesc(status, pageable);
+        return bookingsPage.map(bookingMapper::toResponseDTO);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<BookingResponseDTO> getCustomerBookingsPage(Long userId, Pageable pageable) {
+        return bookingRepository.findByUserUserIdOrderByCreatedAtDesc(userId, pageable)
+                .map(bookingMapper::toResponseDTO);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<BookingResponseDTO> getCarBookingsPage(Long carId, Pageable pageable) {
+        return bookingRepository.findByCarCarIdOrderByCreatedAtDesc(carId, pageable)
+                .map(bookingMapper::toResponseDTO);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<BookingResponseDTO> getAdminNotificationsPage(boolean includeRead, Pageable pageable) {
+        if (pageable.isUnpaged()) {
+            List<Booking> notifications = includeRead
+                    ? bookingRepository.findAllAdminNotifications()
+                    : bookingRepository.findUnreadAdminNotifications();
+            return new org.springframework.data.domain.PageImpl<>(
+                    notifications.stream().map(bookingMapper::toResponseDTO).toList()
+            );
+        }
+        Page<Booking> notificationsPage = includeRead
+                ? bookingRepository.findAllAdminNotifications(pageable)
+                : bookingRepository.findUnreadAdminNotifications(pageable);
+        return notificationsPage.map(bookingMapper::toResponseDTO);
     }
 
     public BookingResponseDTO markAdminNotificationAsRead(Long bookingId) {
@@ -530,20 +572,16 @@ public class BookingService {
 
     public int expirePendingPaymentBookings() {
         LocalDateTime now = LocalDateTime.now();
-        List<Booking> expiredBookings = bookingRepository.findExpiredPendingPaymentBookings(now);
-
-        if (expiredBookings.isEmpty()) {
-            return 0;
+        int expiredCount = bookingRepository.expirePendingPaymentBookings(now);
+        if (expiredCount > 0) {
+            log.info("Expired {} pending-payment booking(s)", expiredCount);
         }
-
-        expiredBookings.forEach(booking -> expireBooking(booking, now, "Payment window elapsed"));
-        bookingRepository.saveAll(expiredBookings);
-        log.info("Expired {} pending-payment booking(s)", expiredBookings.size());
-        return expiredBookings.size();
+        return expiredCount;
     }
 
     // ========== STATISTICS ==========
 
+    @Transactional(readOnly = true)
     public BookingStatsDTO getBookingStats() {
         log.info("Calculating booking statistics");
 

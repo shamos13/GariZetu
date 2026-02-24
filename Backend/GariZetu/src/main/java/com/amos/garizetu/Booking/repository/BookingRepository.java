@@ -2,6 +2,8 @@ package com.amos.garizetu.Booking.repository;
 
 import com.amos.garizetu.Booking.Entity.Booking;
 import com.amos.garizetu.Booking.Enums.BookingStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -32,9 +34,18 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             "ORDER BY b.adminNotifiedAt DESC")
     List<Booking> findUnreadAdminNotifications();
 
+    @Query("SELECT b FROM Booking b WHERE COALESCE(b.adminNotificationRead, false) = false " +
+            "AND b.adminNotifiedAt IS NOT NULL " +
+            "ORDER BY b.adminNotifiedAt DESC")
+    Page<Booking> findUnreadAdminNotifications(Pageable pageable);
+
     @Query("SELECT b FROM Booking b WHERE b.adminNotifiedAt IS NOT NULL " +
             "ORDER BY b.adminNotifiedAt DESC")
     List<Booking> findAllAdminNotifications();
+
+    @Query("SELECT b FROM Booking b WHERE b.adminNotifiedAt IS NOT NULL " +
+            "ORDER BY b.adminNotifiedAt DESC")
+    Page<Booking> findAllAdminNotifications(Pageable pageable);
 
     List<Booking> findByUserUserIdAndBookingStatus(Long userId, BookingStatus status);
 
@@ -48,7 +59,10 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     @Query("SELECT b FROM Booking b WHERE b.car.carId IN :carIds " +
             "AND (" +
+            "(" +
             "b.bookingStatus IN ('CONFIRMED', 'ACTIVE', 'ADMIN_NOTIFIED') " +
+            "AND (b.returnDate IS NULL OR b.returnDate >= :today)" +
+            ") " +
             "OR (" +
             "b.bookingStatus IN ('PENDING_PAYMENT', 'PENDING') " +
             "AND b.paymentStatus IN ('UNPAID', 'FAILED') " +
@@ -58,6 +72,7 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             ")")
     List<Booking> findBlockingBookingsForCars(
             @Param("carIds") Collection<Long> carIds,
+            @Param("today") LocalDate today,
             @Param("asOf") LocalDateTime asOf
     );
 
@@ -87,12 +102,16 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             @Param("asOf") LocalDateTime asOf
     );
 
-    @Query("SELECT b FROM Booking b WHERE " +
-            "b.bookingStatus IN ('PENDING_PAYMENT', 'PENDING') " +
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("UPDATE Booking b SET " +
+            "b.bookingStatus = 'EXPIRED', " +
+            "b.adminNotificationRead = true, " +
+            "b.updatedAt = :asOf " +
+            "WHERE b.bookingStatus IN ('PENDING_PAYMENT', 'PENDING') " +
             "AND b.paymentStatus IN ('UNPAID', 'FAILED') " +
             "AND b.paymentExpiresAt IS NOT NULL " +
             "AND b.paymentExpiresAt <= :asOf")
-    List<Booking> findExpiredPendingPaymentBookings(@Param("asOf") LocalDateTime asOf);
+    int expirePendingPaymentBookings(@Param("asOf") LocalDateTime asOf);
 
     // ========== TEMPORAL QUERIES ==========
 
@@ -164,6 +183,11 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     long countByUserUserId(Long userId);
 
     List<Booking> findAllByOrderByCreatedAtDesc();
+    Page<Booking> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
+    Page<Booking> findByBookingStatusOrderByCreatedAtDesc(BookingStatus bookingStatus, Pageable pageable);
+    Page<Booking> findByUserUserIdOrderByCreatedAtDesc(Long userId, Pageable pageable);
+    Page<Booking> findByCarCarIdOrderByCreatedAtDesc(Long carId, Pageable pageable);
 
     @Modifying
     @Query(value = "UPDATE bookings SET admin_notification_read = FALSE WHERE admin_notification_read IS NULL", nativeQuery = true)

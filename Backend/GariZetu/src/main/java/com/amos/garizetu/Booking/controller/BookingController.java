@@ -10,6 +10,10 @@ import com.amos.garizetu.Booking.service.BookingService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -149,6 +153,17 @@ public class BookingController {
         return ResponseEntity.ok(bookings);
     }
 
+    @GetMapping("/admin/all/paged")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Page<BookingResponseDTO>> getAllBookingsPaged(
+            @RequestParam(required = false) BookingStatus status,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        Pageable pageable = buildPageable(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return ResponseEntity.ok(bookingService.getAllBookingsPage(status, pageable));
+    }
+
     /**
      * Get bookings for a car
      * GET /api/v1/admin/bookings/car/:carId
@@ -159,6 +174,17 @@ public class BookingController {
         log.info("Admin fetching bookings for car {}", carId);
         List<BookingResponseDTO> bookings = bookingService.getCarBookings(carId);
         return ResponseEntity.ok(bookings);
+    }
+
+    @GetMapping("/admin/car/{carId}/paged")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Page<BookingResponseDTO>> getCarBookingsPaged(
+            @PathVariable Long carId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        Pageable pageable = buildPageable(page, size, Sort.by(Sort.Direction.DESC, "createdAt"));
+        return ResponseEntity.ok(bookingService.getCarBookingsPage(carId, pageable));
     }
 
     /**
@@ -188,6 +214,17 @@ public class BookingController {
         return ResponseEntity.ok(notifications);
     }
 
+    @GetMapping("/admin/notifications/paged")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Page<BookingResponseDTO>> getAdminNotificationsPaged(
+            @RequestParam(defaultValue = "false") boolean includeRead,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size
+    ) {
+        Pageable pageable = buildPageable(page, size, Sort.by(Sort.Direction.DESC, "adminNotifiedAt"));
+        return ResponseEntity.ok(bookingService.getAdminNotificationsPage(includeRead, pageable));
+    }
+
     /**
      * Mark one booking notification as read
      * PATCH /api/v1/bookings/admin/notifications/:id/read
@@ -198,6 +235,12 @@ public class BookingController {
         log.info("Admin marking notification as read for booking {}", id);
         BookingResponseDTO booking = bookingService.markAdminNotificationAsRead(id);
         return ResponseEntity.ok(booking);
+    }
+
+    private Pageable buildPageable(int page, int size, Sort sort) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.min(100, Math.max(1, size));
+        return PageRequest.of(safePage, safeSize, sort);
     }
 
 }
